@@ -16,6 +16,7 @@
 #include "enqueue.h"
 #include "graph.h"
 #include "argcheck.h"
+#include "tuning.h"
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
@@ -235,6 +236,11 @@ static ncclResult_t commFree(ncclComm_t comm) {
 
   free(comm->topParentRanks);
   free(comm->topParentLocalRanks);
+
+  if (comm->performanceTuner != NULL) {
+    NCCLCHECK(comm->performanceTuner->destroy());
+    NCCLCHECK(ncclClosePerformanceTuner(&comm->performanceTuner));
+  }
 
   commPoison(comm); // poison comm before free to avoid comm reuse.
   free(comm);
@@ -1356,6 +1362,14 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   INFO(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx - Init START", comm, comm->rank, comm->nRanks, comm->cudaDev, comm->nvmlDev, comm->busId, (unsigned long long)hashUniqueId(job->commId));
 
   NCCLCHECKGOTO(initTransportsRank(comm, job->parent), res, fail);
+
+  if (ncclLoadPerformanceTuner(&comm->performanceTuner) == ncclSuccess) {
+    auto init = comm->performanceTuner->init(comm->nRanks, comm->nNodes, ncclDebugLog);
+    if (init != ncclSuccess) {
+      INFO(NCCL_INIT, "Failed to init performance tuner: '%s'", comm->performanceTuner->name);
+      comm->performanceTuner = NULL;
+    }
+  }
 
   // update communicator state
   comm->initState = ncclSuccess;

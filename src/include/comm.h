@@ -12,6 +12,7 @@
 #include "collectives.h"
 #include "proxy.h"
 #include "strongstream.h"
+#include "tuning.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -344,6 +345,9 @@ struct ncclComm {
   bool finalizeCalled;
   // shared structures for finalization
   int finalizeRankCnt;
+
+  // performance tuning plugin
+  ncclPerformanceTuner_t* performanceTuner;
 };
 
 enum ncclLaunchMode {
