@@ -157,4 +157,12 @@
   } \
 } while(0)
 
+#define NCCLARGCHECK(statement, ...) \
+  do {                               \
+    if (!(statement)) {              \
+      WARN(__VA_ARGS__);             \
+      return ncclInvalidArgument;    \
+    }                                \
+  } while (0);
+
 #endif

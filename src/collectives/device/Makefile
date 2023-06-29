@@ -12,6 +12,7 @@ OBJDIR := $(BUILDDIR)/obj/collectives/device
 
 LIBSRCFILES := all_reduce.cu broadcast.cu reduce.cu all_gather.cu reduce_scatter.cu sendrecv.cu onerank_reduce.cu
 LIBSRCFILES += all_reduce_threaded.cu
+LIBSRCFILES += all_reduce_sparse_block.cu
 
 LIBSRCFILES += functions.cu
 
@@ -39,6 +40,7 @@ $(RULESFILE) : gen_rules.sh
 
 LIBOBJ     := $(GENOBJS) $(OBJDIR)/functions.o $(OBJDIR)/onerank_reduce.o
 LIBOBJ     += $(OBJDIR)/all_reduce_threaded.o
+LIBOBJ     += $(OBJDIR)/all_reduce_sparse_block.o
 
 -include $(DEPFILES)
 
@@ -69,6 +71,11 @@ $(OBJDIR)/onerank_reduce.o : onerank_reduce.cu $(OBJDIR)/onerank_reduce.dep
 	@printf "Compiling  %-35s > %s\n" $< $@
 	mkdir -p `dirname $@`
 	$(NVCC) $(NVCUFLAGS) -dc $< -o $@
+
+$(OBJDIR)/all_reduce_sparse_block.o : all_reduce_sparse_block.cu $(OBJDIR)/all_reduce_sparse_block.dep
+       @printf "Compiling  %-35s > %s\n" $< $@
+       mkdir -p `dirname $@`
+       $(NVCC) $(NVCUFLAGS) -dc $< -o $@
 
 # ... and create the device-side linked object with all those.
 $(DEVOBJ) : $(LIBOBJ)

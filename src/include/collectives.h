@@ -37,6 +37,13 @@ template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_Threaded_HCM_Tree(uintptr_t *cliqueBarrierMbox, uintptr_t *localMbox,
                                                        uintptr_t *peerMbox, uintptr_t barrierFlag, int cliqueRank,
                                                        const T *sendbuff, T *tmpbuff, T *recvbuff, size_t count);
+template <typename T>
+extern __global__ void ncclKernel_AllReduceSparseBlock_Unpack(
+    T* unpackBuf,
+    const T* packBuf,
+    const size_t blockCount,
+    const int64_t* unpackIndices,
+    const size_t blockLength);
 
 #define FUNC_INDEX_P2P 0
 #define FUNC_INDEX(func, devredop, ncclType, al, pr) (1+ncclNumTypes+(((((func)*ncclNumDevRedOps + (devredop))*ncclNumTypes) + (ncclType))*NCCL_NUM_ALGORITHMS+(al))*NCCL_NUM_PROTOCOLS+(pr))
