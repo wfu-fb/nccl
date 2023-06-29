@@ -13,6 +13,7 @@
 #include "proxy.h"
 #include "strongstream.h"
 #include "tuning.h"
+#include "comm_threaded.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -348,6 +349,19 @@ struct ncclComm {
 
   // performance tuning plugin
   ncclPerformanceTuner_t* performanceTuner;
+
+  struct {
+    // metadata for threaded ranks
+    threadedRanksMd *md;
+    // flag indicating that each rank has arrived at the barrier
+    uintptr_t barrierFlag;
+    // barrier mailbox ID to use
+    int barrierMboxId;
+    // local mailbox ID to use
+    int localMboxId;
+    // device properties
+    cudaDeviceProp devProp;
+  } threadedRanks;
 };
 
 enum ncclLaunchMode {

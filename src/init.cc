@@ -1371,6 +1371,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
     }
   }
 
+  NCCLCHECKGOTO(allocThreadedRanksMd(comm, job->commId), res, fail);
+
   // update communicator state
   comm->initState = ncclSuccess;
 
@@ -1753,6 +1755,8 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   int savedDevice;
   int commDevice = comm->cudaDev;
   ncclResult_t ret = ncclSuccess;
+
+  NCCLCHECKGOTO(freeThreadedRanksMd(comm->threadedRanks.md, comm->rank), ret, fail);
 
   CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
   if (savedDevice != commDevice) {
