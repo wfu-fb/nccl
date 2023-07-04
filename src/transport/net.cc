@@ -13,6 +13,7 @@
 #include "shm.h"
 #include "p2p.h"
 #include "profiler.h"
+#include "ntrace_profiler.h"
 
 static_assert(sizeof(ncclNetHandle_t) <= CONNECT_SIZE, "NET Connect info is too large");
 
@@ -987,6 +988,9 @@ static ncclResult_t sendProxyProgress(struct ncclProxyState* proxyState, struct 
           }
           if (ready) {
             // Data is ready, try to send.
+#ifdef ENABLE_NTRACE
+            ntraceLogPeerRanks(resources->localRank, resources->remoteRank);
+#endif
             NCCLCHECK(proxyState->ncclNet->isend(resources->netSendComm, buff, size, resources->tpRank, mhandle, sub->requests+buffSlot));
             if (sub->requests[buffSlot] != NULL) {
               TRACE(NCCL_NET, "sendProxy [%ld/%d] Isend posted, req %p", sub->transmitted, buffSlot, sub->requests[buffSlot]);
@@ -1109,6 +1113,9 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
         uint64_t step = subGroup->posted;
         struct recvResources* resources = (struct recvResources*) (subGroup->connection->transportResources);
         void** requestPtr = subGroup->requests+(step%NCCL_STEPS);
+#ifdef ENABLE_NTRACE
+        ntraceLogPeerRanks(resources->localRank, resources->remoteRank);
+#endif
         NCCLCHECK(proxyState->ncclNet->irecv(resources->netRecvComm, subCount, ptrs, sizes, tags, mhandles, requestPtr));
         if (*requestPtr) {
           for (int i=0; i<subGroup->groupSize; i++) {
@@ -1172,6 +1179,9 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
                 }
               }
               struct recvResources* resources = (struct recvResources*) (subGroup->connection->transportResources);
+#ifdef ENABLE_NTRACE
+              ntraceLogPeerRanks(resources->localRank, resources->remoteRank);
+#endif
               NCCLCHECK(proxyState->ncclNet->iflush(resources->netRecvComm, subCount, ptrs, sizes, mhandles, subGroup->requests+(step%NCCL_STEPS)));
             }
           }
