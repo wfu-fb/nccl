@@ -31,7 +31,7 @@ NCCL_PARAM(ThreadedAllreduceLargeMessageHCM, "THREADED_ALLREDUCE_LARGE_MESSAGE_H
             break;                              \
                                                 \
         default:                                \
-            return ncclNumResults;              \
+            return ncclInvalidUsage;            \
         }                                       \
     } while (0)
 
@@ -66,10 +66,10 @@ static ncclResult_t launchKernel(ncclComm *comm, const void *sendbuff, void *rec
         } else if (ncclParamThreadedAllreduceLargeMessageHCM()) {
             ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_HCM_Tree, comm->nRanks);
         } else {
-            return ncclNumResults;
+            return ncclInvalidUsage;
         }
     } else {
-        return ncclNumResults;
+        return ncclInvalidUsage;
     }
 
     cudaFuncAttributes attr;
@@ -85,23 +85,23 @@ static ncclResult_t launchKernel(ncclComm *comm, const void *sendbuff, void *rec
     if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__NVS) {
         if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdNVS()) {
             if (count % eltsPerThread) {
-                return ncclNumResults;
+                return ncclInvalidUsage;
             }
             if (sendbuff == recvbuff) {
                 if (count * sizeof(T) > ncclParamThreadedAllreduceMaxTmpbufSize()) {
-                    return ncclNumResults;
+                    return ncclInvalidUsage;
                 }
             }
         } else {
             if ((count % (comm->nRanks * eltsPerThread)) ||
                 (count * sizeof(T) / comm->nRanks > ncclParamThreadedAllreduceMaxTmpbufSize())) {
-                return ncclNumResults;
+                return ncclInvalidUsage;
             }
         }
     } else {
         if ((count % eltsPerThread) ||
             (count * sizeof(T) > ncclParamThreadedAllreduceMaxTmpbufSize())) {
-            return ncclNumResults;
+            return ncclInvalidUsage;
         }
     }
 
@@ -334,5 +334,5 @@ ncclResult_t ncclAllReduceThreaded(const void* sendbuff, void* recvbuff, size_t 
     return ncclSuccess;
 
 not_supported:
-    return ncclNumResults;
+    return ncclInvalidUsage;
 }

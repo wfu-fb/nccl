@@ -17,13 +17,9 @@ ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
   char *allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
   int allreduceAlgo = (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "threaded")) ?
       NCCL_ALLREDUCE_ALGO__THREADED : NCCL_ALLREDUCE_ALGO__ORIG;
-  ncclResult_t res;
 
   if (allreduceAlgo == NCCL_ALLREDUCE_ALGO__THREADED) {
-    res = ncclAllReduceThreaded(sendbuff, recvbuff, count, datatype, op, comm, stream);
-    if (res != ncclNumResults) {
-      return res;
-    }
+    return ncclAllReduceThreaded(sendbuff, recvbuff, count, datatype, op, comm, stream);
   }
 
   struct NvtxParamsAllReduce {
