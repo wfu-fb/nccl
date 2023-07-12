@@ -10,16 +10,26 @@
 #define NCCL_ALLREDUCE_ALGO__ORIG       (0)
 #define NCCL_ALLREDUCE_ALGO__THREADED   (1)
 
+// if non-zero, enforce new algorithm w/o falling back to original implementation
+NCCL_PARAM(AllreduceAlgoEnforce, "ALLREDUCE_ALGO_ENFORCE", 0);
+
 NCCL_API(ncclResult_t, ncclAllReduce, const void* sendbuff, void* recvbuff, size_t count,
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream);
 ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream) {
-  char *allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
-  int allreduceAlgo = (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "threaded")) ?
+  // read allreduceAlgo and allreduceAlgoEnforce
+  const char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
+  const int allreduceAlgo = (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "threaded")) ?
       NCCL_ALLREDUCE_ALGO__THREADED : NCCL_ALLREDUCE_ALGO__ORIG;
 
+  const bool allReduceAlgoEnforce = ncclParamAllreduceAlgoEnforce() != 0;
+
   if (allreduceAlgo == NCCL_ALLREDUCE_ALGO__THREADED) {
-    return ncclAllReduceThreaded(sendbuff, recvbuff, count, datatype, op, comm, stream);
+    auto ret = ncclAllReduceThreaded(sendbuff, recvbuff, count, datatype, op, comm, stream);
+    if (allReduceAlgoEnforce || (ret != ncclInvalidUsage)) {
+      // return immediately if enforced or result in non-ncclInvalidUsage error
+      return ret;
+    }
   }
 
   struct NvtxParamsAllReduce {
