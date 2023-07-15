@@ -992,7 +992,7 @@ static ncclResult_t sendProxyProgress(struct ncclProxyState* proxyState, struct 
 
             // Data is ready, try to send.
 #ifdef ENABLE_NTRACE
-            ntraceLogPeerRanks(resources->localRank, resources->remoteRank);
+            ntraceLogPeerRanks(resources->tpLocalRank, resources->tpRemoteRank);
 #endif
             NCCLCHECK(proxyState->ncclNet->isend(resources->netSendComm, buff, size, resources->tpRank, mhandle, sub->requests+buffSlot));
             if (sub->requests[buffSlot] != NULL) {
@@ -1118,7 +1118,7 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
         struct recvResources* resources = (struct recvResources*) (subGroup->connection->transportResources);
         void** requestPtr = subGroup->requests+(step%NCCL_STEPS);
 #ifdef ENABLE_NTRACE
-        ntraceLogPeerRanks(resources->localRank, resources->remoteRank);
+        ntraceLogPeerRanks(resources->tpLocalRank, resources->tpRemoteRank);
 #endif
         NCCLCHECK(proxyState->ncclNet->irecv(resources->netRecvComm, subCount, ptrs, sizes, tags, mhandles, requestPtr));
         if (*requestPtr) {
@@ -1185,7 +1185,7 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
               }
               struct recvResources* resources = (struct recvResources*) (subGroup->connection->transportResources);
 #ifdef ENABLE_NTRACE
-              ntraceLogPeerRanks(resources->localRank, resources->remoteRank);
+              ntraceLogPeerRanks(resources->tpLocalRank, resources->tpRemoteRank);
 #endif
               NCCLCHECK(proxyState->ncclNet->iflush(resources->netRecvComm, subCount, ptrs, sizes, mhandles, subGroup->requests+(step%NCCL_STEPS)));
             }
