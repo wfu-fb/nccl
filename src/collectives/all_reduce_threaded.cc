@@ -52,11 +52,31 @@ template <typename T>
 static ncclResult_t launchKernel(ncclComm *comm, const void *sendbuff, void *recvbuff, size_t count,
                                   cudaStream_t stream)
 {
+    bool enableIpc = comm->threadedRanks.md->enableIpc();
+    if (enableIpc) {
+        if (sizeof(T) * count > ncclParamThreadedAllreduceLocalBufSize()) {
+            // we don't support data size > 32 MB yet
+            // TODO: run multiple allreduce in batches to support larger data size
+            return ncclInvalidUsage;
+        }
+
+        CUDACHECK(
+        cudaMemcpyAsync(
+            comm->threadedRanks.md->localSendBuf,
+            sendbuff,
+            count * sizeof(T),
+            cudaMemcpyDefault,
+            stream));
+    }
     const void *func;
 
     if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__NVS) {
         if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdNVS()) {
-            ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Flat, comm->nRanks);
+            if (enableIpc) {
+                ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Flat_ipc, comm->nRanks);
+            } else {
+                ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Flat, comm->nRanks);
+            }
         } else {
             ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Tree, comm->nRanks);
         }
@@ -184,16 +204,29 @@ static ncclResult_t launchKernel(ncclComm *comm, const void *sendbuff, void *rec
         threadedRanksClique *clique = comm->threadedRanks.md->cliques.front();
 
         if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdNVS()) {
-            void *rbuf = (sendbuff == recvbuff) ? clique->rankToTmpbuf[comm->rank] : recvbuff;
+            // in IPC mode, source data always gets copied to localSendBuf first,
+            // which never overlaps with recvbuff
+            const bool useTmpBuf = (sendbuff == recvbuff) && (!enableIpc);
+            void *rbuf = useTmpBuf ? clique->rankToTmpbuf[comm->rank] : recvbuff;
 
-            void *args[] = {
-                &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
-                &comm->threadedRanks.barrierFlag, &comm->rank, &sendbuff, &rbuf, &count
-            };
+            if (enableIpc) {
+                void *args[] = {
+                    &comm->threadedRanks.md->barrierMbox[comm->threadedRanks.barrierMboxId],
+                    &comm->threadedRanks.barrierFlag, &comm->rank,
+                    &rbuf, &count, &comm->threadedRanks.md->allSendBufs
+                };
+                CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
+            } else {
+                void *args[] = {
+                    &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
+                    &comm->threadedRanks.barrierFlag, &comm->rank,
+                    &sendbuff, &rbuf, &count
+                };
 
-            CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
+                CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
+            }
 
-            if (sendbuff == recvbuff) {
+            if (useTmpBuf) {
                 CUDACHECK(cudaMemcpyAsync(recvbuff, clique->rankToTmpbuf[comm->rank],
                                           count * sizeof(T), cudaMemcpyDefault, stream));
             }
@@ -274,14 +307,19 @@ ncclResult_t ncclAllReduceThreaded(const void* sendbuff, void* recvbuff, size_t 
         numThreadedRanks += c->rankToGpu.size();
     }
 
-    if ((numThreadedRanks != comm->nRanks) ||  /* collective must only contain threaded ranks */
-        (numThreadedRanks & (numThreadedRanks - 1)) ||  /* power of two ranks */
-        (numThreadedRanks == 1) ||  /* more than one rank */
-        (numThreadedRanks > ncclParamMaxThreadedRanks()) ||  /* only small rank counts are supported */
-        (op != ncclSum) ||  /* only sum is supported */
-        ((uintptr_t) sendbuff % 16) ||  /* 16-byte alignment */
-        ((uintptr_t) recvbuff % 16)) {  /* 16-byte alignment */
-        goto not_supported;
+    const auto enableIpc = comm->threadedRanks.md->enableIpc();
+    if (!enableIpc) {
+        if ((numThreadedRanks != comm->nRanks) ||  /* collective must only contain threaded ranks */
+            (numThreadedRanks & (numThreadedRanks - 1)) ||  /* power of two ranks */
+            (numThreadedRanks == 1) ||  /* more than one rank */
+            (numThreadedRanks > ncclParamMaxThreadedRanks()) ||  /* only small rank counts are supported */
+            (op != ncclSum) ||  /* only sum is supported */
+            ((uintptr_t) sendbuff % 16) ||  /* 16-byte alignment */
+            ((uintptr_t) recvbuff % 16)) {  /* 16-byte alignment */
+            goto not_supported;
+        }
+    } else {
+        // TODO check ipc configs before launching kernel
     }
 
     switch (datatype) {

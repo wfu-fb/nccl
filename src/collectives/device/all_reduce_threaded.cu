@@ -235,6 +235,21 @@ static inline __device__ void allreduceFlat(uintptr_t *barrierMbox, uintptr_t ba
     }
 }
 
+template <typename T, uint32_t NRANKS>
+static inline __device__ void allreduceFlat_ipc(uintptr_t *barrierMbox, uintptr_t barrierFlag, int rank,
+                                            T *recvbuff, size_t count, const T **allSendBufs)
+{
+    const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
+
+    /* global barrier */
+    barrier<NRANKS>(barrierMbox, barrierFlag, rank);
+
+    // perform local reduce
+    for (size_t offset = gtidx * 16 / sizeof(T); offset < count; offset += gridDim.x * blockDim.x * 16 / sizeof(T)) {
+        reinterpret_cast<uint4 *>(&recvbuff[offset])[0] = vecAdd<T,NRANKS>(allSendBufs, offset);
+    }
+}
+
 /* Hierarchical algorithm for slightly larger (but still
  * latency-sensitive) messages.  In this algorithm, we avoid every
  * rank fetching all of the data from every other rank that the flat
@@ -324,6 +339,14 @@ __global__ void ncclKernel_AllReduce_Threaded_Flat(uintptr_t *barrierMbox,
                                                    const T *sendbuff, T *recvbuff, size_t count)
 {
     allreduceFlat<T,NRANKS>(barrierMbox, barrierFlag, rank, sendbuff, recvbuff, count);
+}
+
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_Threaded_Flat_ipc(uintptr_t *barrierMbox,
+                                                   uintptr_t barrierFlag, int rank,
+                                                   T *recvbuff, size_t count, const T **allSendBufs)
+{
+    allreduceFlat_ipc<T,NRANKS>(barrierMbox, barrierFlag, rank, recvbuff, count, allSendBufs);
 }
 
 template <typename T, uint32_t NRANKS>

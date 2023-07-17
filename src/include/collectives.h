@@ -27,6 +27,10 @@ __global__ void ncclKernel_AllReduce_Threaded_Flat(uintptr_t *barrierMbox,
                                                    uintptr_t barrierFlag, int rank,
                                                    const T *sendbuff, T *recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_Threaded_Flat_ipc(uintptr_t *barrierMbox,
+                                                   uintptr_t barrierFlag, int rank,
+                                                   T *recvbuff, size_t count, const T **allSendBufs);
+template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_Threaded_Tree(uintptr_t *barrierMbox, uintptr_t barrierFlag, int rank,
                                                    const T *sendbuff, T *tmpbuff, T *recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>

@@ -13,6 +13,7 @@
 NCCL_PARAM(ThreadedAllreduceMaxTmpbufSize, "THREADED_ALLREDUCE_MAX_TMPBUF_SIZE", 8 * 1024 * 1024);
 NCCL_PARAM(MaxThreadedRanks, "MAX_THREADED_RANKS", 16);
 NCCL_PARAM(ForceP2pAccess, "FORCE_P2P_ACCESS", 0);
+NCCL_PARAM(ThreadedAllreduceLocalBufSize, "THREADED_ALLREDUCE_LOCAL_BUF_SIZE", 32 * 1024 * 1024);
 
 static std::vector<threadedRanksMd *> threadedRanksMdList;
 static std::mutex threadedRanksMdListMutex;
@@ -233,11 +234,27 @@ topo_not_found:
  */
 ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId)
 {
+    // set enableIpc flag
+    char *allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
+    const bool enableIpc = (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "threaded_ipc"));
+
     threadedRanksMd *md;
     ncclResult_t ret = ncclSuccess;
     std::vector<std::vector<int>> gpuCliques;
 
     threadedRanksMdListMutex.lock();
+
+    // IPC states start
+    // TODO: variables should be declared close to their usage, but can't be
+    // done here due to NCCLCHECKGOTO, need a fix later
+    cudaIpcMemHandle_t localHdls[3];
+    void* handleSendBuf{nullptr};
+    void* handleRecvBuf{nullptr};
+    const size_t kHandleSize = sizeof(cudaIpcMemHandle_t);
+    const size_t kBarrierSize = 2 * comm->nRanks * comm->nRanks * sizeof(uintptr_t);
+    cudaStream_t stream;
+    cudaIpcMemHandle_t allHdls[comm->nRanks * 3];
+    // IPC states end
 
     NCCLCHECKGOTO(topoDetect(comm, gpuCliques), ret, exit);
 
@@ -251,7 +268,7 @@ ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId)
         }
     }
     if (md == nullptr) {
-        md = new threadedRanksMd(commId, gpuCliques);
+        md = new threadedRanksMd(commId, gpuCliques, enableIpc);
         threadedRanksMdList.push_back(md);
     }
 
@@ -265,6 +282,87 @@ ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId)
 
     md->refCount++;
 
+    if (md->enableIpc()) {
+        // allocate dev mem
+        CUDACHECK(cudaMalloc(&md->barrierMbox[0], kBarrierSize));
+        CUDACHECK(cudaMalloc(&md->barrierMbox[1], kBarrierSize));
+        CUDACHECK(cudaMalloc(&md->localSendBuf, ncclParamThreadedAllreduceLocalBufSize()));
+        CUDACHECK(cudaMalloc(&md->allSendBufs, comm->nRanks * sizeof(uintptr_t)));
+
+        // allocate host mem
+        md->allSendBufsHost = static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
+        md->nRanks = comm->nRanks;
+
+        // open local handles
+        CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], md->barrierMbox[0]));
+        CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], md->barrierMbox[1]));
+        CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuf));
+
+        // copy handles to local sendBuf
+        CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * 3));
+        CUDACHECK(cudaMalloc(&handleRecvBuf, kHandleSize * comm->nRanks * 3));
+        // are handles[3] array aligned? looks yes
+        CUDACHECK(cudaMemcpy(handleSendBuf, &localHdls, kHandleSize * 3, cudaMemcpyDefault));
+
+        // all gather local handles
+        cudaStreamCreate(&stream);
+        NCCLCHECK(ncclAllGather(
+                handleSendBuf,
+                handleRecvBuf,
+                kHandleSize * 3,
+                ncclUint8,
+                comm,
+                stream));
+        CUDACHECK(cudaStreamSynchronize(stream));
+
+        // deserialize all hanles
+        CUDACHECK(cudaMemcpy(
+                allHdls,
+                handleRecvBuf,
+                kHandleSize * comm->nRanks * 3,
+                cudaMemcpyDefault));
+
+        // all gather completed, free send/recv buf
+        CUDACHECK(cudaFree(handleSendBuf));
+        CUDACHECK(cudaFree(handleRecvBuf));
+
+        // update md->allSendBufs[nRanks]
+        for (size_t rankIdx = 0; rankIdx < comm->nRanks; ++rankIdx) {
+            const auto& barrierHdl0 = allHdls[rankIdx * 3];
+            const auto& barrierHdl1 = allHdls[rankIdx * 3 + 1];
+            const auto& sendBufHdl = allHdls[rankIdx * 3 + 2];
+            if (comm->rank == rankIdx) {
+                // local rank should point to local buf
+                md->allSendBufsHost[rankIdx] = md->localSendBuf;
+            } else {
+                // otherwise, open IPC handle
+                void* remoteBuf = nullptr;
+                CUDACHECK(cudaIpcOpenMemHandle(
+                    (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
+                md->allSendBufsHost[rankIdx] = remoteBuf;
+            }
+        }
+        CUDACHECK(
+            cudaMemcpy(
+                md->allSendBufs,
+                md->allSendBufsHost,
+                comm->nRanks * sizeof(uintptr_t),
+                cudaMemcpyDefault));
+
+        // update md->barrierMbox, all ranks should use rank0's barrier
+        // TODO should use lowest rank ID instead?
+        if (comm->rank != 0) {
+            void* remoteBuf = nullptr;
+            CUDACHECK(cudaIpcOpenMemHandle(
+                (void**)&remoteBuf, allHdls[0], cudaIpcMemLazyEnablePeerAccess));
+            md->barrierMbox[0] = reinterpret_cast<uintptr_t*>(remoteBuf);
+
+            remoteBuf = nullptr;
+            CUDACHECK(cudaIpcOpenMemHandle(
+                (void**)&remoteBuf, allHdls[1], cudaIpcMemLazyEnablePeerAccess));
+            md->barrierMbox[1] = reinterpret_cast<uintptr_t*>(remoteBuf);
+        }
+    }
 exit:
     threadedRanksMdListMutex.unlock();
     return ret;
@@ -282,6 +380,21 @@ ncclResult_t freeThreadedRanksMd(threadedRanksMd *md, int rank)
     md->refCount--;
 
     if (md->refCount == 0) {
+        if (md->enableIpc()) {
+            // close ipc handles
+            for (int i = 0; i < md->nRanks; ++i) {
+                if (i == rank) {
+                    continue;
+                }
+                CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allSendBufsHost[i]));
+            }
+            // free host/dev memories
+            CUDACHECKIGNORE(cudaFree(md->barrierMbox[0]));
+            CUDACHECKIGNORE(cudaFree(md->barrierMbox[1]));
+            CUDACHECKIGNORE(cudaFree(md->localSendBuf));
+            CUDACHECKIGNORE(cudaFree(md->allSendBufs));
+        }
+
         auto mdIdx = std::remove(threadedRanksMdList.begin(), threadedRanksMdList.end(), md);
         threadedRanksMdList.erase(mdIdx, threadedRanksMdList.end());
         delete md;

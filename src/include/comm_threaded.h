@@ -9,6 +9,7 @@
 
 int64_t ncclParamMaxThreadedRanks(void);
 int64_t ncclParamThreadedAllreduceMaxTmpbufSize(void);
+int64_t ncclParamThreadedAllreduceLocalBufSize(void);
 
 typedef enum {
     NCCL_THREADED_TOPO_TYPE__NVS,
@@ -100,7 +101,10 @@ public:
  * commId */
 class threadedRanksMd {
 public:
-    threadedRanksMd(ncclUniqueId commId, std::vector<std::vector<int>> gpuCliques) {
+    threadedRanksMd(
+        ncclUniqueId commId,
+        std::vector<std::vector<int>> gpuCliques, bool enableIpc = false)
+        : enableIpc_(enableIpc) {
         this->commId = commId;
 
         /* add topology information */
@@ -131,10 +135,35 @@ public:
         }
     }
 
+    bool enableIpc() const {
+        return enableIpc_;
+    }
+
     ncclUniqueId commId;
     ncclThreadedTopoType_t topoType;
     std::vector<threadedRanksClique *> cliques;
     int refCount;
+
+    // ipc states
+
+    // barrier mailboxes
+    uintptr_t* barrierMbox[2];
+
+    // local sendbuf that holds source data
+    void* localSendBuf{nullptr};
+
+    // all ranks' sendbuf addresses
+    void** allSendBufs{nullptr};
+
+    // all ranks' sendbuf host-addrs
+    void** allSendBufsHost{nullptr};
+
+    // total ranks, this will be set during IPC state init
+    int nRanks{0};
+
+private:
+    // enable IPC or not
+    const bool enableIpc_{false};
 };
 
 ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId);

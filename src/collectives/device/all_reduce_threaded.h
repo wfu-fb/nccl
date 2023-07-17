@@ -9,6 +9,10 @@
                                                                  uintptr_t barrierFlag, int rank, \
                                                                  const T *sendbuff, T *recvbuff, size_t count); \
     template                                                            \
+    __global__ void ncclKernel_AllReduce_Threaded_Flat_ipc<T,NRANKS>(uintptr_t *barrierMbox, \
+                                                                 uintptr_t barrierFlag, int rank, \
+                                                                 T *recvbuff, size_t count, const T **allSendBufs); \
+    template                                                            \
     __global__ void ncclKernel_AllReduce_Threaded_Tree<T,NRANKS>(uintptr_t *barrierMbox, uintptr_t barrierFlag, \
                                                                  int rank, const T *sendbuff, T *tmpbuff, T *recvbuff, \
                                                                  size_t count); \
