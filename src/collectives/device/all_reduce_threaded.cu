@@ -291,11 +291,11 @@ static inline __device__ void allreduceTree(
 
   size_t offsetStart = gtidx * 16 / sizeof(T);
   size_t offsetMax = count / NRANKS;
-  size_t offsetStride = NRANKS * gridDim.x * blockDim.x * 16 / sizeof(T);
+  size_t offsetStride = gridDim.x * blockDim.x * 16 / sizeof(T);
 
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
-    reinterpret_cast<uint4*>(&recvbuff[offset])[0] =
+    reinterpret_cast<uint4*>(&tmpbuff[offset])[0] =
         vecAdd<T, NRANKS>(src, offset + rank * count / NRANKS);
   }
 
