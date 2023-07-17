@@ -1,55 +1,61 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "nccl.h"
-#include "comm.h"
-#include "topo.h"
-#include "checks.h"
-#include <mutex>
 #include <assert.h>
-#include <vector>
-#include <string>
 #include <iostream>
+#include <mutex>
+#include <string>
+#include <vector>
+#include "checks.h"
+#include "comm.h"
+#include "nccl.h"
+#include "topo.h"
 
-NCCL_PARAM(ThreadedAllreduceMaxTmpbufSize, "THREADED_ALLREDUCE_MAX_TMPBUF_SIZE", 8 * 1024 * 1024);
+NCCL_PARAM(
+    ThreadedAllreduceMaxTmpbufSize,
+    "THREADED_ALLREDUCE_MAX_TMPBUF_SIZE",
+    8 * 1024 * 1024);
 NCCL_PARAM(MaxThreadedRanks, "MAX_THREADED_RANKS", 16);
 NCCL_PARAM(ForceP2pAccess, "FORCE_P2P_ACCESS", 0);
-NCCL_PARAM(ThreadedAllreduceLocalBufSize, "THREADED_ALLREDUCE_LOCAL_BUF_SIZE", 32 * 1024 * 1024);
+NCCL_PARAM(
+    ThreadedAllreduceLocalBufSize,
+    "THREADED_ALLREDUCE_LOCAL_BUF_SIZE",
+    32 * 1024 * 1024);
 
-static std::vector<threadedRanksMd *> threadedRanksMdList;
+static std::vector<threadedRanksMd*> threadedRanksMdList;
 static std::mutex threadedRanksMdListMutex;
 
-bool operator==(const ncclUniqueId& lhs, const ncclUniqueId& rhs)
-{
-    for (int i = 0; i < sizeof(ncclUniqueId); i++) {
-        if (lhs.internal[i] != rhs.internal[i]) {
-            return false;
-        }
+bool operator==(const ncclUniqueId& lhs, const ncclUniqueId& rhs) {
+  for (int i = 0; i < sizeof(ncclUniqueId); i++) {
+    if (lhs.internal[i] != rhs.internal[i]) {
+      return false;
     }
+  }
 
-    return true;
+  return true;
 }
 
-bool operator==(const threadedRanksMd& lhs, const threadedRanksMd& rhs)
-{
-    return (lhs.commId == rhs.commId);
+bool operator==(const threadedRanksMd& lhs, const threadedRanksMd& rhs) {
+  return (lhs.commId == rhs.commId);
 }
 
-static void findNvsConnectedGpus(struct ncclTopoNode *node, std::vector<int> &gpus, std::vector<uint64_t> &nvs)
-{
-    nvs.push_back(node->id);
-    for (int i = 0; i < node->nlinks; i++) {
-        if (node->links[i].type == LINK_NVL) {
-            struct ncclTopoNode *remNode = node->links[i].remNode;
-            if (remNode->type == GPU) {
-                gpus.push_back(i);
-            } else if (remNode->type == NVS) {
-                auto it = std::find(nvs.begin(), nvs.end(), remNode->id);
-                if (it == nvs.end()) {
-                    findNvsConnectedGpus(remNode, gpus, nvs);
-                }
-            }
+static void findNvsConnectedGpus(
+    struct ncclTopoNode* node,
+    std::vector<int>& gpus,
+    std::vector<uint64_t>& nvs) {
+  nvs.push_back(node->id);
+  for (int i = 0; i < node->nlinks; i++) {
+    if (node->links[i].type == LINK_NVL) {
+      struct ncclTopoNode* remNode = node->links[i].remNode;
+      if (remNode->type == GPU) {
+        gpus.push_back(i);
+      } else if (remNode->type == NVS) {
+        auto it = std::find(nvs.begin(), nvs.end(), remNode->id);
+        if (it == nvs.end()) {
+          findNvsConnectedGpus(remNode, gpus, nvs);
         }
+      }
     }
+  }
 }
 
 /* This function only returns two types of cliques: fully connected
@@ -65,160 +71,161 @@ static void findNvsConnectedGpus(struct ncclTopoNode *node, std::vector<int> &gp
  * which GPUs are being used for this particular job, so we enable p2p
  * access for all connected GPUs.
  */
-static ncclResult_t topoDetect(ncclComm_t comm, std::vector<std::vector<int>>& cliques)
-{
-    int nGPUs = comm->topo->nodes[GPU].count;
-    uint8_t adjacencyMatrix[nGPUs][nGPUs];
+static ncclResult_t topoDetect(
+    ncclComm_t comm,
+    std::vector<std::vector<int>>& cliques) {
+  int nGPUs = comm->topo->nodes[GPU].count;
+  uint8_t adjacencyMatrix[nGPUs][nGPUs];
 
-    /* clear the cliques before we start */
-    cliques.clear();
+  /* clear the cliques before we start */
+  cliques.clear();
 
-    /* set adjacency matrix for self as connected */
-    for (int i = 0; i < nGPUs; i++) {
-        for (int j = 0; j < nGPUs; j++) {
-            if (i == j) {
-                adjacencyMatrix[i][j] = 1;
-            } else if (ncclParamForceP2pAccess()) {
-                adjacencyMatrix[i][j] = 1;
-            } else {
-                adjacencyMatrix[i][j] = 0;
-            }
-        }
+  /* set adjacency matrix for self as connected */
+  for (int i = 0; i < nGPUs; i++) {
+    for (int j = 0; j < nGPUs; j++) {
+      if (i == j) {
+        adjacencyMatrix[i][j] = 1;
+      } else if (ncclParamForceP2pAccess()) {
+        adjacencyMatrix[i][j] = 1;
+      } else {
+        adjacencyMatrix[i][j] = 0;
+      }
     }
+  }
 
-    /* for each GPU in the system */
-    for (int i = 0; i < nGPUs; i++) {
-        /* for each NVLink connection on that GPU */
-        for (int j = 0; j < comm->topo->nodes[GPU].nodes[i].nlinks; j++) {
-            if (comm->topo->nodes[GPU].nodes[i].links[j].type == LINK_NVL) {
-                struct ncclTopoNode *remNode = comm->topo->nodes[GPU].nodes[i].links[j].remNode;
-                if (remNode->type == GPU) {  /* if it is connected to a GPU */
-                    adjacencyMatrix[i][remNode->gpu.dev] = 1;
-                } else if (remNode->type == NVS) {  /* if it is connected to an NVSwitch */
-                    std::vector<uint64_t> nvs;
-                    std::vector<int> gpus;
-                    findNvsConnectedGpus(remNode, gpus, nvs);
-                    for (auto it : gpus) {
-                        adjacencyMatrix[i][it] = 1;
-                    }
-                }
-            }
+  /* for each GPU in the system */
+  for (int i = 0; i < nGPUs; i++) {
+    /* for each NVLink connection on that GPU */
+    for (int j = 0; j < comm->topo->nodes[GPU].nodes[i].nlinks; j++) {
+      if (comm->topo->nodes[GPU].nodes[i].links[j].type == LINK_NVL) {
+        struct ncclTopoNode* remNode =
+            comm->topo->nodes[GPU].nodes[i].links[j].remNode;
+        if (remNode->type == GPU) { /* if it is connected to a GPU */
+          adjacencyMatrix[i][remNode->gpu.dev] = 1;
+        } else if (remNode->type == NVS) { /* if it is connected to an NVSwitch
+                                            */
+          std::vector<uint64_t> nvs;
+          std::vector<int> gpus;
+          findNvsConnectedGpus(remNode, gpus, nvs);
+          for (auto it : gpus) {
+            adjacencyMatrix[i][it] = 1;
+          }
         }
+      }
     }
+  }
 
-
-    /***** Detect fully connected (NVSwitch) topology *****/
-    bool connected;
-    connected = true;
+  /***** Detect fully connected (NVSwitch) topology *****/
+  bool connected;
+  connected = true;
+  for (int i = 0; i < nGPUs; i++) {
+    for (int j = 0; j < nGPUs; j++) {
+      if (adjacencyMatrix[i][j] == 0) {
+        connected = false;
+        break;
+      }
+    }
+    if (connected == false) {
+      break;
+    }
+  }
+  if (connected) {
+    std::vector<int> v;
     for (int i = 0; i < nGPUs; i++) {
-        for (int j = 0; j < nGPUs; j++) {
-            if (adjacencyMatrix[i][j] == 0) {
-                connected = false;
-                break;
-            }
-        }
-        if (connected == false) {
+      v.push_back(i);
+    }
+    cliques.push_back(v);
+    goto exit;
+  }
+
+  /***** Detect HCM topology *****/
+  for (int i = 0; i < nGPUs; i++) {
+    cliques.push_back(std::vector<int>{i});
+  }
+
+  /* find cliques of size nGPUs/2 */
+  for (int k = 2; k <= nGPUs / 2; k++) {
+    std::vector<std::vector<int>> tmp;
+    for (auto v : cliques) {
+      for (int i = v.back() + 1; i < nGPUs; i++) {
+        bool connected = true;
+        for (auto j : v) {
+          if (adjacencyMatrix[i][j] == 0) {
+            connected = false;
             break;
+          }
         }
-    }
-    if (connected) {
-        std::vector<int> v;
-        for (int i = 0; i < nGPUs; i++) {
-            v.push_back(i);
+        if (connected) {
+          std::vector<int> w = v;
+          w.push_back(i);
+          tmp.push_back(w);
         }
-        cliques.push_back(v);
-        goto exit;
+      }
     }
 
+    cliques.clear();
+    cliques = tmp;
+    tmp.clear();
+  }
 
-    /***** Detect HCM topology *****/
-    for (int i = 0; i < nGPUs; i++) {
-        cliques.push_back(std::vector<int> { i });
+  /* HCM has two cliques */
+  if (cliques.size() != 2) {
+    goto topo_not_found;
+  }
+
+  /* In HCM, each GPU is connected to (nGPUs/2 + 1) other GPUs */
+  for (int i = 0; i < nGPUs; i++) {
+    int count = 0;
+    for (int j = 0; j < nGPUs; j++) {
+      if (adjacencyMatrix[i][j]) {
+        count++;
+      }
     }
+    if (count != (1 + nGPUs / 2)) {
+      goto topo_not_found;
+    }
+  }
 
-    /* find cliques of size nGPUs/2 */
-    for (int k = 2; k <= nGPUs/2; k++) {
-        std::vector<std::vector<int>> tmp;
-        for (auto v : cliques) {
-            for (int i = v.back() + 1; i < nGPUs; i++) {
-                bool connected = true;
-                for (auto j : v) {
-                    if (adjacencyMatrix[i][j] == 0) {
-                        connected = false;
-                        break;
-                    }
-                }
-                if (connected) {
-                    std::vector<int> w = v;
-                    w.push_back(i);
-                    tmp.push_back(w);
-                }
-            }
+  /* layout the cliques, so the two HCM cliques are ordered so that
+   * the i'th GPU in one clique is connected to the i'th GPU in the
+   * other clique.  If this is not possible, it's not HCM. */
+  {
+    std::vector<int> front = cliques.front();
+    std::vector<int> back = cliques.back();
+    std::vector<int> tmp;
+    for (auto f : front) {
+      /* each element in front should be connected to exactly
+       * one element in back */
+      for (auto b : back) {
+        if (adjacencyMatrix[f][b]) {
+          tmp.push_back(b);
+          break;
         }
-
-        cliques.clear();
-        cliques = tmp;
-        tmp.clear();
+      }
     }
-
-    /* HCM has two cliques */
-    if (cliques.size() != 2) {
-        goto topo_not_found;
-    }
-
-    /* In HCM, each GPU is connected to (nGPUs/2 + 1) other GPUs */
-    for (int i = 0; i < nGPUs; i++) {
-        int count = 0;
-        for (int j = 0; j < nGPUs; j++) {
-            if (adjacencyMatrix[i][j]) {
-                count++;
-            }
-        }
-        if (count != (1 + nGPUs/2)) {
-            goto topo_not_found;
-        }
-    }
-
-    /* layout the cliques, so the two HCM cliques are ordered so that
-     * the i'th GPU in one clique is connected to the i'th GPU in the
-     * other clique.  If this is not possible, it's not HCM. */
-    {
-        std::vector<int> front = cliques.front();
-        std::vector<int> back = cliques.back();
-        std::vector<int> tmp;
-        for (auto f : front) {
-            /* each element in front should be connected to exactly
-             * one element in back */
-            for (auto b : back) {
-                if (adjacencyMatrix[f][b]) {
-                    tmp.push_back(b);
-                    break;
-                }
-            }
-        }
-        assert(tmp.size() == nGPUs/2);
-        cliques.pop_back();
-        cliques.push_back(tmp);
-    }
+    assert(tmp.size() == nGPUs / 2);
+    cliques.pop_back();
+    cliques.push_back(tmp);
+  }
 
 exit:
-    for (int i = 0; i < nGPUs; i++) {
-        int dev;
-        CUDACHECK(cudaGetDevice(&dev));
-        if (i == dev) {
-            continue;
-        } else if (adjacencyMatrix[comm->cudaDev][i] == 1) {
-            cudaError_t e = cudaDeviceEnablePeerAccess(i, 0);
-            if (e != cudaErrorPeerAccessAlreadyEnabled && e != cudaSuccess) {
-                CUDACHECK(e);
-            }
-        }
+  for (int i = 0; i < nGPUs; i++) {
+    int dev;
+    CUDACHECK(cudaGetDevice(&dev));
+    if (i == dev) {
+      continue;
+    } else if (adjacencyMatrix[comm->cudaDev][i] == 1) {
+      cudaError_t e = cudaDeviceEnablePeerAccess(i, 0);
+      if (e != cudaErrorPeerAccessAlreadyEnabled && e != cudaSuccess) {
+        CUDACHECK(e);
+      }
     }
-    return ncclSuccess;
+  }
+  return ncclSuccess;
 
 topo_not_found:
-    cliques.clear();
-    return ncclSuccess;
+  cliques.clear();
+  return ncclSuccess;
 }
 
 /*
@@ -232,140 +239,145 @@ topo_not_found:
  * object determines the number of threaded ranks in this address
  * space.
  */
-ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId)
-{
-    // set enableIpc flag
-    char *allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
-    const bool enableIpc = (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "threaded_ipc"));
+ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId) {
+  // set enableIpc flag
+  char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
+  const bool enableIpc =
+      (allreduceAlgoStr != nullptr &&
+       !strcmp(allreduceAlgoStr, "threaded_ipc"));
 
-    threadedRanksMd *md;
-    ncclResult_t ret = ncclSuccess;
-    std::vector<std::vector<int>> gpuCliques;
+  threadedRanksMd* md;
+  ncclResult_t ret = ncclSuccess;
+  std::vector<std::vector<int>> gpuCliques;
 
-    threadedRanksMdListMutex.lock();
+  threadedRanksMdListMutex.lock();
 
-    // IPC states start
-    // TODO: variables should be declared close to their usage, but can't be
-    // done here due to NCCLCHECKGOTO, need a fix later
-    cudaIpcMemHandle_t localHdls[3];
-    void* handleSendBuf{nullptr};
-    void* handleRecvBuf{nullptr};
-    const size_t kHandleSize = sizeof(cudaIpcMemHandle_t);
-    const size_t kBarrierSize = 2 * comm->nRanks * comm->nRanks * sizeof(uintptr_t);
-    cudaStream_t stream;
-    cudaIpcMemHandle_t allHdls[comm->nRanks * 3];
-    // IPC states end
+  // IPC states start
+  // TODO: variables should be declared close to their usage, but can't be
+  // done here due to NCCLCHECKGOTO, need a fix later
+  cudaIpcMemHandle_t localHdls[3];
+  void* handleSendBuf{nullptr};
+  void* handleRecvBuf{nullptr};
+  const size_t kHandleSize = sizeof(cudaIpcMemHandle_t);
+  const size_t kBarrierSize =
+      2 * comm->nRanks * comm->nRanks * sizeof(uintptr_t);
+  cudaStream_t stream;
+  cudaIpcMemHandle_t allHdls[comm->nRanks * 3];
+  // IPC states end
 
-    NCCLCHECKGOTO(topoDetect(comm, gpuCliques), ret, exit);
+  NCCLCHECKGOTO(topoDetect(comm, gpuCliques), ret, exit);
 
-    /* allocate the threadedRanksMd structure or find an existing
-     * one for this commId */
-    md = nullptr;
-    for (auto t : threadedRanksMdList) {
-        if (t->commId == commId) {
-            md = t;
-            break;
-        }
+  /* allocate the threadedRanksMd structure or find an existing
+   * one for this commId */
+  md = nullptr;
+  for (auto t : threadedRanksMdList) {
+    if (t->commId == commId) {
+      md = t;
+      break;
     }
-    if (md == nullptr) {
-        md = new threadedRanksMd(commId, gpuCliques, enableIpc);
-        threadedRanksMdList.push_back(md);
+  }
+  if (md == nullptr) {
+    md = new threadedRanksMd(commId, gpuCliques, enableIpc);
+    threadedRanksMdList.push_back(md);
+  }
+
+  md->insertRank(comm->rank, comm->cudaDev);
+
+  comm->threadedRanks.md = md;
+  comm->threadedRanks.barrierFlag = 0;
+  comm->threadedRanks.barrierMboxId = 1;
+  comm->threadedRanks.localMboxId = 1;
+  CUDACHECK(
+      cudaGetDeviceProperties(&comm->threadedRanks.devProp, comm->cudaDev));
+
+  md->refCount++;
+
+  if (md->enableIpc()) {
+    // allocate dev mem
+    CUDACHECK(cudaMalloc(&md->barrierMbox[0], kBarrierSize));
+    CUDACHECK(cudaMalloc(&md->barrierMbox[1], kBarrierSize));
+    CUDACHECK(cudaMalloc(
+        &md->localSendBuf, ncclParamThreadedAllreduceLocalBufSize()));
+    CUDACHECK(cudaMalloc(&md->allSendBufs, comm->nRanks * sizeof(uintptr_t)));
+
+    // allocate host mem
+    md->allSendBufsHost =
+        static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
+    md->nRanks = comm->nRanks;
+
+    // open local handles
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], md->barrierMbox[0]));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], md->barrierMbox[1]));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuf));
+
+    // copy handles to local sendBuf
+    CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * 3));
+    CUDACHECK(cudaMalloc(&handleRecvBuf, kHandleSize * comm->nRanks * 3));
+    // are handles[3] array aligned? looks yes
+    CUDACHECK(cudaMemcpy(
+        handleSendBuf, &localHdls, kHandleSize * 3, cudaMemcpyDefault));
+
+    // all gather local handles
+    cudaStreamCreate(&stream);
+    NCCLCHECK(ncclAllGather(
+        handleSendBuf,
+        handleRecvBuf,
+        kHandleSize * 3,
+        ncclUint8,
+        comm,
+        stream));
+    CUDACHECK(cudaStreamSynchronize(stream));
+
+    // deserialize all hanles
+    CUDACHECK(cudaMemcpy(
+        allHdls,
+        handleRecvBuf,
+        kHandleSize * comm->nRanks * 3,
+        cudaMemcpyDefault));
+
+    // all gather completed, free send/recv buf
+    CUDACHECK(cudaFree(handleSendBuf));
+    CUDACHECK(cudaFree(handleRecvBuf));
+
+    // update md->allSendBufs[nRanks]
+    for (size_t rankIdx = 0; rankIdx < comm->nRanks; ++rankIdx) {
+      const auto& barrierHdl0 = allHdls[rankIdx * 3];
+      const auto& barrierHdl1 = allHdls[rankIdx * 3 + 1];
+      const auto& sendBufHdl = allHdls[rankIdx * 3 + 2];
+      if (comm->rank == rankIdx) {
+        // local rank should point to local buf
+        md->allSendBufsHost[rankIdx] = md->localSendBuf;
+      } else {
+        // otherwise, open IPC handle
+        void* remoteBuf = nullptr;
+        CUDACHECK(cudaIpcOpenMemHandle(
+            (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
+        md->allSendBufsHost[rankIdx] = remoteBuf;
+      }
     }
+    CUDACHECK(cudaMemcpy(
+        md->allSendBufs,
+        md->allSendBufsHost,
+        comm->nRanks * sizeof(uintptr_t),
+        cudaMemcpyDefault));
 
-    md->insertRank(comm->rank, comm->cudaDev);
+    // update md->barrierMbox, all ranks should use rank0's barrier
+    // TODO should use lowest rank ID instead?
+    if (comm->rank != 0) {
+      void* remoteBuf = nullptr;
+      CUDACHECK(cudaIpcOpenMemHandle(
+          (void**)&remoteBuf, allHdls[0], cudaIpcMemLazyEnablePeerAccess));
+      md->barrierMbox[0] = reinterpret_cast<uintptr_t*>(remoteBuf);
 
-    comm->threadedRanks.md = md;
-    comm->threadedRanks.barrierFlag = 0;
-    comm->threadedRanks.barrierMboxId = 1;
-    comm->threadedRanks.localMboxId = 1;
-    CUDACHECK(cudaGetDeviceProperties(&comm->threadedRanks.devProp, comm->cudaDev));
-
-    md->refCount++;
-
-    if (md->enableIpc()) {
-        // allocate dev mem
-        CUDACHECK(cudaMalloc(&md->barrierMbox[0], kBarrierSize));
-        CUDACHECK(cudaMalloc(&md->barrierMbox[1], kBarrierSize));
-        CUDACHECK(cudaMalloc(&md->localSendBuf, ncclParamThreadedAllreduceLocalBufSize()));
-        CUDACHECK(cudaMalloc(&md->allSendBufs, comm->nRanks * sizeof(uintptr_t)));
-
-        // allocate host mem
-        md->allSendBufsHost = static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
-        md->nRanks = comm->nRanks;
-
-        // open local handles
-        CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], md->barrierMbox[0]));
-        CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], md->barrierMbox[1]));
-        CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuf));
-
-        // copy handles to local sendBuf
-        CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * 3));
-        CUDACHECK(cudaMalloc(&handleRecvBuf, kHandleSize * comm->nRanks * 3));
-        // are handles[3] array aligned? looks yes
-        CUDACHECK(cudaMemcpy(handleSendBuf, &localHdls, kHandleSize * 3, cudaMemcpyDefault));
-
-        // all gather local handles
-        cudaStreamCreate(&stream);
-        NCCLCHECK(ncclAllGather(
-                handleSendBuf,
-                handleRecvBuf,
-                kHandleSize * 3,
-                ncclUint8,
-                comm,
-                stream));
-        CUDACHECK(cudaStreamSynchronize(stream));
-
-        // deserialize all hanles
-        CUDACHECK(cudaMemcpy(
-                allHdls,
-                handleRecvBuf,
-                kHandleSize * comm->nRanks * 3,
-                cudaMemcpyDefault));
-
-        // all gather completed, free send/recv buf
-        CUDACHECK(cudaFree(handleSendBuf));
-        CUDACHECK(cudaFree(handleRecvBuf));
-
-        // update md->allSendBufs[nRanks]
-        for (size_t rankIdx = 0; rankIdx < comm->nRanks; ++rankIdx) {
-            const auto& barrierHdl0 = allHdls[rankIdx * 3];
-            const auto& barrierHdl1 = allHdls[rankIdx * 3 + 1];
-            const auto& sendBufHdl = allHdls[rankIdx * 3 + 2];
-            if (comm->rank == rankIdx) {
-                // local rank should point to local buf
-                md->allSendBufsHost[rankIdx] = md->localSendBuf;
-            } else {
-                // otherwise, open IPC handle
-                void* remoteBuf = nullptr;
-                CUDACHECK(cudaIpcOpenMemHandle(
-                    (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
-                md->allSendBufsHost[rankIdx] = remoteBuf;
-            }
-        }
-        CUDACHECK(
-            cudaMemcpy(
-                md->allSendBufs,
-                md->allSendBufsHost,
-                comm->nRanks * sizeof(uintptr_t),
-                cudaMemcpyDefault));
-
-        // update md->barrierMbox, all ranks should use rank0's barrier
-        // TODO should use lowest rank ID instead?
-        if (comm->rank != 0) {
-            void* remoteBuf = nullptr;
-            CUDACHECK(cudaIpcOpenMemHandle(
-                (void**)&remoteBuf, allHdls[0], cudaIpcMemLazyEnablePeerAccess));
-            md->barrierMbox[0] = reinterpret_cast<uintptr_t*>(remoteBuf);
-
-            remoteBuf = nullptr;
-            CUDACHECK(cudaIpcOpenMemHandle(
-                (void**)&remoteBuf, allHdls[1], cudaIpcMemLazyEnablePeerAccess));
-            md->barrierMbox[1] = reinterpret_cast<uintptr_t*>(remoteBuf);
-        }
+      remoteBuf = nullptr;
+      CUDACHECK(cudaIpcOpenMemHandle(
+          (void**)&remoteBuf, allHdls[1], cudaIpcMemLazyEnablePeerAccess));
+      md->barrierMbox[1] = reinterpret_cast<uintptr_t*>(remoteBuf);
     }
+  }
 exit:
-    threadedRanksMdListMutex.unlock();
-    return ret;
+  threadedRanksMdListMutex.unlock();
+  return ret;
 }
 
 /* This function decreases the refCount for the threadedRanksMd object
@@ -373,34 +385,34 @@ exit:
  * refCount reaches zero, that means no communicators are pointing to
  * it -- in that case, we can remove it from the
  * threadedRanksMdList. */
-ncclResult_t freeThreadedRanksMd(threadedRanksMd *md, int rank)
-{
-    threadedRanksMdListMutex.lock();
+ncclResult_t freeThreadedRanksMd(threadedRanksMd* md, int rank) {
+  threadedRanksMdListMutex.lock();
 
-    md->refCount--;
+  md->refCount--;
 
-    if (md->refCount == 0) {
-        if (md->enableIpc()) {
-            // close ipc handles
-            for (int i = 0; i < md->nRanks; ++i) {
-                if (i == rank) {
-                    continue;
-                }
-                CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allSendBufsHost[i]));
-            }
-            // free host/dev memories
-            CUDACHECKIGNORE(cudaFree(md->barrierMbox[0]));
-            CUDACHECKIGNORE(cudaFree(md->barrierMbox[1]));
-            CUDACHECKIGNORE(cudaFree(md->localSendBuf));
-            CUDACHECKIGNORE(cudaFree(md->allSendBufs));
+  if (md->refCount == 0) {
+    if (md->enableIpc()) {
+      // close ipc handles
+      for (int i = 0; i < md->nRanks; ++i) {
+        if (i == rank) {
+          continue;
         }
-
-        auto mdIdx = std::remove(threadedRanksMdList.begin(), threadedRanksMdList.end(), md);
-        threadedRanksMdList.erase(mdIdx, threadedRanksMdList.end());
-        delete md;
+        CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allSendBufsHost[i]));
+      }
+      // free host/dev memories
+      CUDACHECKIGNORE(cudaFree(md->barrierMbox[0]));
+      CUDACHECKIGNORE(cudaFree(md->barrierMbox[1]));
+      CUDACHECKIGNORE(cudaFree(md->localSendBuf));
+      CUDACHECKIGNORE(cudaFree(md->allSendBufs));
     }
 
-    threadedRanksMdListMutex.unlock();
+    auto mdIdx =
+        std::remove(threadedRanksMdList.begin(), threadedRanksMdList.end(), md);
+    threadedRanksMdList.erase(mdIdx, threadedRanksMdList.end());
+    delete md;
+  }
 
-    return ncclSuccess;
+  threadedRanksMdListMutex.unlock();
+
+  return ncclSuccess;
 }
