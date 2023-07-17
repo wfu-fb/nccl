@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
+#include "checks.h"
 
 int64_t ncclParamMaxThreadedRanks(void);
 int64_t ncclParamThreadedAllreduceMaxTmpbufSize(void);
