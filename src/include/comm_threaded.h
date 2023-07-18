@@ -156,12 +156,17 @@ class threadedRanksMd {
 
   // local sendbuf that holds source data
   void* localSendBuf{nullptr};
-
   // all ranks' sendbuf addresses
   void** allSendBufs{nullptr};
-
   // all ranks' sendbuf host-addrs
   void** allSendBufsHost{nullptr};
+
+  // local tmp buffer used for reduce-scatter (step1) in tree algorithm
+  void* localTmpBuf{nullptr};
+  // all ranks' tmpbuf addresses
+  void** allTmpBufs{nullptr};
+  // all ranks' tmpbuf host-addrs
+  void** allTmpBufsHost{nullptr};
 
   // total ranks, this will be set during IPC state init
   int nRanks{0};

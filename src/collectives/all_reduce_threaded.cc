@@ -89,7 +89,11 @@ static ncclResult_t launchKernel(
         ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Flat, comm->nRanks);
       }
     } else {
-      ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Tree, comm->nRanks);
+      if (enableIpc) {
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Tree_ipc, comm->nRanks);
+      } else {
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Tree, comm->nRanks);
+      }
     }
   } else if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__HCM) {
     if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdHCM()) {
@@ -246,10 +250,8 @@ static ncclResult_t launchKernel(
             &sendbuff,
             &rbuf,
             &count};
-
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
       }
-
       if (useTmpBuf) {
         CUDACHECK(cudaMemcpyAsync(
             recvbuff,
@@ -259,16 +261,29 @@ static ncclResult_t launchKernel(
             stream));
       }
     } else {
-      void* args[] = {
-          &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
-          &comm->threadedRanks.barrierFlag,
-          &comm->rank,
-          &sendbuff,
-          &clique->rankToTmpbuf[comm->rank],
-          &recvbuff,
-          &count};
-
-      CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
+      // scatter-reduce, allgather tree algorithm
+      if (enableIpc) {
+        void* args[] = {
+            &comm->threadedRanks.md
+                 ->barrierMbox[comm->threadedRanks.barrierMboxId],
+            &comm->threadedRanks.barrierFlag,
+            &comm->rank,
+            &comm->threadedRanks.md->allSendBufs,
+            &comm->threadedRanks.md->allTmpBufs,
+            &recvbuff,
+            &count};
+        CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
+      } else {
+        void* args[] = {
+            &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
+            &comm->threadedRanks.barrierFlag,
+            &comm->rank,
+            &sendbuff,
+            &clique->rankToTmpbuf[comm->rank],
+            &recvbuff,
+            &count};
+        CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
+      }
     }
   } else if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__HCM) {
     threadedRanksClique* clique = comm->threadedRanks.md->cliques.front();

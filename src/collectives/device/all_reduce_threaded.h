@@ -26,6 +26,14 @@
       T* tmpbuff,                                                             \
       T* recvbuff,                                                            \
       size_t count);                                                          \
+  template __global__ void ncclKernel_AllReduce_Threaded_Tree_ipc<T, NRANKS>( \
+      uintptr_t * barrierMbox,                                                \
+      uintptr_t barrierFlag,                                                  \
+      int rank,                                                               \
+      const T** allSendBufs,                                                  \
+      T** allTmpBufs,                                                         \
+      T* recvbuff,                                                            \
+      size_t count);                                                          \
   template __global__ void ncclKernel_AllReduce_Threaded_HCM_Flat<T, NRANKS>( \
       uintptr_t * cliqueBarrierMbox,                                          \
       uintptr_t * localMbox,                                                  \

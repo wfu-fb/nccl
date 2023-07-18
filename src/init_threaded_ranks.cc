@@ -255,14 +255,15 @@ ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId) {
   // IPC states start
   // TODO: variables should be declared close to their usage, but can't be
   // done here due to NCCLCHECKGOTO, need a fix later
-  cudaIpcMemHandle_t localHdls[3];
+  const size_t kNumHandles = 4;
+  cudaIpcMemHandle_t localHdls[kNumHandles];
   void* handleSendBuf{nullptr};
   void* handleRecvBuf{nullptr};
   const size_t kHandleSize = sizeof(cudaIpcMemHandle_t);
   const size_t kBarrierSize =
       2 * comm->nRanks * comm->nRanks * sizeof(uintptr_t);
   cudaStream_t stream;
-  cudaIpcMemHandle_t allHdls[comm->nRanks * 3];
+  cudaIpcMemHandle_t allHdls[comm->nRanks * kNumHandles];
   // IPC states end
 
   NCCLCHECKGOTO(topoDetect(comm, gpuCliques), ret, exit);
@@ -299,9 +300,14 @@ ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId) {
     CUDACHECK(cudaMalloc(
         &md->localSendBuf, ncclParamThreadedAllreduceLocalBufSize()));
     CUDACHECK(cudaMalloc(&md->allSendBufs, comm->nRanks * sizeof(uintptr_t)));
+    CUDACHECK(cudaMalloc(
+        &md->localTmpBuf, ncclParamThreadedAllreduceMaxTmpbufSize()));
+    CUDACHECK(cudaMalloc(&md->allTmpBufs, comm->nRanks * sizeof(uintptr_t)));
 
     // allocate host mem
     md->allSendBufsHost =
+        static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
+    md->allTmpBufsHost =
         static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
     md->nRanks = comm->nRanks;
 
@@ -309,20 +315,24 @@ ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId) {
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], md->barrierMbox[0]));
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], md->barrierMbox[1]));
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuf));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[3], md->localTmpBuf));
 
     // copy handles to local sendBuf
-    CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * 3));
-    CUDACHECK(cudaMalloc(&handleRecvBuf, kHandleSize * comm->nRanks * 3));
-    // are handles[3] array aligned? looks yes
+    CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * kNumHandles));
+    CUDACHECK(
+        cudaMalloc(&handleRecvBuf, kHandleSize * comm->nRanks * kNumHandles));
     CUDACHECK(cudaMemcpy(
-        handleSendBuf, &localHdls, kHandleSize * 3, cudaMemcpyDefault));
+        handleSendBuf,
+        &localHdls,
+        kHandleSize * kNumHandles,
+        cudaMemcpyDefault));
 
     // all gather local handles
     cudaStreamCreate(&stream);
     NCCLCHECK(ncclAllGather(
         handleSendBuf,
         handleRecvBuf,
-        kHandleSize * 3,
+        kHandleSize * kNumHandles,
         ncclUint8,
         comm,
         stream));
@@ -332,32 +342,43 @@ ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId) {
     CUDACHECK(cudaMemcpy(
         allHdls,
         handleRecvBuf,
-        kHandleSize * comm->nRanks * 3,
+        kHandleSize * comm->nRanks * kNumHandles,
         cudaMemcpyDefault));
 
     // all gather completed, free send/recv buf
     CUDACHECK(cudaFree(handleSendBuf));
     CUDACHECK(cudaFree(handleRecvBuf));
 
-    // update md->allSendBufs[nRanks]
+    // update md->allSend/TmpBufs[nRanks]
     for (size_t rankIdx = 0; rankIdx < comm->nRanks; ++rankIdx) {
-      const auto& barrierHdl0 = allHdls[rankIdx * 3];
-      const auto& barrierHdl1 = allHdls[rankIdx * 3 + 1];
-      const auto& sendBufHdl = allHdls[rankIdx * 3 + 2];
+      const auto& barrierHdl0 = allHdls[rankIdx * kNumHandles];
+      const auto& barrierHdl1 = allHdls[rankIdx * kNumHandles + 1];
+      const auto& sendBufHdl = allHdls[rankIdx * kNumHandles + 2];
+      const auto& tmpBufHdl = allHdls[rankIdx * kNumHandles + 3];
       if (comm->rank == rankIdx) {
         // local rank should point to local buf
         md->allSendBufsHost[rankIdx] = md->localSendBuf;
+        md->allTmpBufsHost[rankIdx] = md->localTmpBuf;
       } else {
         // otherwise, open IPC handle
         void* remoteBuf = nullptr;
         CUDACHECK(cudaIpcOpenMemHandle(
             (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
         md->allSendBufsHost[rankIdx] = remoteBuf;
+
+        CUDACHECK(cudaIpcOpenMemHandle(
+            (void**)&remoteBuf, tmpBufHdl, cudaIpcMemLazyEnablePeerAccess));
+        md->allTmpBufsHost[rankIdx] = remoteBuf;
       }
     }
     CUDACHECK(cudaMemcpy(
         md->allSendBufs,
         md->allSendBufsHost,
+        comm->nRanks * sizeof(uintptr_t),
+        cudaMemcpyDefault));
+    CUDACHECK(cudaMemcpy(
+        md->allTmpBufs,
+        md->allTmpBufsHost,
         comm->nRanks * sizeof(uintptr_t),
         cudaMemcpyDefault));
 
@@ -404,6 +425,8 @@ ncclResult_t freeThreadedRanksMd(threadedRanksMd* md, int rank) {
       CUDACHECKIGNORE(cudaFree(md->barrierMbox[1]));
       CUDACHECKIGNORE(cudaFree(md->localSendBuf));
       CUDACHECKIGNORE(cudaFree(md->allSendBufs));
+      CUDACHECKIGNORE(cudaFree(md->localTmpBuf));
+      CUDACHECKIGNORE(cudaFree(md->allTmpBufs));
     }
 
     auto mdIdx =

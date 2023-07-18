@@ -331,6 +331,53 @@ static inline __device__ void allreduceTree(
 }
 
 template <typename T, uint32_t NRANKS>
+static inline __device__ void allreduceTree_ipc(
+    uintptr_t* barrierMbox,
+    uintptr_t barrierFlag,
+    int rank,
+    const T** allSendBufs,
+    T** allTmpBufs,
+    T* recvbuff,
+    size_t count) {
+  const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
+
+  /* global barrier */
+  barrier<NRANKS>(barrierMbox, barrierFlag, rank);
+
+  size_t offsetStart = gtidx * 16 / sizeof(T);
+  size_t offsetMax = count / NRANKS;
+  size_t offsetStride = gridDim.x * blockDim.x * 16 / sizeof(T);
+
+  // step1: scatter-reduce on local tmpbuf
+  T* tmpbuf = allTmpBufs[rank];
+  for (size_t offset = offsetStart; offset < offsetMax;
+       offset += offsetStride) {
+    reinterpret_cast<uint4*>(&tmpbuf[offset])[0] =
+        vecAdd<T, NRANKS>(allSendBufs, offset + rank * count / NRANKS);
+  }
+
+  /* we cannot avoid a __threadfence_system() here because the next
+   * step requires us to access the data that just got reduced by
+   * the other ranks.  So we need to tell the compiler/hardware to
+   * not reorder the above reduction to happen after the below
+   * Allgather. */
+  __threadfence_system();
+
+  /* global barrier */
+  barrier<NRANKS>(barrierMbox + NRANKS * NRANKS, barrierFlag, rank);
+
+  /* simple direct-access Allgather in 16-byte loads */
+  for (size_t offset = offsetStart; offset < offsetMax;
+       offset += offsetStride) {
+    for (int i = 0; i < NRANKS; i++) {
+      const T* tmpbuf = allTmpBufs[i];
+      reinterpret_cast<uint4*>(&recvbuff[offset + i * count / NRANKS])[0] =
+          reinterpret_cast<const uint4*>(&tmpbuf[offset])[0];
+    }
+  }
+}
+
+template <typename T, uint32_t NRANKS>
 static inline __device__ void peerReduce(
     uintptr_t* localMbox,
     uintptr_t* peerMbox,
@@ -397,6 +444,19 @@ __global__ void ncclKernel_AllReduce_Threaded_Tree(
     size_t count) {
   allreduceTree<T, NRANKS>(
       barrierMbox, barrierFlag, rank, sendbuff, tmpbuff, recvbuff, count);
+}
+
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_Threaded_Tree_ipc(
+    uintptr_t* barrierMbox,
+    uintptr_t barrierFlag,
+    int rank,
+    const T** allSendBufs,
+    T** allTmpBufs,
+    T* recvbuff,
+    size_t count) {
+  allreduceTree_ipc<T, NRANKS>(
+      barrierMbox, barrierFlag, rank, allSendBufs, allTmpBufs, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
