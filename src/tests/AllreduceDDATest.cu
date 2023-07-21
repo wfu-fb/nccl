@@ -9,7 +9,7 @@
 
 /**
  * GpuAgent manages one given GPU device
- * init(), destructor() and each collective() call are expeceted to be invoked
+ * each collective() call is expeceted to be invoked
  * on a per-device thread. see NVSFlat as examples
  */
 class GpuAgent {
@@ -135,26 +135,16 @@ TEST(AllreduceDDATest, NVSFlat) {
   auto agent0 = std::make_unique<GpuAgent>(0, totalRank, 32, barrier_d);
   auto agent1 = std::make_unique<GpuAgent>(1, totalRank, 32, barrier_d);
 
-  {
-    auto t0 = std::thread([&agent0] { agent0->init(); });
-    auto t1 = std::thread([&agent1] { agent1->init(); });
-    t0.join();
-    t1.join();
-  }
+  agent0->init();
+  agent1->init();
 
-  {
-    auto t0 = std::thread([&agent0] { agent0->runAllreduceFlatAndVerify(); });
-    auto t1 = std::thread([&agent1] { agent1->runAllreduceFlatAndVerify(); });
-    t0.join();
-    t1.join();
-  }
+  auto t0 = std::thread([&agent0] { agent0->runAllreduceFlatAndVerify(); });
+  auto t1 = std::thread([&agent1] { agent1->runAllreduceFlatAndVerify(); });
+  t0.join();
+  t1.join();
 
-  {
-    auto t0 = std::thread([&agent0] { agent0.reset(); });
-    auto t1 = std::thread([&agent1] { agent1.reset(); });
-    t0.join();
-    t1.join();
-  }
+  agent0.reset();
+  agent1.reset();
 }
 
 TEST(AllreduceDDATest, NVSTree) {
@@ -170,24 +160,14 @@ TEST(AllreduceDDATest, NVSTree) {
   auto agent0 = std::make_unique<GpuAgent>(0, totalRank, 32, barrier_d);
   auto agent1 = std::make_unique<GpuAgent>(1, totalRank, 32, barrier_d);
 
-  {
-    auto t0 = std::thread([&agent0] { agent0->init(); });
-    auto t1 = std::thread([&agent1] { agent1->init(); });
-    t0.join();
-    t1.join();
-  }
+  agent0->init();
+  agent1->init();
 
-  {
-    auto t1 = std::thread([&agent1] { agent1->runAllreduceTreeAndVerify(); });
-    auto t0 = std::thread([&agent0] { agent0->runAllreduceTreeAndVerify(); });
-    t0.join();
-    t1.join();
-  }
+  auto t1 = std::thread([&agent1] { agent1->runAllreduceTreeAndVerify(); });
+  auto t0 = std::thread([&agent0] { agent0->runAllreduceTreeAndVerify(); });
+  t0.join();
+  t1.join();
 
-  {
-    auto t0 = std::thread([&agent0] { agent0.reset(); });
-    auto t1 = std::thread([&agent1] { agent1.reset(); });
-    t0.join();
-    t1.join();
-  }
+  agent0.reset();
+  agent1.reset();
 }
