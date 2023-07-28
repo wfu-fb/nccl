@@ -122,6 +122,15 @@
   } \
 } while (0);
 
+// Report failure but clear error and continue
+#define NCCLCHECKIGNORE(call)                                 \
+  do {                                                        \
+    ncclResult_t RES = call;                                  \
+    if (RES != ncclSuccess && RES != ncclInProgress) {        \
+      INFO(NCCL_ALL, "%s:%d -> %d", __FILE__, __LINE__, RES); \
+    }                                                         \
+  } while (0)
+
 #define NCCLWAIT(call, cond, abortFlagPtr) do {         \
   volatile uint32_t* tmpAbortFlag = (abortFlagPtr);     \
   ncclResult_t RES = call;                \
