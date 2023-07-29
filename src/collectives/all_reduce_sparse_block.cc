@@ -70,16 +70,6 @@ static inline ncclResult_t unpackSendBlocks(
       unpackMinGridSize,
       unpackBlockSize);
 
-  // Additional check for unpack
-  if (comm->checkPointers) {
-    NCCLCHECK(CudaPtrCheck(
-        recv_indices, comm, "recv_indices", "ncclAllReduceSparseBlock"));
-    NCCLCHECK(
-        CudaPtrCheck(recvbuff, comm, "recvbuff", "ncclAllReduceSparseBlock"));
-    NCCLCHECK(
-        CudaPtrCheck(sendbuff, comm, "sendbuff", "ncclAllReduceSparseBlock"));
-  }
-
   dim3 grid = {num_blocks_x, 1, 1};
   dim3 block = {num_threads_x, 1, 1};
 
@@ -185,6 +175,22 @@ ncclResult_t ncclAllReduceSparseBlock(
     CUDACHECK(cudaGetDevice(&devOld));
     CUDACHECK(cudaSetDevice(comm->cudaDev));
   }
+
+  // Additional pointer checks to ensure valid device pointers are used in
+  // reset/unpack
+  if (comm->checkPointers) {
+    if (resetFlag || unpackFlag) {
+      NCCLCHECK(
+          CudaPtrCheck(recvbuff, comm, "recvbuff", "ncclAllReduceSparseBlock"));
+    }
+    if (unpackFlag) {
+      NCCLCHECK(CudaPtrCheck(
+          recv_indices, comm, "recv_indices", "ncclAllReduceSparseBlock"));
+      NCCLCHECK(
+          CudaPtrCheck(sendbuff, comm, "sendbuff", "ncclAllReduceSparseBlock"));
+    }
+  }
+  // TODO: check valid block ranges defined in recv_indices
 
   if (resetFlag) {
     // Assume only support ncclSum, thus reset recvbuff with zero works
