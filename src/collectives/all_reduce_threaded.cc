@@ -364,6 +364,7 @@ ncclResult_t ncclAllReduceThreaded(
 
   const auto enableIpc = comm->threadedRanks.md->enableIpc();
   if (!enableIpc) {
+    // check threaded settings
     if ((numThreadedRanks !=
          comm->nRanks) || /* collective must only contain threaded ranks */
         (numThreadedRanks & (numThreadedRanks - 1)) || /* power of two ranks */
@@ -377,7 +378,11 @@ ncclResult_t ncclAllReduceThreaded(
       goto not_supported;
     }
   } else {
-    // TODO check ipc configs before launching kernel
+    // check IPC settings
+    // TODO: check all processes belong to a single node
+    if (comm->threadedRanks.md->topoType != NCCL_THREADED_TOPO_TYPE__NVS) {
+      goto not_supported;
+    }
   }
 
   switch (datatype) {
