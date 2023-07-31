@@ -1161,23 +1161,40 @@ ncclResult_t ncclTopoGetAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, 
     // Find algorithm / protocol.
     info->algorithm = -1;
     info->protocol = -1;
+
+    // If the user forces an algorithm / protocol, use that
+    if(info->comm->config.algo != NCCL_CONFIG_UNDEF_INT){
+      info->algorithm = info->comm->config.algo;
+    }
+    if(info->comm->config.proto != NCCL_CONFIG_UNDEF_INT){
+      info->protocol = info->comm->config.proto;
+    }
     int nAlgos = NCCL_NUM_ALGORITHMS;
+    int bestAlgo = -1;
+    int bestProto = -1;
     for (int a=0; a<nAlgos; a++) {
+      if(info->algorithm != -1 && a != info->algorithm) continue; // If the user forces an algorithm, skip to that one
       if ((a == NCCL_ALGO_COLLNET_DIRECT || a == NCCL_ALGO_COLLNET_CHAIN) && collNetTypeSupport != 1) continue;
       if (a == NCCL_ALGO_NVLS && !NCCL_NVLS_SUPPORTS(info->datatype, info->opFull.op)) continue;
       if (a == NCCL_ALGO_NVLS && collNetTypeSupport != 1 && comm->nNodes > 1) continue;
       if (a == NCCL_ALGO_NVLS_TREE && !NCCL_NVLS_SUPPORTS(info->datatype, info->opFull.op)) continue;
 
       for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
+        if(info->protocol != -1 && p != info->protocol) continue; // If the user forces a protcol, skip to that one
         float time;
         NCCLCHECK(ncclTopoGetAlgoTime(info, a, p, numPipeOps, &time));
         if (time >= 0 && time < minTime) {
-          info->algorithm = a;
-          info->protocol = p;
+          bestAlgo = a;
+          bestProto = p;
           minTime = time;
         }
       }
     }
+
+    // Best algorithm / protocol found, set info to match
+    info->algorithm = bestAlgo;
+    info->protocol = bestProto;
+
     if (info->algorithm == -1 || info->protocol == -1) {
       WARN("Error : no algorithm/protocol available");
       return ncclInternalError;

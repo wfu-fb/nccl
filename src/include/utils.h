@@ -14,6 +14,8 @@
 #include <time.h>
 #include <sched.h>
 #include <new>
+#include <string>
+#include <algorithm>
 
 int ncclCudaCompCap();
 
@@ -497,5 +499,23 @@ T* ncclIntruQueueMpscAbandon(ncclIntruQueueMpsc<T,next>* me) {
     }
     return head;
   }
+}
+
+// Find the mapping between "name" and its enum value
+template<size_t N> ncclResult_t strToEnum(std::string name, const char * (&mapping)[N], int *variant) {
+    const auto it = std::find(std::begin(mapping), std::end(mapping), name);
+    if(it!= std::end(mapping)){
+        *variant = it - std::begin(mapping);
+        return ncclSuccess;
+    }
+
+    std::string validValues;
+    for(int i = 0; i < N; i++){
+        validValues += mapping[i];
+        if(i!= N-1) validValues += ", ";
+    }
+
+    WARN("Got %s, expected one of %s", name.c_str(), validValues.c_str());
+    return ncclInvalidArgument;
 }
 #endif

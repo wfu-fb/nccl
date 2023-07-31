@@ -99,6 +99,16 @@ ncclResult_t pncclGetUniqueId(ncclUniqueId* uniqueId);
 ncclResult_t  ncclCommInitRankConfig(ncclComm_t* comm, int nranks, ncclUniqueId commId, int rank, ncclConfig_t* config);
 ncclResult_t pncclCommInitRankConfig(ncclComm_t* comm, int nranks, ncclUniqueId commId, int rank, ncclConfig_t* config);
 
+/* Update the configuration of the communicator, only for specific runtime-mutatable parameters.
+ * Currently supports changing algorithms and protocols. */
+ ncclResult_t  ncclCommSetInfo(ncclComm_t *comm, ncclConfig_t *config);
+ ncclResult_t pncclCommSetInfo(ncclComm_t *comm, ncclConfig_t *config);
+
+/* Get the current algorithm and protocol and algorithms enabled.
+ * Currently ONLY included for testing ncclCommSetInfo */
+ ncclResult_t  ncclCommGetInfo(ncclComm_t *comm, ncclConfig_t *config);
+ ncclResult_t pncclCommGetInfo(ncclComm_t *comm, ncclConfig_t *config);
+
 /* Creates a new communicator (multi thread/process version).
  * rank must be between 0 and nranks-1 and unique within a communicator clique.
  * Each rank is associated to a CUDA device, which has to be set before calling
