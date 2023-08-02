@@ -8,6 +8,7 @@
 #define NCCL_CHECKS_H_
 
 #include "debug.h"
+#include <assert.h>
 
 // Check CUDA RT calls
 #define CUDACHECK(cmd) do {                                 \
@@ -35,6 +36,17 @@
         (void) cudaGetLastError(); \
     }                              \
 } while(false)
+
+// Use of abort should be aware of potential memory leak risk
+// and place a signal handler to catch it and trigger termination processing
+#define CUDACHECKABORT(cmd)                               \
+  do {                                                    \
+    cudaError_t err = cmd;                                \
+    if (err != cudaSuccess) {                             \
+      WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
+      abort();                                            \
+    }                                                     \
+  } while (false)
 
 #include <errno.h>
 // Check system calls
@@ -129,6 +141,17 @@
     if (RES != ncclSuccess && RES != ncclInProgress) {        \
       INFO(NCCL_ALL, "%s:%d -> %d", __FILE__, __LINE__, RES); \
     }                                                         \
+  } while (0)
+
+// Use of abort should be aware of potential memory leak risk
+// and place a signal handler to catch it and trigger termination processing
+#define NCCLCHECKABORT(call)                           \
+  do {                                                 \
+    ncclResult_t RES = call;                           \
+    if (RES != ncclSuccess && RES != ncclInProgress) { \
+      WARN("%s:%d -> %d", __FILE__, __LINE__, RES);    \
+      abort();                                         \
+    }                                                  \
   } while (0)
 
 #define NCCLWAIT(call, cond, abortFlagPtr) do {         \
