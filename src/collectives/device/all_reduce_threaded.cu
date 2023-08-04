@@ -14,11 +14,17 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
     const __half* x = reinterpret_cast<const __half*>(&a);
     const __half* y = reinterpret_cast<const __half*>(&b);
 
+#if (__CUDA_ARCH__ >= 700)
     __half2 p = __halves2half2(x[0], x[1]);
     __half2 q = __halves2half2(y[0], y[1]);
 
     __half2 z = __hadd2(p, q);
     return (reinterpret_cast<uint32_t*>(&z))[0];
+#else
+    half z[2] = { __hadd(x[0], y[0]), __hadd(x[1], y[1]) };
+    return (reinterpret_cast<uint32_t*>(z))[0];
+#endif
+
 #if defined(__CUDA_BF16_TYPES_EXIST__)
   } else if (std::is_same<T, __nv_bfloat16>::value) {
     const __nv_bfloat16* x = reinterpret_cast<const __nv_bfloat16*>(&a);
@@ -46,10 +52,13 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
  * essentially tricking the compiler.  We never call this version for
  * bfloat16, so it doesn't matter that it does not compile, but the
  * compiler unfortunately does not know that. */
-#if defined(__CUDA_BF16_TYPES_EXIST__)
 template <typename T, uint32_t NRANKS>
 static inline __device__
-typename std::enable_if<!std::is_same<T, __nv_bfloat16>::value, uint4>::type
+typename std::enable_if<!std::is_same<T, half>::value
+#if defined(__CUDA_BF16_TYPES_EXIST__)
+    && !std::is_same<T, __nv_bfloat16>::value
+#endif
+    , uint4>::type
 seqAdd(const T** src, size_t offset) {
   T dst[16 / sizeof(T)] = {0};
   for (int i = 0; i < NRANKS; i++) {
@@ -64,32 +73,16 @@ seqAdd(const T** src, size_t offset) {
 
 template <typename T, uint32_t NRANKS>
 static inline __device__
-typename std::enable_if<std::is_same<T, __nv_bfloat16>::value, uint4>::type
+typename std::enable_if<std::is_same<T, half>::value
+#if defined(__CUDA_BF16_TYPES_EXIST__)
+    || std::is_same<T, __nv_bfloat16>::value
+#endif
+    , uint4>::type
 seqAdd(const T** src, size_t offset) {
   uint4 x = {0, 0, 0, 0};
 
   return x;
 }
-
-#else
-
-template <typename T, uint32_t NRANKS>
-static inline __device__ uint4 seqAdd(const T** src, size_t offset) {
-  T dst[16 / sizeof(T)] = {0};
-  for (int i = 0; i < NRANKS; i++) {
-    /* 16-byte load */
-    uint4 vals = reinterpret_cast<const uint4*>(&src[i][offset])[0];
-
-    /* sequential additions */
-    const T* src_d = reinterpret_cast<const T*>(&vals);
-    for (int j = 0; j < 16 / sizeof(T); j++) {
-      dst[j] += src_d[j];
-    }
-  }
-  return reinterpret_cast<uint4*>(&dst)[0];
-}
-
-#endif
 
 template <typename T, uint32_t NRANKS>
 static inline __device__ uint4 vecAdd(const T** src, size_t offset) {
@@ -116,33 +109,46 @@ static inline __device__ uint4 vecAdd(const T** src, size_t offset) {
 }
 
 template <typename T>
-static inline __device__ uint4 vecAdd(const T* src_a, const T* src_b) {
+static inline __device__
+typename std::enable_if<std::is_same<T, half>::value
+#if defined(__CUDA_BF16_TYPES_EXIST__)
+    || std::is_same<T, __nv_bfloat16>::value
+#endif
+    , uint4>::type
+vecAdd(const T* src_a, const T* src_b) {
   /* 16-byte loads */
   uint4 vals_a = reinterpret_cast<const uint4*>(src_a)[0];
   uint4 vals_b = reinterpret_cast<const uint4*>(src_b)[0];
 
-  if (std::is_same<T, half>::value
+  /* vector additions */
+  uint4 dst;
+  dst.x = vecElementAdd<T>(vals_a.x, vals_b.x);
+  dst.y = vecElementAdd<T>(vals_a.y, vals_b.y);
+  dst.z = vecElementAdd<T>(vals_a.z, vals_b.z);
+  dst.w = vecElementAdd<T>(vals_a.w, vals_b.w);
+  return dst;
+}
+
+template <typename T>
+static inline __device__
+typename std::enable_if<!std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
-      || std::is_same<T, __nv_bfloat16>::value
+    && !std::is_same<T, __nv_bfloat16>::value
 #endif
-  ) {
-    /* vector additions */
-    uint4 dst;
-    dst.x = vecElementAdd<T>(vals_a.x, vals_b.x);
-    dst.y = vecElementAdd<T>(vals_a.y, vals_b.y);
-    dst.z = vecElementAdd<T>(vals_a.z, vals_b.z);
-    dst.w = vecElementAdd<T>(vals_a.w, vals_b.w);
-    return dst;
-  } else {
-    /* cast back to original type and do sequential additions */
-    T dst[16 / sizeof(T)];
-    const T* src_a_loaded = reinterpret_cast<const T*>(&vals_a);
-    const T* src_b_loaded = reinterpret_cast<const T*>(&vals_b);
-    for (int j = 0; j < 16 / sizeof(T); j++) {
-      dst[j] = src_a_loaded[j] + src_b_loaded[j];
-    }
-    return reinterpret_cast<uint4*>(&dst)[0];
+    , uint4>::type
+vecAdd(const T* src_a, const T* src_b) {
+  /* 16-byte loads */
+  uint4 vals_a = reinterpret_cast<const uint4*>(src_a)[0];
+  uint4 vals_b = reinterpret_cast<const uint4*>(src_b)[0];
+
+  /* cast back to original type and do sequential additions */
+  T dst[16 / sizeof(T)];
+  const T* src_a_loaded = reinterpret_cast<const T*>(&vals_a);
+  const T* src_b_loaded = reinterpret_cast<const T*>(&vals_b);
+  for (int j = 0; j < 16 / sizeof(T); j++) {
+    dst[j] = src_a_loaded[j] + src_b_loaded[j];
   }
+  return reinterpret_cast<uint4*>(&dst)[0];
 }
 
 /*
