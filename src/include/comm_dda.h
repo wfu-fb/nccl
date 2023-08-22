@@ -1,27 +1,27 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#ifndef NCCL_COMM_THREADED_H_
-#define NCCL_COMM_THREADED_H_
+#ifndef NCCL_COMM_DDA_H_
+#define NCCL_COMM_DDA_H_
 
 #include <stdexcept>
 #include <unordered_map>
 #include <vector>
 #include "checks.h"
 
-int64_t ncclParamMaxThreadedRanks(void);
-int64_t ncclParamThreadedAllreduceMaxTmpbufSize(void);
-int64_t ncclParamThreadedAllreduceLocalBufSize(void);
+int64_t ncclParamMaxDDAThreads(void);
+int64_t ncclParamDDAAllreduceMaxTmpbufSize(void);
+int64_t ncclParamDDAAllreduceLocalBufSize(void);
 
 typedef enum {
-  NCCL_THREADED_TOPO_TYPE__NVS,
-  NCCL_THREADED_TOPO_TYPE__HCM,
-  NCCL_THREADED_TOPO_TYPE__UNKNOWN,
-} ncclThreadedTopoType_t;
+  NCCL_DDA_TOPO_TYPE__NVS,
+  NCCL_DDA_TOPO_TYPE__HCM,
+  NCCL_DDA_TOPO_TYPE__UNKNOWN,
+} ncclDDATopoType_t;
 
 /* each clique (direct NVLink connected group) of ranks */
-class threadedRanksClique {
+class ddaClique {
  public:
-  threadedRanksClique(std::vector<int> gpuClique) {
+  ddaClique(std::vector<int> gpuClique) {
     this->gpus = gpuClique;
 
     /* mailbox for ranks to exchange their source buffer
@@ -34,7 +34,7 @@ class threadedRanksClique {
     }
   }
 
-  ~threadedRanksClique() {
+  ~ddaClique() {
     for (auto it : this->rankToTmpbuf) {
       void* buf = it.second;
       CUDACHECKIGNORE(cudaFree(buf));
@@ -87,7 +87,7 @@ class threadedRanksClique {
     }
 
     CUDACHECKIGNORE(
-        cudaMalloc(&buf, ncclParamThreadedAllreduceMaxTmpbufSize()));
+        cudaMalloc(&buf, ncclParamDDAAllreduceMaxTmpbufSize()));
     this->rankToTmpbuf[rank] = buf;
   }
 
@@ -99,13 +99,13 @@ class threadedRanksClique {
   uintptr_t* barrierMbox[2];
 };
 
-/* metadata for threaded ranks: contains the clique of GPUs (currently
+/* metadata for dda ranks: contains the clique of GPUs (currently
  * all of the GPUs in the system), and a refcount of the number of
  * communicator handles in this address space that point to the same
  * commId */
-class threadedRanksMd {
+class ddaMd {
  public:
-  threadedRanksMd(
+  ddaMd(
       ncclUniqueId commId,
       std::vector<std::vector<int>> gpuCliques,
       bool enableIpc = false)
@@ -113,22 +113,22 @@ class threadedRanksMd {
     this->commId = commId;
 
     /* add topology information */
-    this->topoType = NCCL_THREADED_TOPO_TYPE__UNKNOWN;
+    this->topoType = NCCL_DDA_TOPO_TYPE__UNKNOWN;
     if (gpuCliques.size() == 1) {
-      this->topoType = NCCL_THREADED_TOPO_TYPE__NVS;
+      this->topoType = NCCL_DDA_TOPO_TYPE__NVS;
     } else if (gpuCliques.size() == 2) {
-      this->topoType = NCCL_THREADED_TOPO_TYPE__HCM;
+      this->topoType = NCCL_DDA_TOPO_TYPE__HCM;
     }
 
     for (auto it : gpuCliques) {
-      threadedRanksClique* clique = new threadedRanksClique(it);
+      ddaClique* clique = new ddaClique(it);
       this->cliques.push_back(clique);
     }
 
     this->refCount = 0;
   }
 
-  ~threadedRanksMd() {
+  ~ddaMd() {
     for (auto c : cliques) {
       delete c;
     }
@@ -145,8 +145,8 @@ class threadedRanksMd {
   }
 
   ncclUniqueId commId;
-  ncclThreadedTopoType_t topoType;
-  std::vector<threadedRanksClique*> cliques;
+  ncclDDATopoType_t topoType;
+  std::vector<ddaClique*> cliques;
   int refCount;
 
   // ipc states
@@ -176,7 +176,7 @@ class threadedRanksMd {
   const bool enableIpc_{false};
 };
 
-ncclResult_t allocThreadedRanksMd(ncclComm_t comm, ncclUniqueId commId);
-ncclResult_t freeThreadedRanksMd(threadedRanksMd* md, int rank);
+ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId);
+ncclResult_t freeDDAMd(ddaMd* md, int rank);
 
 #endif

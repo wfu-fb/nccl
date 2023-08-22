@@ -8,8 +8,8 @@
 #include "nccl.h"
 
 #define NCCL_ALLREDUCE_ALGO__ORIG       (0)
-#define NCCL_ALLREDUCE_ALGO__THREADED   (1)
-#define NCCL_ALLREDUCE_ALGO__THREADED_IPC (2)
+#define NCCL_ALLREDUCE_ALGO__DDA_THREADED   (1)
+#define NCCL_ALLREDUCE_ALGO__DDA_IPC (2)
 
 // if non-zero, enforce new algorithm w/o falling back to original implementation
 NCCL_PARAM(AllreduceAlgoEnforce, "ALLREDUCE_ALGO_ENFORCE", 0);
@@ -22,17 +22,17 @@ ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
   const char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
   int allreduceAlgo = NCCL_ALLREDUCE_ALGO__ORIG;
   if (allreduceAlgoStr != nullptr) {
-    if (!strcmp(allreduceAlgoStr, "threaded")) {
-      allreduceAlgo = NCCL_ALLREDUCE_ALGO__THREADED;
-    } else if (!strcmp(allreduceAlgoStr, "threaded_ipc")) {
-      allreduceAlgo = NCCL_ALLREDUCE_ALGO__THREADED_IPC;
+    if (!strcmp(allreduceAlgoStr, "dda_threaded")) {
+      allreduceAlgo = NCCL_ALLREDUCE_ALGO__DDA_THREADED;
+    } else if (!strcmp(allreduceAlgoStr, "dda_ipc")) {
+      allreduceAlgo = NCCL_ALLREDUCE_ALGO__DDA_IPC;
     }
   }
 
   const bool allReduceAlgoEnforce = ncclParamAllreduceAlgoEnforce() != 0;
 
-  if (allreduceAlgo == NCCL_ALLREDUCE_ALGO__THREADED || allreduceAlgo == NCCL_ALLREDUCE_ALGO__THREADED_IPC) {
-    auto ret = ncclAllReduceThreaded(sendbuff, recvbuff, count, datatype, op, comm, stream);
+  if (allreduceAlgo == NCCL_ALLREDUCE_ALGO__DDA_THREADED || allreduceAlgo == NCCL_ALLREDUCE_ALGO__DDA_IPC) {
+    auto ret = ncclAllReduceDDA(sendbuff, recvbuff, count, datatype, op, comm, stream);
     if (allReduceAlgoEnforce || (ret != ncclInvalidUsage)) {
       // return immediately if enforced or result in non-ncclInvalidUsage error
       return ret;

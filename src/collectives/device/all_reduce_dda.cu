@@ -1,7 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "all_reduce.h"
-#include "all_reduce_threaded.h"
+#include "all_reduce_dda.h"
 #include "collectives.h"
 #include "common.h"
 
@@ -416,7 +416,7 @@ static inline __device__ void peerReduce(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_Threaded_Flat(
+__global__ void ncclKernel_AllReduce_DDA_Flat(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
@@ -428,7 +428,7 @@ __global__ void ncclKernel_AllReduce_Threaded_Flat(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_Threaded_Flat_ipc(
+__global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
@@ -440,7 +440,7 @@ __global__ void ncclKernel_AllReduce_Threaded_Flat_ipc(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_Threaded_Tree(
+__global__ void ncclKernel_AllReduce_DDA_Tree(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
@@ -453,7 +453,7 @@ __global__ void ncclKernel_AllReduce_Threaded_Tree(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_Threaded_Tree_ipc(
+__global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
@@ -466,7 +466,7 @@ __global__ void ncclKernel_AllReduce_Threaded_Tree_ipc(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_Threaded_HCM_Flat(
+__global__ void ncclKernel_AllReduce_DDA_HCM_Flat(
     uintptr_t* cliqueBarrierMbox,
     uintptr_t* localMbox,
     uintptr_t* peerMbox,
@@ -493,7 +493,7 @@ __global__ void ncclKernel_AllReduce_Threaded_HCM_Flat(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_Threaded_HCM_Tree(
+__global__ void ncclKernel_AllReduce_DDA_HCM_Tree(
     uintptr_t* cliqueBarrierMbox,
     uintptr_t* localMbox,
     uintptr_t* peerMbox,
@@ -517,15 +517,15 @@ __global__ void ncclKernel_AllReduce_Threaded_HCM_Tree(
   peerReduce<T, NRANKS>(localMbox, peerMbox, tmpbuff, recvbuff, count);
 }
 
-DECL_THREADED_FUNC(char);
-DECL_THREADED_FUNC(uint8_t);
-DECL_THREADED_FUNC(int32_t);
-DECL_THREADED_FUNC(uint32_t);
-DECL_THREADED_FUNC(int64_t);
-DECL_THREADED_FUNC(uint64_t);
-DECL_THREADED_FUNC(half);
-DECL_THREADED_FUNC(float);
-DECL_THREADED_FUNC(double);
+DECL_DDA_FUNC(char);
+DECL_DDA_FUNC(uint8_t);
+DECL_DDA_FUNC(int32_t);
+DECL_DDA_FUNC(uint32_t);
+DECL_DDA_FUNC(int64_t);
+DECL_DDA_FUNC(uint64_t);
+DECL_DDA_FUNC(half);
+DECL_DDA_FUNC(float);
+DECL_DDA_FUNC(double);
 #if defined(__CUDA_BF16_TYPES_EXIST__)
-DECL_THREADED_FUNC(__nv_bfloat16);
+DECL_DDA_FUNC(__nv_bfloat16);
 #endif

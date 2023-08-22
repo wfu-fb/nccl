@@ -6,19 +6,10 @@
 #include "enqueue.h"
 #include "nccl.h"
 
-NCCL_PARAM(ThreadedAllreduceMaxBlocks, "THREADED_ALLREDUCE_MAX_BLOCKS", 1);
-NCCL_PARAM(
-    ThreadedAllreduceTreeThresholdNVS,
-    "THREADED_ALLREDUCE_TREE_THRESHOLD_NVS",
-    256 * 1024);
-NCCL_PARAM(
-    ThreadedAllreduceTreeThresholdHCM,
-    "THREADED_ALLREDUCE_TREE_THRESHOLD_HCM",
-    256 * 1024);
-NCCL_PARAM(
-    ThreadedAllreduceLargeMessageHCM,
-    "THREADED_ALLREDUCE_LARGE_MESSAGE_HCM",
-    0);
+NCCL_PARAM(DDAAllreduceMaxBlocks, "DDA_ALLREDUCE_MAX_BLOCKS", 1);
+NCCL_PARAM(DDAAllreduceTreeThresholdNVS, "DDA_ALLREDUCE_TREE_THRESHOLD_NVS", 256 * 1024);
+NCCL_PARAM(DDAAllreduceTreeThresholdHCM, "DDA_ALLREDUCE_TREE_THRESHOLD_HCM", 256 * 1024);
+NCCL_PARAM(DDAAllreduceLargeMessageHCM, "DDA_ALLREDUCE_LARGE_MESSAGE_HCM", 0);
 
 #define ASSIGN_FUNC(func, templ, nranks)   \
   do {                                     \
@@ -45,13 +36,12 @@ NCCL_PARAM(
   } while (0)
 
 static inline int getMaxBlocks(ncclComm* comm) {
-  int maxBlocks = ncclParamThreadedAllreduceMaxBlocks();
+  int maxBlocks = ncclParamDDAAllreduceMaxBlocks();
 
-  if (maxBlocks > comm->threadedRanks.devProp.multiProcessorCount) {
-    WARN(
-        "NCCL_THREADED_ALLREDUCE_MAX_BLOCKS cannot be larger than %d\n",
-        comm->threadedRanks.devProp.multiProcessorCount);
-    maxBlocks = comm->threadedRanks.devProp.multiProcessorCount;
+  if (maxBlocks > comm->dda.devProp.multiProcessorCount) {
+    WARN("NCCL_DDA_ALLREDUCE_MAX_BLOCKS cannot be larger than %d\n",
+         comm->dda.devProp.multiProcessorCount);
+    maxBlocks = comm->dda.devProp.multiProcessorCount;
   }
 
   return maxBlocks;
@@ -64,16 +54,16 @@ static ncclResult_t launchKernel(
     void* recvbuff,
     size_t count,
     cudaStream_t stream) {
-  bool enableIpc = comm->threadedRanks.md->enableIpc();
+  bool enableIpc = comm->dda.md->enableIpc();
   if (enableIpc) {
-    if (sizeof(T) * count > ncclParamThreadedAllreduceLocalBufSize()) {
+    if (sizeof(T) * count > ncclParamDDAAllreduceLocalBufSize()) {
       // we don't support data size > 32 MB yet
       // TODO: run multiple allreduce in batches to support larger data size
       return ncclInvalidUsage;
     }
 
     CUDACHECK(cudaMemcpyAsync(
-        comm->threadedRanks.md->localSendBuf,
+        comm->dda.md->localSendBuf,
         sendbuff,
         count * sizeof(T),
         cudaMemcpyDefault,
@@ -81,25 +71,25 @@ static ncclResult_t launchKernel(
   }
   const void* func;
 
-  if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__NVS) {
-    if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdNVS()) {
+  if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+    if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
       if (enableIpc) {
-        ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Flat_ipc, comm->nRanks);
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Flat_ipc, comm->nRanks);
       } else {
-        ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Flat, comm->nRanks);
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Flat, comm->nRanks);
       }
     } else {
       if (enableIpc) {
-        ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Tree_ipc, comm->nRanks);
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Tree_ipc, comm->nRanks);
       } else {
-        ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_Tree, comm->nRanks);
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Tree, comm->nRanks);
       }
     }
-  } else if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__HCM) {
-    if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdHCM()) {
-      ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_HCM_Flat, comm->nRanks);
-    } else if (ncclParamThreadedAllreduceLargeMessageHCM()) {
-      ASSIGN_FUNC(func, ncclKernel_AllReduce_Threaded_HCM_Tree, comm->nRanks);
+  } else if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM) {
+    if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdHCM()) {
+      ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_HCM_Flat, comm->nRanks);
+    } else if (ncclParamDDAAllreduceLargeMessageHCM()) {
+      ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_HCM_Tree, comm->nRanks);
     } else {
       return ncclInvalidUsage;
     }
@@ -117,26 +107,26 @@ static ncclResult_t launchKernel(
   dim3 grid;
   dim3 blocks;
 
-  if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__NVS) {
-    if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdNVS()) {
+  if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+    if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
       if (count % eltsPerThread) {
         return ncclInvalidUsage;
       }
       if (sendbuff == recvbuff) {
-        if (count * sizeof(T) > ncclParamThreadedAllreduceMaxTmpbufSize()) {
+        if (count * sizeof(T) > ncclParamDDAAllreduceMaxTmpbufSize()) {
           return ncclInvalidUsage;
         }
       }
     } else {
       if ((count % (comm->nRanks * eltsPerThread)) ||
           (count * sizeof(T) / comm->nRanks >
-           ncclParamThreadedAllreduceMaxTmpbufSize())) {
+           ncclParamDDAAllreduceMaxTmpbufSize())) {
         return ncclInvalidUsage;
       }
     }
   } else {
     if ((count % eltsPerThread) ||
-        (count * sizeof(T) > ncclParamThreadedAllreduceMaxTmpbufSize())) {
+        (count * sizeof(T) > ncclParamDDAAllreduceMaxTmpbufSize())) {
       return ncclInvalidUsage;
     }
   }
@@ -204,29 +194,22 @@ static ncclResult_t launchKernel(
    * collective even if not all ranks have exited the previous
    * collective (and thus are still using the previous mbox).
    */
-  if (comm->threadedRanks.barrierMboxId == 1 &&
-      comm->threadedRanks.barrierFlag == 0) {
-    comm->threadedRanks.barrierMboxId = !comm->threadedRanks.barrierMboxId;
-    comm->threadedRanks.barrierFlag = !comm->threadedRanks.barrierFlag;
-  } else if (
-      comm->threadedRanks.barrierMboxId == 0 &&
-      comm->threadedRanks.barrierFlag == 1) {
-    comm->threadedRanks.barrierMboxId = !comm->threadedRanks.barrierMboxId;
-  } else if (
-      comm->threadedRanks.barrierMboxId == 1 &&
-      comm->threadedRanks.barrierFlag == 1) {
-    comm->threadedRanks.barrierMboxId = !comm->threadedRanks.barrierMboxId;
-    comm->threadedRanks.barrierFlag = !comm->threadedRanks.barrierFlag;
-  } else if (
-      comm->threadedRanks.barrierMboxId == 0 &&
-      comm->threadedRanks.barrierFlag == 0) {
-    comm->threadedRanks.barrierMboxId = !comm->threadedRanks.barrierMboxId;
+  if (comm->dda.barrierMboxId == 1 && comm->dda.barrierFlag == 0) {
+    comm->dda.barrierMboxId = !comm->dda.barrierMboxId;
+    comm->dda.barrierFlag = !comm->dda.barrierFlag;
+  } else if (comm->dda.barrierMboxId == 0 && comm->dda.barrierFlag == 1) {
+    comm->dda.barrierMboxId = !comm->dda.barrierMboxId;
+  } else if (comm->dda.barrierMboxId == 1 && comm->dda.barrierFlag == 1) {
+    comm->dda.barrierMboxId = !comm->dda.barrierMboxId;
+    comm->dda.barrierFlag = !comm->dda.barrierFlag;
+  } else if (comm->dda.barrierMboxId == 0 && comm->dda.barrierFlag == 0) {
+    comm->dda.barrierMboxId = !comm->dda.barrierMboxId;
   }
 
-  if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__NVS) {
-    threadedRanksClique* clique = comm->threadedRanks.md->cliques.front();
+  if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+    ddaClique* clique = comm->dda.md->cliques.front();
 
-    if (count * sizeof(T) < ncclParamThreadedAllreduceTreeThresholdNVS()) {
+    if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
       // in IPC mode, source data always gets copied to localSendBuf first,
       // which never overlaps with recvbuff
       const bool useTmpBuf = (sendbuff == recvbuff) && (!enableIpc);
@@ -234,18 +217,17 @@ static ncclResult_t launchKernel(
 
       if (enableIpc) {
         void* args[] = {
-            &comm->threadedRanks.md
-                 ->barrierMbox[comm->threadedRanks.barrierMboxId],
-            &comm->threadedRanks.barrierFlag,
+            &comm->dda.md->barrierMbox[comm->dda.barrierMboxId],
+            &comm->dda.barrierFlag,
             &comm->rank,
             &rbuf,
             &count,
-            &comm->threadedRanks.md->allSendBufs};
+            &comm->dda.md->allSendBufs};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
       } else {
         void* args[] = {
-            &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
-            &comm->threadedRanks.barrierFlag,
+            &clique->barrierMbox[comm->dda.barrierMboxId],
+            &comm->dda.barrierFlag,
             &comm->rank,
             &sendbuff,
             &rbuf,
@@ -264,19 +246,18 @@ static ncclResult_t launchKernel(
       // scatter-reduce, allgather tree algorithm
       if (enableIpc) {
         void* args[] = {
-            &comm->threadedRanks.md
-                 ->barrierMbox[comm->threadedRanks.barrierMboxId],
-            &comm->threadedRanks.barrierFlag,
+            &comm->dda.md->barrierMbox[comm->dda.barrierMboxId],
+            &comm->dda.barrierFlag,
             &comm->rank,
-            &comm->threadedRanks.md->allSendBufs,
-            &comm->threadedRanks.md->allTmpBufs,
+            &comm->dda.md->allSendBufs,
+            &comm->dda.md->allTmpBufs,
             &recvbuff,
             &count};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
       } else {
         void* args[] = {
-            &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
-            &comm->threadedRanks.barrierFlag,
+            &clique->barrierMbox[comm->dda.barrierMboxId],
+            &comm->dda.barrierFlag,
             &comm->rank,
             &sendbuff,
             &clique->rankToTmpbuf[comm->rank],
@@ -285,13 +266,13 @@ static ncclResult_t launchKernel(
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
       }
     }
-  } else if (comm->threadedRanks.md->topoType == NCCL_THREADED_TOPO_TYPE__HCM) {
-    threadedRanksClique* clique = comm->threadedRanks.md->cliques.front();
-    threadedRanksClique* peerClique = comm->threadedRanks.md->cliques.back();
+  } else if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM) {
+    ddaClique* clique = comm->dda.md->cliques.front();
+    ddaClique* peerClique = comm->dda.md->cliques.back();
 
     if (clique->rankToGpu.find(comm->rank) == clique->rankToGpu.end()) {
-      clique = comm->threadedRanks.md->cliques.back();
-      peerClique = comm->threadedRanks.md->cliques.front();
+      clique = comm->dda.md->cliques.back();
+      peerClique = comm->dda.md->cliques.front();
     }
     assert(clique->rankToGpu.find(comm->rank) != clique->rankToGpu.end());
 
@@ -311,17 +292,15 @@ static ncclResult_t launchKernel(
     }
     assert(peerRank != -1);
 
-    comm->threadedRanks.localMboxId = !comm->threadedRanks.localMboxId;
+    comm->dda.localMboxId = !comm->dda.localMboxId;
 
-    assert(
-        peerClique->rankToLocalMbox[comm->threadedRanks.localMboxId]
-                                   [peerRank] != nullptr);
+    assert(peerClique->rankToLocalMbox[comm->dda.localMboxId][peerRank] != nullptr);
 
     void* args[] = {
-        &clique->barrierMbox[comm->threadedRanks.barrierMboxId],
-        &clique->rankToLocalMbox[comm->threadedRanks.localMboxId][comm->rank],
-        &peerClique->rankToLocalMbox[comm->threadedRanks.localMboxId][peerRank],
-        &comm->threadedRanks.barrierFlag,
+        &clique->barrierMbox[comm->dda.barrierMboxId],
+        &clique->rankToLocalMbox[comm->dda.localMboxId][comm->rank],
+        &peerClique->rankToLocalMbox[comm->dda.localMboxId][peerRank],
+        &comm->dda.barrierFlag,
         &cliqueRank,
         &sendbuff,
         &clique->rankToTmpbuf[comm->rank],
@@ -334,7 +313,7 @@ static ncclResult_t launchKernel(
   return ncclSuccess;
 }
 
-ncclResult_t ncclAllReduceThreaded(
+ncclResult_t ncclAllReduceDDA(
     const void* sendbuff,
     void* recvbuff,
     size_t count,
@@ -342,8 +321,8 @@ ncclResult_t ncclAllReduceThreaded(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream) {
-  threadedRanksClique* clique;
-  int numThreadedRanks = 0;
+  ddaClique* clique;
+  int numDDAThreads = 0;
   ncclResult_t res;
 
   NCCLCHECK(ncclCommEnsureReady(comm));
@@ -358,20 +337,17 @@ ncclResult_t ncclAllReduceThreaded(
   NCCLCHECK(CudaPtrCheck(sendbuff, comm, "sendbuff", "AllReduce"));
   NCCLCHECK(CudaPtrCheck(recvbuff, comm, "recvbuff", "AllReduce"));
 
-  for (auto c : comm->threadedRanks.md->cliques) {
-    numThreadedRanks += c->rankToGpu.size();
+  for (auto c : comm->dda.md->cliques) {
+    numDDAThreads += c->rankToGpu.size();
   }
 
-  const auto enableIpc = comm->threadedRanks.md->enableIpc();
+  const auto enableIpc = comm->dda.md->enableIpc();
   if (!enableIpc) {
-    // check threaded settings
-    if ((numThreadedRanks !=
-         comm->nRanks) || /* collective must only contain threaded ranks */
-        (numThreadedRanks & (numThreadedRanks - 1)) || /* power of two ranks */
-        (numThreadedRanks == 1) || /* more than one rank */
-        (numThreadedRanks >
-         ncclParamMaxThreadedRanks()) || /* only small rank counts are supported
-                                          */
+    // check dda settings
+    if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
+        (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
+        (numDDAThreads == 1) || /* more than one rank */
+        (numDDAThreads > ncclParamMaxDDAThreads()) || /* only small rank counts are supported */
         (op != ncclSum) || /* only sum is supported */
         ((uintptr_t)sendbuff % 16) || /* 16-byte alignment */
         ((uintptr_t)recvbuff % 16)) { /* 16-byte alignment */
@@ -380,7 +356,7 @@ ncclResult_t ncclAllReduceThreaded(
   } else {
     // check IPC settings
     // TODO: check all processes belong to a single node
-    if (comm->threadedRanks.md->topoType != NCCL_THREADED_TOPO_TYPE__NVS) {
+    if (comm->dda.md->topoType != NCCL_DDA_TOPO_TYPE__NVS) {
       goto not_supported;
     }
   }
@@ -426,8 +402,7 @@ ncclResult_t ncclAllReduceThreaded(
 
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     case ncclBfloat16:
-      NCCLCHECK(
-          launchKernel<__nv_bfloat16>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<__nv_bfloat16>(comm, sendbuff, recvbuff, count, stream));
       break;
 #endif
 

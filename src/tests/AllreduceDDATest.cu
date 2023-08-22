@@ -79,7 +79,7 @@ class GpuAgent {
     assert(initialized_);
     CUDACHECKIGNORE(cudaSetDevice(rank_));
     uintptr_t barrierFlag = 1;
-    ncclKernel_AllReduce_Threaded_Flat<float, 2><<<1, 2>>>(
+    ncclKernel_AllReduce_DDA_Flat<float, 2><<<1, 2>>>(
         barrierMbox_d_, barrierFlag, rank_, sendbuf_d_, recvbuf_d_, count_);
 
     CUDACHECKIGNORE(cudaDeviceSynchronize());
@@ -91,7 +91,7 @@ class GpuAgent {
     assert(initialized_);
     CUDACHECKIGNORE(cudaSetDevice(rank_));
     uintptr_t barrierFlag = 1;
-    ncclKernel_AllReduce_Threaded_Tree<float, 2><<<1, 2>>>(
+    ncclKernel_AllReduce_DDA_Tree<float, 2><<<1, 2>>>(
         barrierMbox_d_,
         barrierFlag,
         rank_,
