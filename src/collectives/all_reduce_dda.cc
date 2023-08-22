@@ -57,7 +57,7 @@ static ncclResult_t launchKernel(
   bool enableIpc = comm->dda.md->enableIpc();
   if (enableIpc) {
     CUDACHECK(cudaMemcpyAsync(
-        comm->dda.md->localSendBuff,
+        comm->dda.md->tmpSendbuff,
         sendbuff,
         count * sizeof(T),
         cudaMemcpyDefault,
@@ -187,7 +187,7 @@ static ncclResult_t launchKernel(
             &comm->rank,
             &recvbuff,
             &count,
-            &comm->dda.md->allSendBuffs};
+            &comm->dda.md->allTmpSendbuffs};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
       } else {
         void* args[] = {
@@ -206,8 +206,8 @@ static ncclResult_t launchKernel(
             &comm->dda.md->barrierMbox[comm->dda.barrierMboxId],
             &comm->dda.barrierFlag,
             &comm->rank,
-            &comm->dda.md->allSendBuffs,
-            &comm->dda.md->allTmpBuffs,
+            &comm->dda.md->allTmpSendbuffs,
+            &comm->dda.md->allTmpRecvbuffs,
             &recvbuff,
             &count};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));

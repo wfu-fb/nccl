@@ -154,19 +154,19 @@ class ddaMd {
   // barrier mailboxes
   uintptr_t* barrierMbox[2];
 
-  // local sendbuff that holds source data
-  void* localSendBuff{nullptr};
-  // all ranks' sendbuff addresses
-  void** allSendBuffs{nullptr};
-  // all ranks' sendbuff host-addrs
-  void** allSendBuffsHost{nullptr};
+  // tmp sendbuff that holds source data
+  void* tmpSendbuff{nullptr};
+  // all ranks' tmp sendbuff addresses
+  void** allTmpSendbuffs{nullptr};
+  // all ranks' tmp sendbuff host-addrs
+  void** allTmpSendbuffsHost{nullptr};
 
-  // local tmp buffer used for reduce-scatter (step1) in tree algorithm
-  void* localTmpBuff{nullptr};
-  // all ranks' tmpbuff addresses
-  void** allTmpBuffs{nullptr};
-  // all ranks' tmpbuff host-addrs
-  void** allTmpBuffsHost{nullptr};
+  // tmp recvbuff used for reduce-scatter (step1) in tree algorithm
+  void* tmpRecvbuff{nullptr};
+  // all ranks' tmp recvbuff addresses
+  void** allTmpRecvbuffs{nullptr};
+  // all ranks' tmp recvbuff host-addrs
+  void** allTmpRecvbuffsHost{nullptr};
 
   // total ranks, this will be set during IPC state init
   int nRanks{0};

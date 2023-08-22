@@ -31,7 +31,7 @@
       uintptr_t barrierFlag,                                                  \
       int rank,                                                               \
       const T** allSendBuffs,                                                  \
-      T** allTmpBuffs,                                                         \
+      T** allTmpRecvbuffs,                                                     \
       T* recvbuff,                                                            \
       size_t count);                                                          \
   template __global__ void ncclKernel_AllReduce_DDA_HCM_Flat<T, NRANKS>( \

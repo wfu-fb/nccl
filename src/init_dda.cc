@@ -292,24 +292,24 @@ ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId) {
     CUDACHECK(cudaMalloc(&md->barrierMbox[0], kBarrierSize));
     CUDACHECK(cudaMalloc(&md->barrierMbox[1], kBarrierSize));
     CUDACHECK(cudaMalloc(
-        &md->localSendBuff, ncclParamDDAAllreduceLocalBufSize()));
-    CUDACHECK(cudaMalloc(&md->allSendBuffs, comm->nRanks * sizeof(uintptr_t)));
+        &md->tmpSendbuff, ncclParamDDAAllreduceLocalBufSize()));
+    CUDACHECK(cudaMalloc(&md->allTmpSendbuffs, comm->nRanks * sizeof(uintptr_t)));
     CUDACHECK(cudaMalloc(
-        &md->localTmpBuff, ncclParamDDAAllreduceMaxTmpbufSize()));
-    CUDACHECK(cudaMalloc(&md->allTmpBuffs, comm->nRanks * sizeof(uintptr_t)));
+        &md->tmpRecvbuff, ncclParamDDAAllreduceMaxTmpbufSize()));
+    CUDACHECK(cudaMalloc(&md->allTmpRecvbuffs, comm->nRanks * sizeof(uintptr_t)));
 
     // allocate host mem
-    md->allSendBuffsHost =
+    md->allTmpSendbuffsHost =
         static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
-    md->allTmpBuffsHost =
+    md->allTmpRecvbuffsHost =
         static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
     md->nRanks = comm->nRanks;
 
     // open local handles
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], md->barrierMbox[0]));
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], md->barrierMbox[1]));
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuff));
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[3], md->localTmpBuff));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->tmpSendbuff));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[3], md->tmpRecvbuff));
 
     // copy handles to local sendBuf
     CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * kNumHandles));
@@ -351,28 +351,28 @@ ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId) {
       const auto& tmpBufHdl = allHdls[rankIdx * kNumHandles + 3];
       if (comm->rank == rankIdx) {
         // local rank should point to local buf
-        md->allSendBuffsHost[rankIdx] = md->localSendBuff;
-        md->allTmpBuffsHost[rankIdx] = md->localTmpBuff;
+        md->allTmpSendbuffsHost[rankIdx] = md->tmpSendbuff;
+        md->allTmpRecvbuffsHost[rankIdx] = md->tmpRecvbuff;
       } else {
         // otherwise, open IPC handle
         void* remoteBuf = nullptr;
         CUDACHECK(cudaIpcOpenMemHandle(
             (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
-        md->allSendBuffsHost[rankIdx] = remoteBuf;
+        md->allTmpSendbuffsHost[rankIdx] = remoteBuf;
 
         CUDACHECK(cudaIpcOpenMemHandle(
             (void**)&remoteBuf, tmpBufHdl, cudaIpcMemLazyEnablePeerAccess));
-        md->allTmpBuffsHost[rankIdx] = remoteBuf;
+        md->allTmpRecvbuffsHost[rankIdx] = remoteBuf;
       }
     }
     CUDACHECK(cudaMemcpy(
-        md->allSendBuffs,
-        md->allSendBuffsHost,
+        md->allTmpSendbuffs,
+        md->allTmpSendbuffsHost,
         comm->nRanks * sizeof(uintptr_t),
         cudaMemcpyDefault));
     CUDACHECK(cudaMemcpy(
-        md->allTmpBuffs,
-        md->allTmpBuffsHost,
+        md->allTmpRecvbuffs,
+        md->allTmpRecvbuffsHost,
         comm->nRanks * sizeof(uintptr_t),
         cudaMemcpyDefault));
 
@@ -412,15 +412,15 @@ ncclResult_t freeDDAMd(ddaMd* md, int rank) {
         if (i == rank) {
           continue;
         }
-        CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allSendBuffsHost[i]));
+        CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allTmpSendbuffsHost[i]));
       }
       // free host/dev memories
       CUDACHECKIGNORE(cudaFree(md->barrierMbox[0]));
       CUDACHECKIGNORE(cudaFree(md->barrierMbox[1]));
-      CUDACHECKIGNORE(cudaFree(md->localSendBuff));
-      CUDACHECKIGNORE(cudaFree(md->allSendBuffs));
-      CUDACHECKIGNORE(cudaFree(md->localTmpBuff));
-      CUDACHECKIGNORE(cudaFree(md->allTmpBuffs));
+      CUDACHECKIGNORE(cudaFree(md->tmpSendbuff));
+      CUDACHECKIGNORE(cudaFree(md->allTmpSendbuffs));
+      CUDACHECKIGNORE(cudaFree(md->tmpRecvbuff));
+      CUDACHECKIGNORE(cudaFree(md->allTmpRecvbuffs));
     }
 
     auto mdIdx =

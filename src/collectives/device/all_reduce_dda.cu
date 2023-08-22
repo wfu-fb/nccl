@@ -252,7 +252,7 @@ static inline __device__ void allreduceFlat_ipc(
     int rank,
     T* recvbuff,
     size_t count,
-    const T** allSendBuffs) {
+    const T** allTmpSendbuffs) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
 
   /* global barrier */
@@ -262,7 +262,7 @@ static inline __device__ void allreduceFlat_ipc(
   for (size_t offset = gtidx * 16 / sizeof(T); offset < count;
        offset += gridDim.x * blockDim.x * 16 / sizeof(T)) {
     reinterpret_cast<uint4*>(&recvbuff[offset])[0] =
-        vecAdd<T, NRANKS>(allSendBuffs, offset);
+        vecAdd<T, NRANKS>(allTmpSendbuffs, offset);
   }
 }
 
@@ -341,8 +341,8 @@ static inline __device__ void allreduceTree_ipc(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
-    const T** allSendBuffs,
-    T** allTmpBuffs,
+    const T** allTmpSendbuffs,
+    T** allTmpRecvbuffs,
     T* recvbuff,
     size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -355,11 +355,11 @@ static inline __device__ void allreduceTree_ipc(
   size_t offsetStride = gridDim.x * blockDim.x * 16 / sizeof(T);
 
   // step1: scatter-reduce on local tmpbuff
-  T* tmpbuff = allTmpBuffs[rank];
+  T* tmpbuff = allTmpRecvbuffs[rank];
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
     reinterpret_cast<uint4*>(&tmpbuff[offset])[0] =
-        vecAdd<T, NRANKS>(allSendBuffs, offset + rank * count / NRANKS);
+        vecAdd<T, NRANKS>(allTmpSendbuffs, offset + rank * count / NRANKS);
   }
 
   /* we cannot avoid a __threadfence_system() here because the next
@@ -376,7 +376,7 @@ static inline __device__ void allreduceTree_ipc(
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
     for (int i = 0; i < NRANKS; i++) {
-      const T* tmpbuff = allTmpBuffs[i];
+      const T* tmpbuff = allTmpRecvbuffs[i];
       reinterpret_cast<uint4*>(&recvbuff[offset + i * count / NRANKS])[0] =
           reinterpret_cast<const uint4*>(&tmpbuff[offset])[0];
     }
@@ -434,9 +434,9 @@ __global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
     int rank,
     T* recvbuff,
     size_t count,
-    const T** allSendBuffs) {
+    const T** allTmpSendbuffs) {
   allreduceFlat_ipc<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, recvbuff, count, allSendBuffs);
+      barrierMbox, barrierFlag, rank, recvbuff, count, allTmpSendbuffs);
 }
 
 template <typename T, uint32_t NRANKS>
@@ -457,12 +457,12 @@ __global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
-    const T** allSendBuffs,
-    T** allTmpBuffs,
+    const T** allTmpSendbuffs,
+    T** allTmpRecvbuffs,
     T* recvbuff,
     size_t count) {
   allreduceTree_ipc<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, allSendBuffs, allTmpBuffs, recvbuff, count);
+      barrierMbox, barrierFlag, rank, allTmpSendbuffs, allTmpRecvbuffs, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
