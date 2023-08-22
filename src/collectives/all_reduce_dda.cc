@@ -323,7 +323,7 @@ ncclResult_t ncclAllReduceDDA(
         }
       }
     } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
-      if (bytes > ncclParamDDAAllreduceMaxTmpbufSize()) { /* need tmpbuff */
+      if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
         goto not_supported;
       }
     }

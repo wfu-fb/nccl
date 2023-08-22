@@ -9,7 +9,7 @@
 #include "checks.h"
 
 int64_t ncclParamMaxDDAThreads(void);
-int64_t ncclParamDDAAllreduceMaxTmpbufSize(void);
+int64_t ncclParamDDAAllreduceTmpbuffSize(void);
 int64_t ncclParamDDAAllreduceLocalBufSize(void);
 
 typedef enum {
@@ -87,7 +87,7 @@ class ddaClique {
     }
 
     CUDACHECKIGNORE(
-        cudaMalloc(&buf, ncclParamDDAAllreduceMaxTmpbufSize()));
+        cudaMalloc(&buf, ncclParamDDAAllreduceTmpbuffSize()));
     this->rankToTmpbuf[rank] = buf;
   }
 

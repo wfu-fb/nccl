@@ -10,7 +10,7 @@
 #include "nccl.h"
 #include "topo.h"
 
-NCCL_PARAM(DDAAllreduceMaxTmpbufSize, "DDA_ALLREDUCE_MAX_TMPBUF_SIZE", 8 * 1024 * 1024);
+NCCL_PARAM(DDAAllreduceTmpbuffSize, "DDA_ALLREDUCE_TMPBUFF_SIZE", 8 * 1024 * 1024);
 NCCL_PARAM(MaxDDAThreads, "MAX_DDA_THREADS", 16);
 NCCL_PARAM(ForceP2pAccess, "FORCE_P2P_ACCESS", 0);
 NCCL_PARAM(DDAAllreduceLocalBufSize, "DDA_ALLREDUCE_LOCAL_BUF_SIZE", 32 * 1024 * 1024);
@@ -295,7 +295,7 @@ ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId) {
         &md->tmpSendbuff, ncclParamDDAAllreduceLocalBufSize()));
     CUDACHECK(cudaMalloc(&md->allTmpSendbuffs, comm->nRanks * sizeof(uintptr_t)));
     CUDACHECK(cudaMalloc(
-        &md->tmpRecvbuff, ncclParamDDAAllreduceMaxTmpbufSize()));
+        &md->tmpRecvbuff, ncclParamDDAAllreduceTmpbuffSize()));
     CUDACHECK(cudaMalloc(&md->allTmpRecvbuffs, comm->nRanks * sizeof(uintptr_t)));
 
     // allocate host mem
