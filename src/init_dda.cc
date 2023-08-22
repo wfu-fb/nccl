@@ -292,24 +292,24 @@ ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId) {
     CUDACHECK(cudaMalloc(&md->barrierMbox[0], kBarrierSize));
     CUDACHECK(cudaMalloc(&md->barrierMbox[1], kBarrierSize));
     CUDACHECK(cudaMalloc(
-        &md->localSendBuf, ncclParamDDAAllreduceLocalBufSize()));
-    CUDACHECK(cudaMalloc(&md->allSendBufs, comm->nRanks * sizeof(uintptr_t)));
+        &md->localSendBuff, ncclParamDDAAllreduceLocalBufSize()));
+    CUDACHECK(cudaMalloc(&md->allSendBuffs, comm->nRanks * sizeof(uintptr_t)));
     CUDACHECK(cudaMalloc(
-        &md->localTmpBuf, ncclParamDDAAllreduceMaxTmpbufSize()));
-    CUDACHECK(cudaMalloc(&md->allTmpBufs, comm->nRanks * sizeof(uintptr_t)));
+        &md->localTmpBuff, ncclParamDDAAllreduceMaxTmpbufSize()));
+    CUDACHECK(cudaMalloc(&md->allTmpBuffs, comm->nRanks * sizeof(uintptr_t)));
 
     // allocate host mem
-    md->allSendBufsHost =
+    md->allSendBuffsHost =
         static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
-    md->allTmpBufsHost =
+    md->allTmpBuffsHost =
         static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
     md->nRanks = comm->nRanks;
 
     // open local handles
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], md->barrierMbox[0]));
     CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], md->barrierMbox[1]));
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuf));
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[3], md->localTmpBuf));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], md->localSendBuff));
+    CUDACHECK(cudaIpcGetMemHandle(&localHdls[3], md->localTmpBuff));
 
     // copy handles to local sendBuf
     CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * kNumHandles));
@@ -351,28 +351,28 @@ ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId) {
       const auto& tmpBufHdl = allHdls[rankIdx * kNumHandles + 3];
       if (comm->rank == rankIdx) {
         // local rank should point to local buf
-        md->allSendBufsHost[rankIdx] = md->localSendBuf;
-        md->allTmpBufsHost[rankIdx] = md->localTmpBuf;
+        md->allSendBuffsHost[rankIdx] = md->localSendBuff;
+        md->allTmpBuffsHost[rankIdx] = md->localTmpBuff;
       } else {
         // otherwise, open IPC handle
         void* remoteBuf = nullptr;
         CUDACHECK(cudaIpcOpenMemHandle(
             (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
-        md->allSendBufsHost[rankIdx] = remoteBuf;
+        md->allSendBuffsHost[rankIdx] = remoteBuf;
 
         CUDACHECK(cudaIpcOpenMemHandle(
             (void**)&remoteBuf, tmpBufHdl, cudaIpcMemLazyEnablePeerAccess));
-        md->allTmpBufsHost[rankIdx] = remoteBuf;
+        md->allTmpBuffsHost[rankIdx] = remoteBuf;
       }
     }
     CUDACHECK(cudaMemcpy(
-        md->allSendBufs,
-        md->allSendBufsHost,
+        md->allSendBuffs,
+        md->allSendBuffsHost,
         comm->nRanks * sizeof(uintptr_t),
         cudaMemcpyDefault));
     CUDACHECK(cudaMemcpy(
-        md->allTmpBufs,
-        md->allTmpBufsHost,
+        md->allTmpBuffs,
+        md->allTmpBuffsHost,
         comm->nRanks * sizeof(uintptr_t),
         cudaMemcpyDefault));
 
@@ -412,15 +412,15 @@ ncclResult_t freeDDAMd(ddaMd* md, int rank) {
         if (i == rank) {
           continue;
         }
-        CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allSendBufsHost[i]));
+        CUDACHECKIGNORE(cudaIpcCloseMemHandle(md->allSendBuffsHost[i]));
       }
       // free host/dev memories
       CUDACHECKIGNORE(cudaFree(md->barrierMbox[0]));
       CUDACHECKIGNORE(cudaFree(md->barrierMbox[1]));
-      CUDACHECKIGNORE(cudaFree(md->localSendBuf));
-      CUDACHECKIGNORE(cudaFree(md->allSendBufs));
-      CUDACHECKIGNORE(cudaFree(md->localTmpBuf));
-      CUDACHECKIGNORE(cudaFree(md->allTmpBufs));
+      CUDACHECKIGNORE(cudaFree(md->localSendBuff));
+      CUDACHECKIGNORE(cudaFree(md->allSendBuffs));
+      CUDACHECKIGNORE(cudaFree(md->localTmpBuff));
+      CUDACHECKIGNORE(cudaFree(md->allTmpBuffs));
     }
 
     auto mdIdx =

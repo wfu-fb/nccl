@@ -17,7 +17,7 @@
       int rank,                                                               \
       T* recvbuff,                                                            \
       size_t count,                                                           \
-      const T** allSendBufs);                                                 \
+      const T** allSendBuffs);                                                 \
   template __global__ void ncclKernel_AllReduce_DDA_Tree<T, NRANKS>(     \
       uintptr_t * barrierMbox,                                                \
       uintptr_t barrierFlag,                                                  \
@@ -30,8 +30,8 @@
       uintptr_t * barrierMbox,                                                \
       uintptr_t barrierFlag,                                                  \
       int rank,                                                               \
-      const T** allSendBufs,                                                  \
-      T** allTmpBufs,                                                         \
+      const T** allSendBuffs,                                                  \
+      T** allTmpBuffs,                                                         \
       T* recvbuff,                                                            \
       size_t count);                                                          \
   template __global__ void ncclKernel_AllReduce_DDA_HCM_Flat<T, NRANKS>( \

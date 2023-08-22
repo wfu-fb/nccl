@@ -63,7 +63,7 @@ static ncclResult_t launchKernel(
     }
 
     CUDACHECK(cudaMemcpyAsync(
-        comm->dda.md->localSendBuf,
+        comm->dda.md->localSendBuff,
         sendbuff,
         count * sizeof(T),
         cudaMemcpyDefault,
@@ -210,7 +210,7 @@ static ncclResult_t launchKernel(
     ddaClique* clique = comm->dda.md->cliques.front();
 
     if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
-      // in IPC mode, source data always gets copied to localSendBuf first,
+      // in IPC mode, source data always gets copied to localSendBuff first,
       // which never overlaps with recvbuff
       const bool useTmpBuf = (sendbuff == recvbuff) && (!enableIpc);
       void* rbuf = useTmpBuf ? clique->rankToTmpbuf[comm->rank] : recvbuff;
@@ -222,7 +222,7 @@ static ncclResult_t launchKernel(
             &comm->rank,
             &rbuf,
             &count,
-            &comm->dda.md->allSendBufs};
+            &comm->dda.md->allSendBuffs};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
       } else {
         void* args[] = {
@@ -249,8 +249,8 @@ static ncclResult_t launchKernel(
             &comm->dda.md->barrierMbox[comm->dda.barrierMboxId],
             &comm->dda.barrierFlag,
             &comm->rank,
-            &comm->dda.md->allSendBufs,
-            &comm->dda.md->allTmpBufs,
+            &comm->dda.md->allSendBuffs,
+            &comm->dda.md->allTmpBuffs,
             &recvbuff,
             &count};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
