@@ -56,12 +56,6 @@ static ncclResult_t launchKernel(
     cudaStream_t stream) {
   bool enableIpc = comm->dda.md->enableIpc();
   if (enableIpc) {
-    if (sizeof(T) * count > ncclParamDDAAllreduceLocalBufSize()) {
-      // we don't support data size > 32 MB yet
-      // TODO: run multiple allreduce in batches to support larger data size
-      return ncclInvalidUsage;
-    }
-
     CUDACHECK(cudaMemcpyAsync(
         comm->dda.md->localSendBuff,
         sendbuff,
@@ -106,30 +100,6 @@ static ncclResult_t launchKernel(
   int eltsPerThread = 16 / sizeof(T);
   dim3 grid;
   dim3 blocks;
-
-  if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
-    if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
-      if (count % eltsPerThread) {
-        return ncclInvalidUsage;
-      }
-      if (sendbuff == recvbuff) {
-        if (count * sizeof(T) > ncclParamDDAAllreduceMaxTmpbufSize()) {
-          return ncclInvalidUsage;
-        }
-      }
-    } else {
-      if ((count % (comm->nRanks * eltsPerThread)) ||
-          (count * sizeof(T) / comm->nRanks >
-           ncclParamDDAAllreduceMaxTmpbufSize())) {
-        return ncclInvalidUsage;
-      }
-    }
-  } else {
-    if ((count % eltsPerThread) ||
-        (count * sizeof(T) > ncclParamDDAAllreduceMaxTmpbufSize())) {
-      return ncclInvalidUsage;
-    }
-  }
 
   if (count <= numBlocks[0] * numThreads[0] * eltsPerThread) {
     /* for small counts, use the minimum number of blocks and
@@ -210,17 +180,12 @@ static ncclResult_t launchKernel(
     ddaClique* clique = comm->dda.md->cliques.front();
 
     if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
-      // in IPC mode, source data always gets copied to localSendBuff first,
-      // which never overlaps with recvbuff
-      const bool useTmpBuf = (sendbuff == recvbuff) && (!enableIpc);
-      void* rbuf = useTmpBuf ? clique->rankToTmpbuf[comm->rank] : recvbuff;
-
       if (enableIpc) {
         void* args[] = {
             &comm->dda.md->barrierMbox[comm->dda.barrierMboxId],
             &comm->dda.barrierFlag,
             &comm->rank,
-            &rbuf,
+            &recvbuff,
             &count,
             &comm->dda.md->allSendBuffs};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
@@ -230,17 +195,9 @@ static ncclResult_t launchKernel(
             &comm->dda.barrierFlag,
             &comm->rank,
             &sendbuff,
-            &rbuf,
+            &recvbuff,
             &count};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
-      }
-      if (useTmpBuf) {
-        CUDACHECK(cudaMemcpyAsync(
-            recvbuff,
-            clique->rankToTmpbuf[comm->rank],
-            count * sizeof(T),
-            cudaMemcpyDefault,
-            stream));
       }
     } else {
       // scatter-reduce, allgather tree algorithm
@@ -342,8 +299,8 @@ ncclResult_t ncclAllReduceDDA(
   }
 
   const auto enableIpc = comm->dda.md->enableIpc();
+  const auto bytes = count * typeSize(datatype);
   if (!enableIpc) {
-    // check dda settings
     if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
         (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
         (numDDAThreads == 1) || /* more than one rank */
@@ -353,10 +310,30 @@ ncclResult_t ncclAllReduceDDA(
         ((uintptr_t)recvbuff % 16)) { /* 16-byte alignment */
       goto not_supported;
     }
-  } else {
-    // check IPC settings
+
+    if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+      if (bytes < ncclParamDDAAllreduceTreeThresholdNVS()) {
+        if ((bytes % 16) || /* allow for 16-byte loads */
+            (sendbuff == recvbuff)) { /* in-place reduction */
+          goto not_supported;
+        }
+      } else { /* bytes >= ncclParamDDAAllreduceTreeThresholdNVS() */
+        if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
+          goto not_supported;
+        }
+      }
+    } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
+      if (bytes > ncclParamDDAAllreduceMaxTmpbufSize()) { /* need tmpbuff */
+        goto not_supported;
+      }
+    }
+  } else { /* enableIpc */
     // TODO: check all processes belong to a single node
-    if (comm->dda.md->topoType != NCCL_DDA_TOPO_TYPE__NVS) {
+    if (comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+      if (bytes > ncclParamDDAAllreduceLocalBufSize()) { /* need tmpbuff for IPC */
+        goto not_supported;
+      }
+    } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
       goto not_supported;
     }
   }

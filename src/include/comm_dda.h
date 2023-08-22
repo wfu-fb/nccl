@@ -179,4 +179,44 @@ class ddaMd {
 ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId);
 ncclResult_t freeDDAMd(ddaMd* md, int rank);
 
+static inline int typeSize(ncclDataType_t datatype)
+{
+  switch (datatype) {
+    case ncclInt8:
+      return sizeof(int8_t);
+
+    case ncclUint8:
+      return sizeof(uint8_t);
+
+    case ncclInt32:
+      return sizeof(int32_t);
+
+    case ncclUint32:
+      return sizeof(uint32_t);
+
+    case ncclInt64:
+      return sizeof(int64_t);
+
+    case ncclUint64:
+      return sizeof(uint64_t);
+
+    case ncclFloat16:
+      return sizeof(half);
+
+  case ncclFloat32:
+      return sizeof(float);
+
+    case ncclFloat64:
+      return sizeof(double);
+
+#if defined(__CUDA_BF16_TYPES_EXIST__)
+    case ncclBfloat16:
+      return sizeof(__nv_bfloat16);
+#endif
+
+    default:
+      return 0;
+  }
+}
+
 #endif
