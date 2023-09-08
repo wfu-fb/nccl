@@ -11,6 +11,7 @@
 #include "bootstrap.h"
 #include "channel.h"
 #include "cudawrap.h"
+#include "colltrace.h"
 
 #include <cstring> // std::memcpy
 #include <cinttypes> // PRIx64
@@ -510,10 +511,14 @@ static ncclResult_t scheduleCollTasksToPlan(
     struct ncclInfo aggInfo = {};
     aggInfo.comm = comm;
     aggInfo.coll = head->func;
-    aggInfo.datatype = head->datatype;
-    aggInfo.opFull = head->op;
-    aggInfo.op = (ncclRedOp_t)(int)head->op.op;
+    aggInfo.opName = head->opName;
+    aggInfo.sendbuff = head->sendbuff;
+    aggInfo.recvbuff = head->recvbuff;
     aggInfo.count = head->count;
+    aggInfo.datatype = head->datatype;
+    aggInfo.op = (ncclRedOp_t)(int)head->op.op;
+    aggInfo.opFull = head->op;
+    aggInfo.root = head->root;
     int nAggChannels = 0;
     int nAggOps = 1;
     struct ncclTaskColl* aggEnd = head->next;
@@ -567,6 +572,12 @@ static ncclResult_t scheduleCollTasksToPlan(
       struct ncclWorkElem workElem = {};
       struct ncclProxyOp proxyOp = {};
       NCCLCHECK(computeColl(&info, &workFuncIndex, &workElem, &proxyOp));
+      if(nAggOps == 1){
+        aggInfo.algorithm = info.algorithm;
+        aggInfo.protocol = info.protocol;
+        aggInfo.nChannels = info.nChannels;
+        aggInfo.nThreads = info.nThreads;
+      }
 
       if (*nWorkBudget < info.nChannels) return ncclSuccess; // Ensure room for addCollToPlan()
 
@@ -594,6 +605,8 @@ static ncclResult_t scheduleCollTasksToPlan(
         plan->kernelSpecialized = ncclKerns[workFuncIndex].specialized;
       }
     }
+
+    COLLTRACE_INFO_COPY(plan, aggInfo);
   }
   return ncclSuccess;
 }
@@ -1042,6 +1055,8 @@ ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan
   size_t smem = ncclShmemDynamicSize(comm->cudaArch);
   void *args[3] = {&comm->devComm, &plan->channelMask, &plan->workHead};
 
+  COLLTRACE_ACQUIRE_EVENT(comm);
+
   #if CUDART_VERSION >= 11080
   int driverVersion;
   NCCLCHECK(ncclCudaDriverVersion(&driverVersion));
@@ -1083,13 +1098,16 @@ ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan
     launchConfig.attrs = launchAttrs;
     launchConfig.numAttrs = attrs;
     launchConfig.stream = launchStream;
-
+    COLLTRACE_RECORD_START_EVENT();
     CUDACHECK(cudaLaunchKernelExC(&launchConfig, fn, args));
+    COLLTRACE_RECORD_END_EVENT(comm);
     return ncclSuccess;
   }
   #endif
   // Standard kernel launch
+  COLLTRACE_RECORD_START_EVENT();
   CUDACHECK(cudaLaunchKernel(fn, grid, block, args, smem, launchStream));
+  COLLTRACE_RECORD_END_EVENT(comm);
   return ncclSuccess;
 }
 
@@ -1557,6 +1575,7 @@ static ncclResult_t taskAppend(struct ncclComm* comm, struct ncclInfo const* inf
       ncclGroupCommJoin(info->comm);
       struct ncclTaskColl* t = ncclMemoryStackAlloc<struct ncclTaskColl>(&comm->memScoped);
       t->func = info->coll;
+      t->opName = info->opName;
       t->sendbuff = info->sendbuff;
       t->recvbuff = info->recvbuff;
       t->count = info->count;

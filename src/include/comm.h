@@ -14,6 +14,8 @@
 #include "strongstream.h"
 #include "tuning.h"
 #include "comm_dda.h"
+#include "info.h"
+#include "colltrace.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -163,6 +165,7 @@ struct ncclKernelPlan {
 
   struct ncclComm* comm;
   struct ncclKernelPlan* next;
+  struct ncclInfo aggInfo;
 
   bool persistent; // aka captured in a graph
   bool kernelSpecialized;
@@ -349,6 +352,9 @@ struct ncclComm {
 
   // performance tuning plugin
   ncclPerformanceTuner_t* performanceTuner;
+
+  // colltrace object
+  COLLTRACE_OBJECT();
 
   struct {
     // metadata for dda ranks

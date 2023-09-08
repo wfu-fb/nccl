@@ -17,6 +17,7 @@
 #include "graph.h"
 #include "argcheck.h"
 #include "tuning.h"
+#include "colltrace.h"
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
@@ -1374,6 +1375,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   // update communicator state
   comm->initState = ncclSuccess;
 
+  COLLTRACE_INIT(comm);
+
   // Trace this call for replay tool
   if (job->parent) {
     /* unlink child abort flag. */
@@ -1384,7 +1387,6 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
     TRACE_CALL("ncclCommInitRank(%p, %d, 0x%llx, %d, %d)",
                 comm, comm->nRanks, (unsigned long long)hashUniqueId(job->commId), comm->rank, comm->cudaDev);
   }
-
 
   INFO(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx - Init COMPLETE", comm, comm->rank, comm->nRanks, comm->cudaDev, comm->nvmlDev, comm->busId, (unsigned long long)hashUniqueId(job->commId));
 
@@ -1950,6 +1952,8 @@ ncclResult_t ncclCommDestroy(ncclComm_t comm) {
     return ncclSuccess;
   }
 
+  COLLTRACE_EXIT(comm);
+
   int rank = comm->rank, nranks = comm->nRanks, cudaDev = comm->cudaDev;
 
   NvtxParamsCommInitRank payload{rank, nranks, cudaDev};
@@ -1978,6 +1982,8 @@ ncclResult_t ncclCommAbort(ncclComm_t comm) {
     NVTX3_FUNC_RANGE_IN(nccl_domain);
     return ncclSuccess;
   }
+
+  COLLTRACE_EXIT(comm);
 
   volatile uint32_t* childAbortFlag;
   int rank = comm->rank, nranks = comm->nRanks, cudaDev = comm->cudaDev;
