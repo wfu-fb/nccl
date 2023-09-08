@@ -41,6 +41,7 @@ struct EventInfo {
 // Result data structure
 struct ResultInfo {
   ncclInfo info;
+  cudaStream_t stream;
   float latency;
 };
 

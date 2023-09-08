@@ -8,8 +8,9 @@
 #include <string>
 #include <fstream>
 
-#ifndef COLLTRACE_IO_FB
-#define COLLTRACE_IO_FB
+#ifndef COLLTRACE_IO_FB_POST_RUN
+#define COLLTRACE_IO_FB_POST_RUN
+#define COLLTRACE_IO_FB_DURING_RUN
 #endif
 
 void CollTrace::outputResults(){
@@ -38,7 +39,7 @@ void CollTrace::outputResults(){
     out.close();
   }
 
-  COLLTRACE_IO_FB;
+  COLLTRACE_IO_FB_POST_RUN();
 }
 
 void* CollTrace::measureLatency() {
@@ -48,15 +49,19 @@ void* CollTrace::measureLatency() {
     std::unique_ptr<EventInfo> curEvent = eventQueue_.tryPop();
     if(curEvent){
       if (curEvent->info.count != 0) {
-        CUDACHECKIGNORE(cudaEventSynchronize(curEvent->stop.get()));
-        float latency;
-        CUDACHECKIGNORE(cudaEventElapsedTime(&latency, curEvent->start.get(), curEvent->stop.get()));
+        cudaError_t res = cudaEventSynchronize(curEvent->stop.get());
+        float latency = -1;
+        res = res == cudaSuccess ? cudaEventElapsedTime(&latency, curEvent->start.get(), curEvent->stop.get()) : res;
         ResultInfo result;
         result.info = curEvent->info;
-        result.latency = latency;
+        result.stream = curEvent->stream;
+        if(res == cudaSuccess){
+          result.latency = latency;
+        }
         results_.push_back(result);
         eventPool_.add(std::move(curEvent->start));
         eventPool_.add(std::move(curEvent->stop));
+        COLLTRACE_IO_FB_DURING_RUN(result, rank_);
       }
     } else {
       if (workerThreadExitSignal_ && eventQueue_.isEmpty()) {
