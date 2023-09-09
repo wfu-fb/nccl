@@ -34,8 +34,8 @@ typedef struct {
   //
   // If getCollInfo() returns other than ncclSuccess, NCCL core will fall back
   // to the default topo-based tuning for the given collective.
-  ncclResult_t (*getCollInfo)(ncclFunc_t collType, size_t nBytes, int *algo,
-                              int *protocol, int *nChannels, int *nThreads);
+  ncclResult_t (*getCollInfo)(ncclFunc_t collType, size_t nBytes, int64_t iteration,
+                              int *algo, int *protocol, int *nChannels, int *nThreads);
 
   ncclResult_t (*addOnlineResult)(
       ncclFunc_t collType,

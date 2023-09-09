@@ -1263,6 +1263,7 @@ static ncclResult_t getAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, i
       info->comm->performanceTuner->getCollInfo(
           info->coll,
           info->nBytes,
+          COLLTRACE_GET_TRAINING_ITERATION(),
           &info->algorithm,
           &info->protocol,
           &info->nChannels,

@@ -164,6 +164,7 @@ class CollTrace {
                        } while(0)
 #define COLLTRACE_EXIT(comm) comm->colltrace->exit()
 // Macros for enqueue.cc if CollTrace is enabled
+#define COLLTRACE_GET_TRAINING_ITERATION() getTrainingIteration()
 #define COLLTRACE_INFO_COPY(plan, aggInfo) memcpy(&plan->aggInfo, &aggInfo, sizeof(ncclInfo))
 #define COLLTRACE_ACQUIRE_EVENT(comm) std::unique_ptr<EventInfo> eventInfo; \
                                   do { \
@@ -185,6 +186,7 @@ class CollTrace {
 #define COLLTRACE_OBJECT()
 #define COLLTRACE_INIT(comm)
 #define COLLTRACE_EXIT(comm)
+#define COLLTRACE_GET_TRAINING_ITERATION() 0
 #define COLLTRACE_INFO_COPY(plan, aggInfo)
 #define COLLTRACE_ACQUIRE_EVENT(comm)
 #define COLLTRACE_RECORD_START_EVENT()
