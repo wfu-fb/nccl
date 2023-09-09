@@ -3,6 +3,7 @@
 #include "internal.h"
 #include "nccl_tuning.h"
 #include "comm.h"
+#include "bootstrap.h"
 
 #include <unistd.h>
 #include <chrono>
@@ -67,15 +68,30 @@ void* CollTrace::measureLatency() {
         COLLTRACE_IO_FB_DURING_RUN(result, rank_);
 
         if (curEvent->info.comm->performanceTuner != NULL) {
+          results_.push_back(result);
+
+          // Online tuning - average latencies across ranks & send to tuner
+          float* latencies = NULL;
+          NCCLCHECKIGNORE(ncclCalloc(&latencies, curEvent->info.comm->nRanks));
+          latencies[curEvent->info.comm->rank] = latency;
+          NCCLCHECKIGNORE(bootstrapAllGather(curEvent->info.comm->bootstrap, latencies, sizeof(float)));
+          float sum = 0.0;
+          for(int i = 0; i < curEvent->info.comm->nRanks; i++){
+            sum += latencies[i];
+          }
+
+          free(latencies);
+          sum /= (float) curEvent->info.comm->nRanks;
+
           curEvent->info.comm->performanceTuner->addOnlineResult(
-          curEvent->info.coll,
-          curEvent->info.count * ncclTypeSize(curEvent->info.datatype),
-          curEvent->iteration,
-          latency,
-          curEvent->info.algorithm,
-          curEvent->info.protocol,
-          curEvent->info.nChannels,
-          curEvent->info.nThreads);
+            curEvent->info.coll,
+            curEvent->info.count * ncclTypeSize(curEvent->info.datatype),
+            curEvent->iteration,
+            sum,
+            curEvent->info.algorithm,
+            curEvent->info.protocol,
+            curEvent->info.nChannels,
+            curEvent->info.nThreads);
         }
 
       }
