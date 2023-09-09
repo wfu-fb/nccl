@@ -1,6 +1,8 @@
 #ifdef ENABLE_COLLTRACE
 #include "colltrace.h"
 #include "internal.h"
+#include "nccl_tuning.h"
+#include "comm.h"
 
 #include <unistd.h>
 #include <chrono>
@@ -62,6 +64,18 @@ void* CollTrace::measureLatency() {
         eventPool_.add(std::move(curEvent->start));
         eventPool_.add(std::move(curEvent->stop));
         COLLTRACE_IO_FB_DURING_RUN(result, rank_);
+
+        if (curEvent->info.comm->performanceTuner != NULL) {
+          curEvent->info.comm->performanceTuner->addOnlineResult(
+          curEvent->info.coll,
+          curEvent->info.count * ncclTypeSize(curEvent->info.datatype),
+          latency,
+          curEvent->info.algorithm,
+          curEvent->info.protocol,
+          curEvent->info.nChannels,
+          curEvent->info.nThreads);
+        }
+
       }
     } else {
       if (workerThreadExitSignal_ && eventQueue_.isEmpty()) {

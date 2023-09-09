@@ -36,6 +36,16 @@ typedef struct {
   // to the default topo-based tuning for the given collective.
   ncclResult_t (*getCollInfo)(ncclFunc_t collType, size_t nBytes, int *algo,
                               int *protocol, int *nChannels, int *nThreads);
+
+  ncclResult_t (*addOnlineResult)(
+      ncclFunc_t collType,
+      size_t nBytes,
+      float latency,
+      int algo,
+      int protocol,
+      int nChannels,
+      int nThreads);
+
   // Terminates the plugin and cleans up any resources that the plugin allocated.
   ncclResult_t (*destroy)();
 } ncclPerformanceTuner_v1_t;
