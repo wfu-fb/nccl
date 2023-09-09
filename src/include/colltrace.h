@@ -17,6 +17,7 @@
 
 #include "info.h"
 #include "utils.h"
+#include "trainer.h"
 
 // CUDA event pointer w/ deleter
 struct CudaEventDeleter {
@@ -29,6 +30,7 @@ using CudaEventPtr = std::unique_ptr<std::pointer_traits<cudaEvent_t>::element_t
 // Event data structure
 struct EventInfo {
   ncclInfo info;
+  int64_t iteration;
   CudaEventPtr start;
   CudaEventPtr stop;
   cudaStream_t stream;
@@ -42,6 +44,7 @@ struct EventInfo {
 struct ResultInfo {
   ncclInfo info;
   cudaStream_t stream;
+  int64_t iteration;
   float latency;
 };
 
@@ -168,6 +171,7 @@ class CollTrace {
                                     if(!eventInfo) { \
                                       return ncclInternalError; /*Event init failed*/ \
                                     } \
+                                    eventInfo->iteration = getTrainingIteration(); \
                                   } while(0)
 #define COLLTRACE_RECORD_START_EVENT() CUDACHECK(cudaEventRecord(eventInfo->start.get(), launchStream))
 #define COLLTRACE_RECORD_END_EVENT(comm) do{ \

@@ -40,6 +40,7 @@ typedef struct {
   ncclResult_t (*addOnlineResult)(
       ncclFunc_t collType,
       size_t nBytes,
+      int64_t iteration,
       float latency,
       int algo,
       int protocol,

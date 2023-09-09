@@ -60,6 +60,7 @@ void* CollTrace::measureLatency() {
         if(res == cudaSuccess){
           result.latency = latency;
         }
+        result.iteration = curEvent->iteration;
         results_.push_back(result);
         eventPool_.add(std::move(curEvent->start));
         eventPool_.add(std::move(curEvent->stop));
@@ -69,6 +70,7 @@ void* CollTrace::measureLatency() {
           curEvent->info.comm->performanceTuner->addOnlineResult(
           curEvent->info.coll,
           curEvent->info.count * ncclTypeSize(curEvent->info.datatype),
+          curEvent->iteration,
           latency,
           curEvent->info.algorithm,
           curEvent->info.protocol,
