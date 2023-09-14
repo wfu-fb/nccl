@@ -16,7 +16,7 @@
 #include "enqueue.h"
 #include "graph.h"
 #include "argcheck.h"
-#include "tuning.h"
+#include "tuner.h"
 #include "colltrace.h"
 #include <fcntl.h>
 #include <string.h>
@@ -238,9 +238,9 @@ static ncclResult_t commFree(ncclComm_t comm) {
   free(comm->topParentRanks);
   free(comm->topParentLocalRanks);
 
-  if (comm->performanceTuner != NULL) {
-    NCCLCHECK(comm->performanceTuner->destroy());
-    NCCLCHECK(ncclClosePerformanceTuner(&comm->performanceTuner));
+  if (comm->tuner != NULL) {
+    NCCLCHECK(comm->tuner->destroy());
+    NCCLCHECK(ncclCloseTunerPlugin(&comm->tuner));
   }
 
   commPoison(comm); // poison comm before free to avoid comm reuse.
@@ -1364,12 +1364,9 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
 
   NCCLCHECKGOTO(initTransportsRank(comm, job->parent), res, fail);
 
-  if (ncclLoadPerformanceTuner(&comm->performanceTuner) == ncclSuccess) {
-    auto init = comm->performanceTuner->init(comm->nRanks, comm->nNodes, ncclDebugLog);
-    if (init != ncclSuccess) {
-      INFO(NCCL_INIT, "Failed to init performance tuner: '%s'", comm->performanceTuner->name);
-      comm->performanceTuner = NULL;
-    }
+  NCCLCHECKGOTO(ncclLoadTunerPlugin(&comm->tuner), res, fail);
+  if (comm->tuner) {
+    NCCLCHECK(comm->tuner->init(comm->nRanks, comm->nNodes, ncclDebugLog));
   }
 
   // update communicator state

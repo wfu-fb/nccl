@@ -1259,18 +1259,22 @@ ncclResult_t ncclTopoGetAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, 
 
 // numPipeOps: number of pipelined ops. Can be greater than 1 in aggregation mode. Used to adjust latency.
 static ncclResult_t getAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, int numPipeOps) {
-  if (info->comm->performanceTuner != NULL &&
-      info->comm->performanceTuner->getCollInfo(
+  info->algorithm = NCCL_ALGO_UNDEF;
+  info->protocol = NCCL_PROTO_UNDEF;
+  int nChannels = 0;
+  if (info->comm->tuner != NULL &&
+      info->comm->tuner->getCollInfo(
           info->coll,
           info->nBytes,
-          COLLTRACE_GET_TRAINING_ITERATION(),
+          collNetTypeSupport, info->comm->nvlsSupport, numPipeOps,
           &info->algorithm,
           &info->protocol,
-          &info->nChannels,
-          &info->nThreads) == ncclSuccess) {
+          &nChannels) == ncclSuccess) {
     return ncclSuccess;
   }
-  return ncclTopoGetAlgoInfo(info, collNetTypeSupport, numPipeOps);
+  NCCLCHECK(ncclTopoGetAlgoInfo(info, collNetTypeSupport, numPipeOps));
+  if (nChannels) info->nChannels = nChannels; // Set by plugin; override default.
+  return ncclSuccess;
 }
 
 static ncclResult_t getPatternInfo(struct ncclInfo* info) {

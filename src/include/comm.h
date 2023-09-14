@@ -10,9 +10,9 @@
 #include "transport.h"
 #include "p2p.h"
 #include "collectives.h"
+#include "nccl_tuner.h"
 #include "proxy.h"
 #include "strongstream.h"
-#include "tuning.h"
 #include "comm_dda.h"
 #include "info.h"
 #include "colltrace.h"
@@ -350,8 +350,8 @@ struct ncclComm {
   // shared structures for finalization
   int finalizeRankCnt;
 
-  // performance tuning plugin
-  ncclPerformanceTuner_t* performanceTuner;
+  // Tuning plugin
+  ncclTuner_t* tuner;
 
   // colltrace object
   COLLTRACE_OBJECT();
