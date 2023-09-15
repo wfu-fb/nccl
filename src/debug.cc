@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/syscall.h>
+#include <iomanip>
+#include <sstream>
 
 int ncclDebugLevel = -1;
 static int pid = -1;
@@ -138,6 +140,13 @@ void ncclDebugInit() {
   pthread_mutex_unlock(&ncclDebugLock);
 }
 
+static std::string getTime(void) {
+  std::time_t now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  std::stringstream timeSs;
+  timeSs << std::put_time(std::localtime(&now_c), "%FT%T%z");
+  return timeSs.str();
+}
+
 /* Common logging function used by the INFO, WARN and TRACE macros
  * Also exported to the dynamically loadable Net transport modules so
  * they can share the debugging mechanisms and output files
@@ -169,17 +178,17 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
   char buffer[1024];
   size_t len = 0;
   if (level == NCCL_LOG_WARN) {
-    len = snprintf(buffer, sizeof(buffer), "\n%s:%d:%d [%d] %s:%d NCCL WARN ",
-                   hostname, pid, tid, cudaDev, filefunc, line);
+    len = snprintf(buffer, sizeof(buffer), "\n%s %s:%d:%d [%d] %s:%d NCCL WARN ",
+                   getTime().c_str(), hostname, pid, tid, cudaDev, filefunc, line);
   } else if (level == NCCL_LOG_INFO) {
-    len = snprintf(buffer, sizeof(buffer), "%s:%d:%d [%d] NCCL INFO ", hostname, pid, tid, cudaDev);
+    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d [%d] NCCL INFO ", getTime().c_str(), hostname, pid, tid, cudaDev);
   } else if (level == NCCL_LOG_TRACE && flags == NCCL_CALL) {
-    len = snprintf(buffer, sizeof(buffer), "%s:%d:%d NCCL CALL ", hostname, pid, tid);
+    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d NCCL CALL ", getTime().c_str(), hostname, pid, tid);
   } else if (level == NCCL_LOG_TRACE) {
     auto delta = std::chrono::steady_clock::now() - ncclEpoch;
     double timestamp = std::chrono::duration_cast<std::chrono::duration<double>>(delta).count()*1000;
-    len = snprintf(buffer, sizeof(buffer), "%s:%d:%d [%d] %f %s:%d NCCL TRACE ",
-                   hostname, pid, tid, cudaDev, timestamp, filefunc, line);
+    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d [%d] %f %s:%d NCCL TRACE ",
+                   getTime().c_str(), hostname, pid, tid, cudaDev, timestamp, filefunc, line);
   }
 
   if (len) {
