@@ -134,7 +134,7 @@ class CollTrace {
   std::list<ResultInfo> results_;
   std::atomic<bool> workerThreadExitSignal_ { false };
 
-  uint64_t rank_ = -1;
+  int rank_{-1};
   std::thread profilingWorkerThread_;
 
  public:
