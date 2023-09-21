@@ -17,7 +17,8 @@ LIBSRCFILES := init.cc init_nvtx.cc channel.cc bootstrap.cc transport.cc enqueue
                 collectives/sendrecv.cc collectives/all_reduce.cc collectives/all_gather.cc collectives/broadcast.cc collectives/reduce.cc collectives/reduce_scatter.cc \
                 graph/topo.cc graph/paths.cc graph/search.cc graph/connect.cc graph/rings.cc graph/trees.cc graph/tuning.cc graph/xml.cc
 LIBSRCFILES += collectives/all_reduce_sparse_block.cc setinfo.cc
-LIBSRCFILES += misc/colltrace.cc
+LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
+LIBSRCFILES += init_dda.cc collectives/all_reduce_dda.cc
 
 
 ##### lib files

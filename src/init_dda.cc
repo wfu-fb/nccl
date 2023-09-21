@@ -8,7 +8,7 @@
 #include "checks.h"
 #include "comm.h"
 #include "nccl.h"
-#include "topo.h"
+#include "graph/topo.h"
 
 NCCL_PARAM(DDAAllreduceTmpbuffSize, "DDA_ALLREDUCE_TMPBUFF_SIZE", 8 * 1024 * 1024);
 NCCL_PARAM(MaxDDAThreads, "MAX_DDA_THREADS", 16);

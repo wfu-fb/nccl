@@ -58,13 +58,18 @@ typedef struct ncclConfig_v21700 {
   size_t size;
   unsigned int magic;
   unsigned int version;
-  /* attributes that users are able to customize. */
+  int algo;
+  int proto;
+  /* attributes that users are able to customize ONLY at communicator initialization. */
   int blocking;
   int cgaClusterSize;
   int minCTAs;
   int maxCTAs;
   const char *netName;
   int splitShare;
+  /* attributes that users can customize after initialization using ncclCommSetInfo. */
+  const char* algoStr;
+  const char* protoStr;
 } ncclConfig_t;
 
 /* Config initializer must be assigned to initialize config structure when it is created.
@@ -73,12 +78,16 @@ typedef struct ncclConfig_v21700 {
   sizeof(ncclConfig_t), /* size */                                      \
   0xcafebeef,           /* magic */                                     \
   NCCL_VERSION(NCCL_MAJOR, NCCL_MINOR, NCCL_PATCH), /* version */       \
+  NCCL_CONFIG_UNDEF_INT,                    /* algo */                  \
+  NCCL_CONFIG_UNDEF_INT,                    /* proto */                 \
   NCCL_CONFIG_UNDEF_INT,                    /* blocking */              \
   NCCL_CONFIG_UNDEF_INT,                    /* cgaClusterSize */        \
   NCCL_CONFIG_UNDEF_INT,                    /* minCTAs */               \
   NCCL_CONFIG_UNDEF_INT,                    /* maxCTAs */               \
   NCCL_CONFIG_UNDEF_PTR,                    /* netName */               \
-  NCCL_CONFIG_UNDEF_INT                     /* splitShare */            \
+  NCCL_CONFIG_UNDEF_INT,                    /* splitShare */            \
+  NCCL_CONFIG_UNDEF_PTR,                    /* algoStr */               \
+  NCCL_CONFIG_UNDEF_PTR                     /* protoStr */              \
 }
 
 /* Return the NCCL_VERSION_CODE of the NCCL library in the supplied integer.
