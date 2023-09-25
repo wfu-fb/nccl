@@ -1174,7 +1174,7 @@ ncclResult_t ncclTopoGetAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, 
     info->algorithm = NCCL_ALGO_RING;
     info->protocol = NCCL_PROTO_SIMPLE;
   }
-  else {
+  else if (info->algorithm == NCCL_ALGO_UNDEF || info->protocol == NCCL_PROTO_UNDEF) {
     float minTime = 3600000000.0; // Hopefully no operation will take an hour to complete.
     // Find algorithm / protocol.
     info->algorithm = -1;
@@ -1262,15 +1262,11 @@ static ncclResult_t getAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, i
   info->algorithm = NCCL_ALGO_UNDEF;
   info->protocol = NCCL_PROTO_UNDEF;
   int nChannels = 0;
-  if (info->comm->tuner != NULL &&
-      info->comm->tuner->getCollInfo(
-          info->coll,
-          info->nBytes,
+  if (info->comm->tuner != NULL) {
+    NCCLCHECK(info->comm->tuner->getCollInfo(
+          info->coll, info->nBytes,
           collNetTypeSupport, info->comm->nvlsSupport, numPipeOps,
-          &info->algorithm,
-          &info->protocol,
-          &nChannels) == ncclSuccess) {
-    return ncclSuccess;
+          &info->algorithm, &info->protocol, &nChannels));
   }
   NCCLCHECK(ncclTopoGetAlgoInfo(info, collNetTypeSupport, numPipeOps));
   if (nChannels) info->nChannels = nChannels; // Set by plugin; override default.
