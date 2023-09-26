@@ -32,26 +32,6 @@ bool operator==(const ddaMd& lhs, const ddaMd& rhs) {
   return (lhs.commId == rhs.commId);
 }
 
-static void findNvsConnectedGpus(
-    struct ncclTopoNode* node,
-    std::vector<int>& gpus,
-    std::vector<uint64_t>& nvs) {
-  nvs.push_back(node->id);
-  for (int i = 0; i < node->nlinks; i++) {
-    if (node->links[i].type == LINK_NVL) {
-      struct ncclTopoNode* remNode = node->links[i].remNode;
-      if (remNode->type == GPU) {
-        gpus.push_back(i);
-      } else if (remNode->type == NVS) {
-        auto it = std::find(nvs.begin(), nvs.end(), remNode->id);
-        if (it == nvs.end()) {
-          findNvsConnectedGpus(remNode, gpus, nvs);
-        }
-      }
-    }
-  }
-}
-
 /* This function only returns two types of cliques: fully connected
  * (NVSwitch) or HCM, to support typically GPU topologies.  In all
  * other cases, we return an empty vector.
@@ -67,19 +47,34 @@ static void findNvsConnectedGpus(
  */
 static ncclResult_t topoDetect(
     ncclComm_t comm,
-    std::vector<std::vector<int>>& cliques) {
-  int nGPUs = comm->topo->nodes[GPU].count;
+    std::vector<std::vector<int>>& cliques_) {
+  int nGPUs;
+  std::vector<std::vector<int>> cliques;
+  CUDACHECK(cudaGetDeviceCount(&nGPUs));
+
+  /* perf rank Matrix is like an adjacency matrix, but ranks links
+   * based on performance.  Rank 0 means very fast connectivity. */
+  int perfRankMatrix[nGPUs][nGPUs];
   uint8_t adjacencyMatrix[nGPUs][nGPUs];
 
-  /* clear the cliques before we start */
-  cliques.clear();
-
-  /* set adjacency matrix for self as connected */
   for (int i = 0; i < nGPUs; i++) {
     for (int j = 0; j < nGPUs; j++) {
       if (i == j) {
-        adjacencyMatrix[i][j] = 1;
+        perfRankMatrix[i][j] = 0;
       } else if (ncclParamForceP2pAccess()) {
+        perfRankMatrix[i][j] = 0;
+      } else {
+        int val;
+        CUDACHECK(cudaDeviceGetP2PAttribute(&val, cudaDevP2PAttrPerformanceRank, i, j));
+        perfRankMatrix[i][j] = val;
+      }
+    }
+  }
+
+  /* set adjacency matrix */
+  for (int i = 0; i < nGPUs; i++) {
+    for (int j = 0; j < nGPUs; j++) {
+      if (perfRankMatrix[i][j] < 2) {
         adjacencyMatrix[i][j] = 1;
       } else {
         adjacencyMatrix[i][j] = 0;
@@ -87,27 +82,6 @@ static ncclResult_t topoDetect(
     }
   }
 
-  /* for each GPU in the system */
-  for (int i = 0; i < nGPUs; i++) {
-    /* for each NVLink connection on that GPU */
-    for (int j = 0; j < comm->topo->nodes[GPU].nodes[i].nlinks; j++) {
-      if (comm->topo->nodes[GPU].nodes[i].links[j].type == LINK_NVL) {
-        struct ncclTopoNode* remNode =
-            comm->topo->nodes[GPU].nodes[i].links[j].remNode;
-        if (remNode->type == GPU) { /* if it is connected to a GPU */
-          adjacencyMatrix[i][remNode->gpu.dev] = 1;
-        } else if (remNode->type == NVS) { /* if it is connected to an NVSwitch
-                                            */
-          std::vector<uint64_t> nvs;
-          std::vector<int> gpus;
-          findNvsConnectedGpus(remNode, gpus, nvs);
-          for (auto it : gpus) {
-            adjacencyMatrix[i][it] = 1;
-          }
-        }
-      }
-    }
-  }
 
   /***** Detect fully connected (NVSwitch) topology *****/
   bool connected;
@@ -215,10 +189,10 @@ exit:
       }
     }
   }
+  cliques_ = cliques;
   return ncclSuccess;
 
 topo_not_found:
-  cliques.clear();
   return ncclSuccess;
 }
 
