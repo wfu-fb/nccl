@@ -55,14 +55,6 @@ static ncclResult_t launchKernel(
     ncclDataType_t datatype,
     cudaStream_t stream) {
   ncclDDAAllReduceAlgo_t algo = getAllReduceAlgo(sendbuff, recvbuff, count, datatype, ncclSum, comm);
-  if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
-    CUDACHECK(cudaMemcpyAsync(
-        comm->dda->commMdHost[comm->rank].tmpbuff,
-        sendbuff,
-        count * sizeof(T),
-        cudaMemcpyDefault,
-        stream));
-  }
   const void* func;
 
   if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
@@ -184,6 +176,14 @@ static ncclResult_t launchKernel(
     &count
   };
 
+  if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
+    CUDACHECK(cudaMemcpyAsync(
+        comm->dda->commMdHost[comm->rank].tmpbuff,
+        sendbuff,
+        count * sizeof(T),
+        cudaMemcpyDefault,
+        stream));
+  }
   CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
 
   return ncclSuccess;
