@@ -10,7 +10,7 @@
 #include "ddaThreadSharedMd.h"
 #include "ddaMemHandles.h"
 
-int64_t ncclParamMaxDDAThreads(void);
+int64_t ncclParamMaxDDARanks(void);
 int64_t ncclParamDDAAllreduceTmpbuffSize(void);
 int64_t ncclParamDDAAllreduceTreeThresholdNVS(void);
 int64_t ncclParamDDAAllreduceTreeThresholdHCM(void);

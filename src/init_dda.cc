@@ -11,7 +11,7 @@
 #include "graph/topo.h"
 
 NCCL_PARAM(DDAAllreduceTmpbuffSize, "DDA_ALLREDUCE_TMPBUFF_SIZE", 32 * 1024 * 1024);
-NCCL_PARAM(MaxDDAThreads, "MAX_DDA_THREADS", 16);
+NCCL_PARAM(MaxDDARanks, "MAX_DDA_RANKS", 16);
 NCCL_PARAM(ForceP2pAccess, "FORCE_P2P_ACCESS", 0);
 
 static std::vector<ddaThreadSharedMd*> ddaThreadSharedMdList;
@@ -50,7 +50,7 @@ ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
   if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
       (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
       (numDDAThreads == 1) || /* more than one rank */
-      (numDDAThreads > ncclParamMaxDDAThreads()) || /* only small rank counts are supported */
+      (numDDAThreads > ncclParamMaxDDARanks()) || /* only small rank counts are supported */
       (op != ncclSum) || /* only sum is supported */
       ((uintptr_t)sendbuff % 16) || /* 16-byte alignment */
       ((uintptr_t)recvbuff % 16)) { /* 16-byte alignment */
@@ -91,7 +91,7 @@ algo_ipc:
   if ((comm->nRanks != comm->localRanks) || /* all ranks must be local */
       (comm->nRanks & (comm->nRanks - 1)) || /* power of two ranks */
       (comm->nRanks == 1) || /* more than one rank */
-      (comm->nRanks > ncclParamMaxDDAThreads()) || /* only small rank counts are supported */
+      (comm->nRanks > ncclParamMaxDDARanks()) || /* only small rank counts are supported */
       (op != ncclSum)) { /* only sum is supported */
     goto algo_default;
   }
