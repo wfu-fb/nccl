@@ -207,29 +207,9 @@ topo_not_found:
  * space.
  */
 ncclResult_t allocDDAMd(ncclComm *comm, ncclUniqueId commId) {
-  // set enableIpc flag
-  char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
-  const bool enableIpc =
-      (allreduceAlgoStr != nullptr &&
-       !strcmp(allreduceAlgoStr, "dda_ipc"));
-
   ddaThreadSharedMd* threadSharedMd;
   ncclResult_t ret = ncclSuccess;
   std::vector<std::vector<int>> gpuCliques;
-
-  // IPC states start
-  // TODO: variables should be declared close to their usage, but can't be
-  // done here due to NCCLCHECKGOTO, need a fix later
-  const size_t kNumHandles = 3;
-  cudaIpcMemHandle_t localHdls[kNumHandles];
-  void* handleSendBuf{nullptr};
-  void* handleRecvBuf{nullptr};
-  const size_t kHandleSize = sizeof(cudaIpcMemHandle_t);
-  const size_t kBarrierSize =
-      2 * comm->nRanks * comm->nRanks * sizeof(uintptr_t);
-  cudaStream_t stream;
-  cudaIpcMemHandle_t allHdls[comm->nRanks * kNumHandles];
-  // IPC states end
 
   NCCLCHECKGOTO(topoDetect(comm, gpuCliques), ret, exit);
 
@@ -245,98 +225,56 @@ ncclResult_t allocDDAMd(ncclComm *comm, ncclUniqueId commId) {
     }
   }
   if (threadSharedMd == nullptr) {
-    threadSharedMd = new ddaThreadSharedMd(commId, gpuCliques, enableIpc);
+    threadSharedMd = new ddaThreadSharedMd(commId, gpuCliques);
     ddaThreadSharedMdList.push_back(threadSharedMd);
   }
 
   threadSharedMd->insertRank(comm->rank, comm->cudaDev);
   threadSharedMd->refCount++;
 
-  comm->dda = new ddaPrivateMd(threadSharedMd, comm->cudaDev, gpuCliques.size());
-
   ddaThreadSharedMdListMutex.unlock();
 
-  if (threadSharedMd->enableIpc()) {
+  comm->dda = new ddaPrivateMd(threadSharedMd, comm->rank, comm->cudaDev, comm->nRanks,
+                               gpuCliques.size(), comm);
+
+  // IPC initialization
+  {
+    const size_t kBarrierSize =
+        2 * comm->nRanks * comm->nRanks * sizeof(uintptr_t);
+    void **hostBuff;
+
     // allocate dev mem
     CUDACHECK(cudaMalloc(&comm->dda->barrierMbox[0], kBarrierSize));
     CUDACHECK(cudaMalloc(&comm->dda->barrierMbox[1], kBarrierSize));
     CUDACHECK(cudaMalloc(&comm->dda->allTmpSendbuffs, comm->nRanks * sizeof(uintptr_t)));
 
-    // allocate host mem
-    comm->dda->allTmpSendbuffsHost =
-        static_cast<void**>(malloc(comm->nRanks * sizeof(uintptr_t)));
+    // insert local handles
+    NCCLCHECK(comm->dda->memHandles->insertMemHandle(comm->dda->barrierMbox[0], "barrierMbox0"));
+    NCCLCHECK(comm->dda->memHandles->insertMemHandle(comm->dda->barrierMbox[1], "barrierMbox1"));
+    NCCLCHECK(comm->dda->memHandles->insertMemHandle(comm->dda->tmpbuff, "tmpbuff"));
 
-    // open local handles
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[0], comm->dda->barrierMbox[0]));
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[1], comm->dda->barrierMbox[1]));
-    CUDACHECK(cudaIpcGetMemHandle(&localHdls[2], comm->dda->tmpbuff));
-
-    // copy handles to local sendBuf
-    CUDACHECK(cudaMalloc(&handleSendBuf, kHandleSize * kNumHandles));
-    CUDACHECK(
-        cudaMalloc(&handleRecvBuf, kHandleSize * comm->nRanks * kNumHandles));
-    CUDACHECK(cudaMemcpy(
-        handleSendBuf,
-        &localHdls,
-        kHandleSize * kNumHandles,
-        cudaMemcpyDefault));
-
-    // all gather local handles
-    cudaStreamCreate(&stream);
-    NCCLCHECK(ncclAllGather(
-        handleSendBuf,
-        handleRecvBuf,
-        kHandleSize * kNumHandles,
-        ncclUint8,
-        comm,
-        stream));
-    CUDACHECK(cudaStreamSynchronize(stream));
-
-    // deserialize all hanles
-    CUDACHECK(cudaMemcpy(
-        allHdls,
-        handleRecvBuf,
-        kHandleSize * comm->nRanks * kNumHandles,
-        cudaMemcpyDefault));
-
-    // all gather completed, free send/recv buf
-    CUDACHECK(cudaFree(handleSendBuf));
-    CUDACHECK(cudaFree(handleRecvBuf));
+    // exchange handles
+    NCCLCHECK(comm->dda->memHandles->exchangeMemHandles());
 
     // update comm->dda->allSend/Recv TmpBufs[nRanks]
+    CUDACHECK(cudaHostAlloc(&hostBuff, comm->nRanks * sizeof(void *), cudaHostAllocDefault));
     for (size_t rankIdx = 0; rankIdx < comm->nRanks; ++rankIdx) {
-      const auto& barrierHdl0 = allHdls[rankIdx * kNumHandles];
-      const auto& barrierHdl1 = allHdls[rankIdx * kNumHandles + 1];
-      const auto& sendBufHdl = allHdls[rankIdx * kNumHandles + 2];
-      if (comm->rank == rankIdx) {
-        // local rank should point to local buf
-        comm->dda->allTmpSendbuffsHost[rankIdx] = comm->dda->tmpbuff;
-      } else {
-        // otherwise, open IPC handle
-        void* remoteBuf = nullptr;
-        CUDACHECK(cudaIpcOpenMemHandle(
-            (void**)&remoteBuf, sendBufHdl, cudaIpcMemLazyEnablePeerAccess));
-        comm->dda->allTmpSendbuffsHost[rankIdx] = remoteBuf;
-      }
+      hostBuff[rankIdx] = comm->dda->memHandles->getMemAddr(rankIdx, "tmpbuff");
     }
+
     CUDACHECK(cudaMemcpy(
         comm->dda->allTmpSendbuffs,
-        comm->dda->allTmpSendbuffsHost,
+        hostBuff,
         comm->nRanks * sizeof(uintptr_t),
         cudaMemcpyDefault));
+
+    CUDACHECK(cudaFreeHost(hostBuff));
 
     // update comm->dda->barrierMbox, all ranks should use rank0's barrier
     // TODO should use lowest rank ID instead?
     if (comm->rank != 0) {
-      void* remoteBuf = nullptr;
-      CUDACHECK(cudaIpcOpenMemHandle(
-          (void**)&remoteBuf, allHdls[0], cudaIpcMemLazyEnablePeerAccess));
-      comm->dda->barrierMbox[0] = reinterpret_cast<uintptr_t*>(remoteBuf);
-
-      remoteBuf = nullptr;
-      CUDACHECK(cudaIpcOpenMemHandle(
-          (void**)&remoteBuf, allHdls[1], cudaIpcMemLazyEnablePeerAccess));
-      comm->dda->barrierMbox[1] = reinterpret_cast<uintptr_t*>(remoteBuf);
+      comm->dda->barrierMbox[0] = static_cast<uintptr_t *>(comm->dda->memHandles->getMemAddr(0, "barrierMbox0"));
+      comm->dda->barrierMbox[1] = static_cast<uintptr_t *>(comm->dda->memHandles->getMemAddr(0, "barrierMbox1"));
     }
   }
 exit:
@@ -356,19 +294,10 @@ ncclResult_t freeDDAMd(ncclComm *comm) {
   threadSharedMd->refCount--;
 
   if (threadSharedMd->refCount == 0) {
-    if (threadSharedMd->enableIpc()) {
-      // close ipc handles
-      for (int i = 0; i < comm->nRanks; ++i) {
-        if (i == comm->rank) {
-          continue;
-        }
-        CUDACHECKIGNORE(cudaIpcCloseMemHandle(comm->dda->allTmpSendbuffsHost[i]));
-      }
-      // free host/dev memories
-      CUDACHECKIGNORE(cudaFree(comm->dda->barrierMbox[0]));
-      CUDACHECKIGNORE(cudaFree(comm->dda->barrierMbox[1]));
-      CUDACHECKIGNORE(cudaFree(comm->dda->allTmpSendbuffs));
-    }
+    // free host/dev memories
+    CUDACHECKIGNORE(cudaFree(comm->dda->barrierMbox[0]));
+    CUDACHECKIGNORE(cudaFree(comm->dda->barrierMbox[1]));
+    CUDACHECKIGNORE(cudaFree(comm->dda->allTmpSendbuffs));
 
     auto threadSharedMdIdx =
         std::remove(ddaThreadSharedMdList.begin(), ddaThreadSharedMdList.end(), threadSharedMd);

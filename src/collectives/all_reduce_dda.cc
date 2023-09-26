@@ -11,6 +11,12 @@ NCCL_PARAM(DDAAllreduceTreeThresholdNVS, "DDA_ALLREDUCE_TREE_THRESHOLD_NVS", 256
 NCCL_PARAM(DDAAllreduceTreeThresholdHCM, "DDA_ALLREDUCE_TREE_THRESHOLD_HCM", 256 * 1024);
 NCCL_PARAM(DDAAllreduceLargeMessageHCM, "DDA_ALLREDUCE_LARGE_MESSAGE_HCM", 0);
 
+static bool enableIpc_(void)
+{
+  char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
+  return (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "dda_ipc"));
+}
+
 #define ASSIGN_FUNC(func, templ, nranks)   \
   do {                                     \
     switch ((nranks)) {                    \
@@ -54,7 +60,7 @@ static ncclResult_t launchKernel(
     void* recvbuff,
     size_t count,
     cudaStream_t stream) {
-  bool enableIpc = comm->dda->threadSharedMd->enableIpc();
+  bool enableIpc = enableIpc_();
   if (enableIpc) {
     CUDACHECK(cudaMemcpyAsync(
         comm->dda->tmpbuff,
@@ -295,7 +301,7 @@ ncclResult_t ncclAllReduceDDA(
   }
 
   const auto bytes = count * typeSize(datatype);
-  const auto enableIpc = comm->dda->threadSharedMd->enableIpc();
+  const auto enableIpc = enableIpc_();
   if (!enableIpc) {
     if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
         (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
