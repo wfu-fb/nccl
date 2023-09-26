@@ -319,7 +319,21 @@ ncclResult_t ncclAllReduceDDA(
         }
       }
     } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
-      if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+      if (bytes < ncclParamDDAAllreduceTreeThresholdHCM()) {
+        if (bytes % 16) { /* allow for 16-byte loads */
+          goto not_supported;
+        }
+        if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+          goto not_supported;
+        }
+      } else if (ncclParamDDAAllreduceLargeMessageHCM()) {
+        if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
+          goto not_supported;
+        }
+        if (bytes > comm->nRanks * ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+          goto not_supported;
+        }
+      } else {
         goto not_supported;
       }
     }
