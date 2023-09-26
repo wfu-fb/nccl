@@ -192,18 +192,16 @@ vecAdd(const T* src_a, const T* src_b) {
  */
 template <uint32_t NRANKS>
 static inline __device__ void
-barrier(uintptr_t* barrierPtrs, uintptr_t barrierFlag, int rank) {
-  volatile uintptr_t* barrier_d = barrierPtrs;
+barrier(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
+  volatile uintptr_t* barrier_d = barrierMbox;
+  const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
+
+  if (gtidx == 0) {
+    barrier_d[rank] = barrierFlag;
+  }
 
   if (threadIdx.x < NRANKS) {
-    /* first block sets barrier values */
-    if (blockIdx.x == 0) {
-      barrier_d[idx(NRANKS, threadIdx.x, rank)] = barrierFlag;
-    }
-
-    /* all blocks check for values to be set */
-    while ((barrier_d[idx(NRANKS, rank, threadIdx.x)] & 1UL) !=
-           (barrierFlag & 1UL)) {
+    while ((barrier_d[threadIdx.x] & 1UL) != (barrierFlag & 1UL)) {
     }
   }
 
@@ -235,7 +233,7 @@ static inline __device__ void allreduceFlat(
   const T* src[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
     src[i] = reinterpret_cast<const T*>(
-        barrierMbox[idx(NRANKS, rank, (rank + i) & (NRANKS - 1))] & ~1UL);
+        barrierMbox[(rank + i) & (NRANKS - 1)] & ~1UL);
   }
 
   for (size_t offset = gtidx * 16 / sizeof(T); offset < count;
@@ -289,8 +287,7 @@ static inline __device__ void allreduceTree(
   const T* src[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
     int r = (rank + i) & (NRANKS - 1);
-    src[i] =
-        reinterpret_cast<const T*>(barrierMbox[idx(NRANKS, rank, r)] & ~1UL);
+    src[i] = reinterpret_cast<const T*>(barrierMbox[r] & ~1UL);
   }
 
   size_t offsetStart = gtidx * 16 / sizeof(T);
@@ -312,15 +309,14 @@ static inline __device__ void allreduceTree(
 
   /* global barrier */
   barrier<NRANKS>(
-      barrierMbox + NRANKS * NRANKS,
+      barrierMbox + NRANKS,
       (reinterpret_cast<uintptr_t>(recvbuff)) | barrierFlag,
       rank);
 
   int rankOffset[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
     int r = (rank + i) & (NRANKS - 1);
-    src[i] = reinterpret_cast<const T*>(
-        barrierMbox[NRANKS * NRANKS + idx(NRANKS, rank, r)] & ~1UL);
+    src[i] = reinterpret_cast<const T*>(barrierMbox[NRANKS + r] & ~1UL);
     rankOffset[i] = r * count / NRANKS;
   }
 
@@ -367,7 +363,7 @@ static inline __device__ void allreduceTree_ipc(
   __threadfence_system();
 
   /* global barrier */
-  barrier<NRANKS>(barrierMbox + NRANKS * NRANKS, barrierFlag, rank);
+  barrier<NRANKS>(barrierMbox + NRANKS, barrierFlag, rank);
 
   /* simple direct-access Allgather in 16-byte loads */
   for (size_t offset = offsetStart; offset < offsetMax;

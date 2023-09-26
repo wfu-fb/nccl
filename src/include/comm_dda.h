@@ -61,7 +61,7 @@ class ddaClique {
     }
 
     if (this->rankToGpu.empty()) {
-      int numBarrierPtrs = 2 * this->gpus.size() * this->gpus.size();
+      int numBarrierPtrs = 2 * this->gpus.size();
 
       for (int i = 0; i < 2; i++) {
         CUDACHECKIGNORE(cudaMalloc(
