@@ -363,8 +363,6 @@ struct ncclComm {
     uintptr_t barrierFlag;
     // barrier mailbox ID to use
     int barrierMboxId;
-    // local mailbox ID to use
-    int localMboxId;
     // device properties
     cudaDeviceProp devProp;
   } dda;

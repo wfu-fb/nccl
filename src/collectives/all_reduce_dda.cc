@@ -247,14 +247,12 @@ static ncclResult_t launchKernel(
     }
     assert(peerRank != -1);
 
-    comm->dda.localMboxId = !comm->dda.localMboxId;
-
-    assert(peerClique->rankToLocalMbox[comm->dda.localMboxId][peerRank] != nullptr);
+    assert(peerClique->rankToLocalMbox[comm->dda.barrierMboxId][peerRank] != nullptr);
 
     void* args[] = {
         &clique->barrierMbox[comm->dda.barrierMboxId],
-        &clique->rankToLocalMbox[comm->dda.localMboxId][comm->rank],
-        &peerClique->rankToLocalMbox[comm->dda.localMboxId][peerRank],
+        &clique->rankToLocalMbox[comm->dda.barrierMboxId][comm->rank],
+        &peerClique->rankToLocalMbox[comm->dda.barrierMboxId][peerRank],
         &comm->dda.barrierFlag,
         &cliqueRank,
         &sendbuff,

@@ -255,7 +255,6 @@ ncclResult_t allocDDAMd(ncclComm_t comm, ncclUniqueId commId) {
   comm->dda.md = md;
   comm->dda.barrierFlag = 0;
   comm->dda.barrierMboxId = 1;
-  comm->dda.localMboxId = 1;
   CUDACHECK(
       cudaGetDeviceProperties(&comm->dda.devProp, comm->cudaDev));
 
