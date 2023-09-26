@@ -8,7 +8,7 @@
 
 NCCL_PARAM(DDAAllreduceMaxBlocks, "DDA_ALLREDUCE_MAX_BLOCKS", 1);
 NCCL_PARAM(DDAAllreduceTreeThresholdNVS, "DDA_ALLREDUCE_TREE_THRESHOLD_NVS", 256 * 1024);
-NCCL_PARAM(DDAAllreduceTreeThresholdHCM, "DDA_ALLREDUCE_TREE_THRESHOLD_HCM", 256 * 1024);
+NCCL_PARAM(DDAAllreduceTreeThresholdHCM, "DDA_ALLREDUCE_TREE_THRESHOLD_HCM", 64 * 1024);
 
 #define ASSIGN_FUNC(func, templ, nranks)   \
   do {                                     \
