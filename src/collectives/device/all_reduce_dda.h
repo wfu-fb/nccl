@@ -44,6 +44,14 @@
     const T* sendbuff,                                                  \
     T* recvbuff,                                                        \
     size_t count);                                                      \
+  template __global__ void ncclKernel_AllReduce_DDA_HCM_Flat_ipc<T, NRANKS>( \
+    uintptr_t barrierFlag,                                              \
+    int barrierMboxId,                                                  \
+    struct commMd *commMdDev,                                           \
+    int rank,                                                           \
+    const T* sendbuff,                                                  \
+    T* recvbuff,                                                        \
+    size_t count);                                                      \
   template __global__ void ncclKernel_AllReduce_DDA_HCM_Tree<T, NRANKS>( \
     uintptr_t barrierFlag,                                              \
     int barrierMboxId,                                                  \

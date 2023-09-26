@@ -73,7 +73,11 @@ static ncclResult_t launchKernel(
     }
   } else if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__HCM) {
     if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdHCM()) {
-      ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_HCM_Flat, comm->nRanks);
+      if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_HCM_Flat_ipc, comm->nRanks);
+      } else {
+        ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_HCM_Flat, comm->nRanks);
+      }
     } else {
       ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_HCM_Tree, comm->nRanks);
     }

@@ -112,7 +112,16 @@ algo_ipc:
       goto algo_default;
     }
   } else { /* topoType == NCCL_DDA_TOPO_TYPE__HCM */
-    goto algo_default;
+    if (bytes < ncclParamDDAAllreduceTreeThresholdHCM()) {
+      if (bytes % 16) { /* allow for 16-byte loads */
+        goto algo_default;
+      }
+      if (bytes > ncclParamDDAAllreduceTmpbuffSize() / 2) { /* need tmpbuff */
+        goto algo_default;
+      }
+    } else {
+      goto algo_default;
+    }
   }
   return NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC;
 

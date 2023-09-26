@@ -508,6 +508,53 @@ __global__ void ncclKernel_AllReduce_DDA_HCM_Flat(
 }
 
 template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_HCM_Flat_ipc(
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
+  int cliqueRootRankIdx = commMdDev[rank].topoRankIdx & ~(NRANKS / 2 - 1);
+  int cliqueRootRank = commMdDev[rank].topoRanks[cliqueRootRankIdx];
+  int cliqueRank = commMdDev[rank].topoRankIdx & (NRANKS / 2 - 1);
+  int peerRankIdx = commMdDev[rank].topoRankIdx < NRANKS / 2 ? commMdDev[rank].topoRankIdx + NRANKS / 2 :
+    commMdDev[rank].topoRankIdx - NRANKS / 2;
+  int peerRank = commMdDev[rank].topoRanks[peerRankIdx];
+  int cliqueId = commMdDev[rank].topoRankIdx >= NRANKS / 2;
+
+  T *tmpbuff1 = reinterpret_cast<T*>(commMdDev[rank].tmpbuff);
+  T *tmpbuff2 = tmpbuff1 + count;
+  T *peerTmpbuff = reinterpret_cast<T*>(commMdDev[peerRank].tmpbuff) + count;
+
+  const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
+  uintptr_t *mbox = commMdDev[cliqueRootRank].barrierMbox[barrierMboxId];
+
+  barrier<NRANKS / 2>(mbox, barrierFlag, cliqueRank);
+
+  const T* src[NRANKS / 2];
+  for (int i = 0; i < NRANKS / 2; i++) {
+    int r = (cliqueRank + i) & (NRANKS / 2 - 1);
+    int pr = commMdDev[rank].topoRanks[cliqueId * NRANKS / 2 + r];
+    src[i] = reinterpret_cast<const T*>(commMdDev[pr].tmpbuff);
+  }
+
+  for (size_t offset = gtidx * 16 / sizeof(T); offset < count;
+       offset += gridDim.x * blockDim.x * 16 / sizeof(T)) {
+    reinterpret_cast<uint4*>(&tmpbuff2[offset])[0] =
+      vecAdd<T, NRANKS / 2>(src, offset);
+  }
+
+  __threadfence_system();
+
+  uintptr_t *localMbox = commMdDev[rank].barrierMbox[barrierMboxId] + NRANKS;
+  uintptr_t *peerMbox = commMdDev[peerRank].barrierMbox[barrierMboxId] + NRANKS;
+  peerBarrier(localMbox, peerMbox, barrierFlag);
+  peerReduce<T>(barrierFlag, tmpbuff2, peerTmpbuff, recvbuff, count);
+}
+
+template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_HCM_Tree(
   uintptr_t barrierFlag,
   int barrierMboxId,

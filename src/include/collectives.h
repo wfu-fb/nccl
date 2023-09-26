@@ -53,6 +53,10 @@ template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_HCM_Tree(
   uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
   int rank, const T* sendbuff, T* recvbuff, size_t count);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_HCM_Flat_ipc(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T>
 extern __global__ void ncclKernel_AllReduceSparseBlock_Unpack(
     T* unpackBuf,
