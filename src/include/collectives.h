@@ -32,10 +32,10 @@ __global__ void ncclKernel_AllReduce_DDA_Flat_ipc(uintptr_t *barrierMbox,
                                                    T *recvbuff, size_t count, const T **allTmpSendbuffs);
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Tree(uintptr_t *barrierMbox, uintptr_t barrierFlag, int rank,
-                                                   const T *sendbuff, T *tmpbuff, T *recvbuff, size_t count);
+                                                   const T *sendbuff, T *recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Tree_ipc(uintptr_t *barrierMbox, uintptr_t barrierFlag, int rank,
-                                                   const T **allTmpSendbuffs, T **allTmpRecvbuffs, T *recvbuff, size_t count);
+                                                  T **allTmpSendbuffs, T *recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_HCM_Flat(uintptr_t *cliqueBarrierMbox, uintptr_t *localMbox,
                                                        uintptr_t *peerMbox, uintptr_t barrierFlag, int cliqueRank,

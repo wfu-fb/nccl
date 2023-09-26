@@ -266,20 +266,18 @@ static inline __device__ void allreduceFlat_ipc(
   }
 }
 
-/* Hierarchical algorithm for slightly larger (but still
- * latency-sensitive) messages.  In this algorithm, we avoid every
- * rank fetching all of the data from every other rank that the flat
- * algorithm above does.  Instead, each rank fetches only a subset of
- * data from all other ranks and reduces locally.  Then we do a second
- * step where the reduced data is Allgathered (by direct copy by each
- * rank). */
+/* Hierarchical algorithm for large messages.  In this algorithm, we
+ * avoid every rank fetching all of the data from every other rank
+ * that the flat algorithm above does.  Instead, each rank fetches
+ * only a subset of data from all other ranks and reduces locally.
+ * Then we do a second step where the reduced data is Allgathered (by
+ * direct copy by each rank).  */
 template <typename T, uint32_t NRANKS>
 static inline __device__ void allreduceTree(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
     const T* sendbuff,
-    T* tmpbuff,
     T* recvbuff,
     size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -301,7 +299,7 @@ static inline __device__ void allreduceTree(
 
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
-    reinterpret_cast<uint4*>(&tmpbuff[offset])[0] =
+    reinterpret_cast<uint4*>(&recvbuff[offset])[0] =
         vecAdd<T, NRANKS>(src, offset + rank * count / NRANKS);
   }
 
@@ -315,7 +313,7 @@ static inline __device__ void allreduceTree(
   /* global barrier */
   barrier<NRANKS>(
       barrierMbox + NRANKS * NRANKS,
-      (reinterpret_cast<uintptr_t>(tmpbuff)) | barrierFlag,
+      (reinterpret_cast<uintptr_t>(recvbuff)) | barrierFlag,
       rank);
 
   int rankOffset[NRANKS];
@@ -341,8 +339,7 @@ static inline __device__ void allreduceTree_ipc(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
-    const T** allTmpSendbuffs,
-    T** allTmpRecvbuffs,
+    T** allTmpSendbuffs,
     T* recvbuff,
     size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -354,12 +351,12 @@ static inline __device__ void allreduceTree_ipc(
   size_t offsetMax = count / NRANKS;
   size_t offsetStride = gridDim.x * blockDim.x * 16 / sizeof(T);
 
-  // step1: scatter-reduce on local tmpbuff
-  T* tmpbuff = allTmpRecvbuffs[rank];
+  // step1: scatter-reduce on to the sendbuff
+  T* sendbuff = allTmpSendbuffs[rank];
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
-    reinterpret_cast<uint4*>(&tmpbuff[offset])[0] =
-        vecAdd<T, NRANKS>(allTmpSendbuffs, offset + rank * count / NRANKS);
+    reinterpret_cast<uint4*>(&sendbuff[offset])[0] =
+        vecAdd<T, NRANKS>((const T**) allTmpSendbuffs, offset + rank * count / NRANKS);
   }
 
   /* we cannot avoid a __threadfence_system() here because the next
@@ -376,9 +373,9 @@ static inline __device__ void allreduceTree_ipc(
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
     for (int i = 0; i < NRANKS; i++) {
-      const T* tmpbuff = allTmpRecvbuffs[i];
+      const T* sendbuff = allTmpSendbuffs[i];
       reinterpret_cast<uint4*>(&recvbuff[offset + i * count / NRANKS])[0] =
-          reinterpret_cast<const uint4*>(&tmpbuff[offset])[0];
+          reinterpret_cast<const uint4*>(&sendbuff[offset])[0];
     }
   }
 }
@@ -445,11 +442,10 @@ __global__ void ncclKernel_AllReduce_DDA_Tree(
     uintptr_t barrierFlag,
     int rank,
     const T* sendbuff,
-    T* tmpbuff,
     T* recvbuff,
     size_t count) {
   allreduceTree<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, sendbuff, tmpbuff, recvbuff, count);
+      barrierMbox, barrierFlag, rank, sendbuff, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
@@ -457,12 +453,11 @@ __global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
     uintptr_t* barrierMbox,
     uintptr_t barrierFlag,
     int rank,
-    const T** allTmpSendbuffs,
-    T** allTmpRecvbuffs,
+    T** allTmpSendbuffs,
     T* recvbuff,
     size_t count) {
   allreduceTree_ipc<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, allTmpSendbuffs, allTmpRecvbuffs, recvbuff, count);
+      barrierMbox, barrierFlag, rank, allTmpSendbuffs, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
@@ -503,14 +498,11 @@ __global__ void ncclKernel_AllReduce_DDA_HCM_Tree(
     T* tmpbuff,
     T* recvbuff,
     size_t count) {
-  /* using the recvbuff as a temporary buffer, so the output of
-   * allreduce_tree goes into tmpbuff */
   allreduceTree<T, NRANKS / 2>(
       cliqueBarrierMbox,
       barrierFlag,
       cliqueRank,
       sendbuff,
-      recvbuff,
       tmpbuff,
       count);
   __threadfence_system();

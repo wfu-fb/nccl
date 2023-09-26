@@ -96,7 +96,6 @@ class GpuAgent {
         barrierFlag,
         rank_,
         sendbuf_d_,
-        tmpbuf_d_,
         recvbuf_d_,
         count_);
 

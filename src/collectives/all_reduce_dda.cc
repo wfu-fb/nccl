@@ -207,7 +207,6 @@ static ncclResult_t launchKernel(
             &comm->dda.barrierFlag,
             &comm->rank,
             &comm->dda.md->allTmpSendbuffs,
-            &comm->dda.md->allTmpRecvbuffs,
             &recvbuff,
             &count};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));
@@ -217,7 +216,6 @@ static ncclResult_t launchKernel(
             &comm->dda.barrierFlag,
             &comm->rank,
             &sendbuff,
-            &clique->rankToTmpbuf[comm->rank],
             &recvbuff,
             &count};
         CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream));

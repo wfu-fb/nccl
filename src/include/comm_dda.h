@@ -161,13 +161,6 @@ class ddaMd {
   // all ranks' tmp sendbuff host-addrs
   void** allTmpSendbuffsHost{nullptr};
 
-  // tmp recvbuff used for reduce-scatter (step1) in tree algorithm
-  void* tmpRecvbuff{nullptr};
-  // all ranks' tmp recvbuff addresses
-  void** allTmpRecvbuffs{nullptr};
-  // all ranks' tmp recvbuff host-addrs
-  void** allTmpRecvbuffsHost{nullptr};
-
   // total ranks, this will be set during IPC state init
   int nRanks{0};
 
