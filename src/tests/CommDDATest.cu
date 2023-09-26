@@ -9,7 +9,7 @@ TEST(CommDDATest, Clique) {
   CUDACHECKIGNORE(cudaSetDevice(0));
 
   std::vector<int> gpuClique{0, 1};
-  auto clique = std::make_unique<ddaClique>(gpuClique);
+  auto clique = std::make_unique<ddaCliqueSharedMd>(gpuClique);
   clique->insertRank(0, 0);
 
   EXPECT_EQ(clique->gpus.size(), 2);

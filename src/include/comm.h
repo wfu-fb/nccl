@@ -356,16 +356,7 @@ struct ncclComm {
   // colltrace object
   COLLTRACE_OBJECT();
 
-  struct {
-    // metadata for dda ranks
-    ddaMd *md;
-    // flag indicating that each rank has arrived at the barrier
-    uintptr_t barrierFlag;
-    // barrier mailbox ID to use
-    int barrierMboxId;
-    // device properties
-    cudaDeviceProp devProp;
-  } dda;
+  ddaPrivateMd *dda;
 };
 
 enum ncclLaunchMode {

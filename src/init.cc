@@ -1759,7 +1759,7 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   int commDevice = comm->cudaDev;
   ncclResult_t ret = ncclSuccess;
 
-  NCCLCHECKGOTO(freeDDAMd(comm->dda.md, comm->rank), ret, fail);
+  NCCLCHECKGOTO(freeDDAMd(comm), ret, fail);
 
   CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
   if (savedDevice != commDevice) {
