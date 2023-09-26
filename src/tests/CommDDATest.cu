@@ -8,11 +8,18 @@
 TEST(CommDDATest, Clique) {
   CUDACHECKIGNORE(cudaSetDevice(0));
 
-  std::vector<int> gpuClique{0, 1};
-  auto clique = std::make_unique<ddaCliqueSharedMd>(gpuClique);
-  clique->insertRank(0, 0);
+  ncclUniqueId x;
+  auto md = std::make_unique<ddaThreadSharedMd>(x);
+  md->insertRank(0);
+  md->insertRank(1);
 
-  EXPECT_EQ(clique->gpus.size(), 2);
-  EXPECT_NE(clique->barrierMbox[0], nullptr);
-  EXPECT_NE(clique->barrierMbox[1], nullptr);
+  EXPECT_EQ(md->registeredRanks.size(), 2);
+
+  md->deleteRank(1);
+  md->insertRank(2);
+  md->insertRank(3);
+
+  EXPECT_EQ(md->registeredRanks.size(), 3);
+  EXPECT_EQ(md->searchRank(0), true);
+  EXPECT_EQ(md->searchRank(1), false);
 }

@@ -232,71 +232,71 @@ peerBarrier(uintptr_t* localMbox, uintptr_t* peerMbox, uintptr_t barrierFlag) {
  * reduces it into the local destination buffer. */
 template <typename T, uint32_t NRANKS>
 static inline __device__ void allreduceFlat(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    const T* sendbuff,
-    T* recvbuff,
-    size_t count) {
+  uintptr_t *mbox,
+  uintptr_t barrierFlag,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
 
-  /* global barrier */
-  barrier<NRANKS>(
-      barrierMbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
 
-  /* fetch remote source buffer addresses from the barrier mailbox */
   const T* src[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
-    src[i] = reinterpret_cast<const T*>(
-        barrierMbox[(rank + i) & (NRANKS - 1)] & ~1UL);
+    int r = (rank + i) & (NRANKS - 1);
+    src[i] = reinterpret_cast<const T*>(mbox[r] & ~1UL);
   }
 
   for (size_t offset = gtidx * 16 / sizeof(T); offset < count;
        offset += gridDim.x * blockDim.x * 16 / sizeof(T)) {
     reinterpret_cast<uint4*>(&recvbuff[offset])[0] =
-        vecAdd<T, NRANKS>(src, offset);
+      vecAdd<T, NRANKS>(src, offset);
   }
 }
 
 template <typename T, uint32_t NRANKS>
 static inline __device__ void allreduceFlat_ipc(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    T* recvbuff,
-    size_t count,
-    const T** allTmpSendbuffs) {
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  T* recvbuff,
+  size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
+  uintptr_t *mbox = commMdDev[0].barrierMbox[barrierMboxId];
 
-  /* global barrier */
-  barrier<NRANKS>(barrierMbox, barrierFlag, rank);
+  barrier<NRANKS>(mbox, barrierFlag, rank);
 
-  // perform local reduce
+  const T* src[NRANKS];
+  for (int i = 0; i < NRANKS; i++) {
+    int r = (rank + i) & (NRANKS - 1);
+    src[i] = reinterpret_cast<const T*>(commMdDev[r].tmpbuff);
+  }
+
   for (size_t offset = gtidx * 16 / sizeof(T); offset < count;
        offset += gridDim.x * blockDim.x * 16 / sizeof(T)) {
     reinterpret_cast<uint4*>(&recvbuff[offset])[0] =
-        vecAdd<T, NRANKS>(allTmpSendbuffs, offset);
+      vecAdd<T, NRANKS>(src, offset);
   }
 }
 
 template <typename T, uint32_t NRANKS>
 static inline __device__ void reduceScatter(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    const T* sendbuff,
-    T* recvbuff,
-    size_t count) {
+  uintptr_t *mbox,
+  uintptr_t barrierFlag,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
 
-  /* global barrier */
-  barrier<NRANKS>(
-      barrierMbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
 
   const T* src[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
     int r = (rank + i) & (NRANKS - 1);
-    src[i] = reinterpret_cast<const T*>(barrierMbox[r] & ~1UL);
+    src[i] = reinterpret_cast<const T*>(mbox[r] & ~1UL);
   }
 
   size_t offsetStart = gtidx * 16 / sizeof(T);
@@ -312,25 +312,21 @@ static inline __device__ void reduceScatter(
 
 template <typename T, uint32_t NRANKS>
 static inline __device__ void allGather(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    const T* sendbuff,
-    T* recvbuff,
-    size_t count) {
+  uintptr_t *mbox,
+  uintptr_t barrierFlag,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
 
-  /* global barrier */
-  barrier<NRANKS>(
-      barrierMbox + NRANKS,
-      (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag,
-      rank);
+  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
 
   const T* src[NRANKS];
   int rankOffset[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
     int r = (rank + i) & (NRANKS - 1);
-    src[i] = reinterpret_cast<const T*>(barrierMbox[NRANKS + r] & ~1UL);
+    src[i] = reinterpret_cast<const T*>(mbox[r] & ~1UL);
     rankOffset[i] = r * count / NRANKS;
   }
 
@@ -343,53 +339,55 @@ static inline __device__ void allGather(
        offset += offsetStride) {
     for (int i = 0; i < NRANKS; i++) {
       reinterpret_cast<uint4*>(&recvbuff[offset + rankOffset[i]])[0] =
-          reinterpret_cast<const uint4*>(&src[i][offset])[0];
+        reinterpret_cast<const uint4*>(&src[i][offset])[0];
     }
   }
 }
 
 template <typename T, uint32_t NRANKS>
 static inline __device__ void allreduceTree_ipc(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    T** allTmpSendbuffs,
-    T* recvbuff,
-    size_t count) {
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  T* recvbuff,
+  size_t count) {
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
+  uintptr_t *mbox = commMdDev[0].barrierMbox[barrierMboxId];
 
-  /* global barrier */
-  barrier<NRANKS>(barrierMbox, barrierFlag, rank);
+  barrier<NRANKS>(mbox, barrierFlag, rank);
+
+  /* reduce-scatter on top the sendbuff */
+  const T* src[NRANKS];
+  for (int i = 0; i < NRANKS; i++) {
+    int r = (rank + i) & (NRANKS - 1);
+    src[i] = reinterpret_cast<const T*>(commMdDev[r].tmpbuff) + rank * count / NRANKS;
+  }
 
   size_t offsetStart = gtidx * 16 / sizeof(T);
   size_t offsetMax = count / NRANKS;
   size_t offsetStride = gridDim.x * blockDim.x * 16 / sizeof(T);
 
-  // step1: scatter-reduce on to the sendbuff
-  T* sendbuff = allTmpSendbuffs[rank];
+  T *sendbuff = reinterpret_cast<T*>(commMdDev[rank].tmpbuff) +
+    rank * count / NRANKS;
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
-    reinterpret_cast<uint4*>(&sendbuff[offset])[0] =
-        vecAdd<T, NRANKS>((const T**) allTmpSendbuffs, offset + rank * count / NRANKS);
+    reinterpret_cast<uint4*>(&sendbuff[offset])[0] = vecAdd<T, NRANKS>(src, offset);
   }
 
-  /* we cannot avoid a __threadfence_system() here because the next
-   * step requires us to access the data that just got reduced by
-   * the other ranks.  So we need to tell the compiler/hardware to
-   * not reorder the above reduction to happen after the below
-   * Allgather. */
   __threadfence_system();
 
-  /* global barrier */
-  barrier<NRANKS>(barrierMbox + NRANKS, barrierFlag, rank);
+  mbox += NRANKS;
+  barrier<NRANKS>(mbox, barrierFlag, rank);
 
   /* simple direct-access Allgather in 16-byte loads */
   for (size_t offset = offsetStart; offset < offsetMax;
        offset += offsetStride) {
     for (int i = 0; i < NRANKS; i++) {
-      const T* sendbuff = allTmpSendbuffs[i];
+      sendbuff = reinterpret_cast<T*>(commMdDev[rank].tmpbuff) +
+        i * count / NRANKS;
       reinterpret_cast<uint4*>(&recvbuff[offset + i * count / NRANKS])[0] =
-          reinterpret_cast<const uint4*>(&sendbuff[offset])[0];
+        reinterpret_cast<const uint4*>(&sendbuff[offset])[0];
     }
   }
 }
@@ -412,26 +410,27 @@ static inline __device__ void peerReduce(
 
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Flat(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    const T* sendbuff,
-    T* recvbuff,
-    size_t count) {
-  allreduceFlat<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, sendbuff, recvbuff, count);
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
+  uintptr_t *mbox = commMdDev[0].barrierMbox[barrierMboxId];
+  allreduceFlat<T, NRANKS>(mbox, barrierFlag, rank, sendbuff, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    T* recvbuff,
-    size_t count,
-    const T** allTmpSendbuffs) {
-  allreduceFlat_ipc<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, recvbuff, count, allTmpSendbuffs);
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
+  allreduceFlat_ipc<T, NRANKS>(barrierFlag, barrierMboxId, commMdDev, rank, recvbuff, count);
 }
 
 /* Hierarchical algorithm for large messages.  In this algorithm, we
@@ -442,41 +441,42 @@ __global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
  * direct copy by each rank).  */
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Tree(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    const T* sendbuff,
-    T* recvbuff,
-    size_t count) {
-  reduceScatter<T, NRANKS>(barrierMbox, barrierFlag, rank, sendbuff, recvbuff + rank * count / NRANKS, count);
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
+  uintptr_t *mbox = commMdDev[0].barrierMbox[barrierMboxId];
+  reduceScatter<T, NRANKS>(mbox, barrierFlag, rank, sendbuff, recvbuff + rank * count / NRANKS, count);
   __threadfence_system();
-  allGather<T, NRANKS>(barrierMbox + NRANKS, barrierFlag, rank, recvbuff + rank * count / NRANKS,
-                       recvbuff, count);
+
+  mbox += NRANKS;
+  allGather<T, NRANKS>(mbox, barrierFlag, rank, recvbuff + rank * count / NRANKS, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
-    uintptr_t* barrierMbox,
-    uintptr_t barrierFlag,
-    int rank,
-    T** allTmpSendbuffs,
-    T* recvbuff,
-    size_t count) {
-  allreduceTree_ipc<T, NRANKS>(
-      barrierMbox, barrierFlag, rank, allTmpSendbuffs, recvbuff, count);
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
+  allreduceTree_ipc<T, NRANKS>(barrierFlag, barrierMboxId, commMdDev, rank, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_HCM_Flat(
-    uintptr_t* cliqueBarrierMbox,
-    uintptr_t* localMbox,
-    uintptr_t* peerMbox,
-    uintptr_t barrierFlag,
-    int cliqueRank,
-    const T* sendbuff,
-    T* tmpbuff,
-    T* recvbuff,
-    size_t count) {
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
   /* For HCM systems, we break the Allreduce into two parts.  In the
    * first part, we perform the Allreduce within the clique (the set
    * of ranks that are topologically all-to-all connected with
@@ -487,36 +487,57 @@ __global__ void ncclKernel_AllReduce_DDA_HCM_Flat(
    * has other platforms that have a more generalized version of
    * HCM, so this code does not support the fully general case of
    * multidimensional cubes. */
-  allreduceFlat<T, NRANKS / 2>(
-      cliqueBarrierMbox, barrierFlag, cliqueRank, sendbuff, tmpbuff, count);
+  int cliqueRootRankIdx = commMdDev[rank].topoRankIdx & ~(NRANKS / 2 - 1);
+  int cliqueRootRank = commMdDev[rank].topoRanks[cliqueRootRankIdx];
+  int cliqueRank = commMdDev[rank].topoRankIdx & (NRANKS / 2 - 1);
+  int peerRankIdx = commMdDev[rank].topoRankIdx < NRANKS / 2 ? commMdDev[rank].topoRankIdx + NRANKS / 2 :
+    commMdDev[rank].topoRankIdx - NRANKS / 2;
+  int peerRank = commMdDev[rank].topoRanks[peerRankIdx];
+
+  T *tmpbuff = reinterpret_cast<T*>(commMdDev[rank].tmpbuff);
+  T *peerTmpbuff = reinterpret_cast<T*>(commMdDev[peerRank].tmpbuff);
+
+  uintptr_t *mbox = commMdDev[cliqueRootRank].barrierMbox[barrierMboxId];
+  allreduceFlat<T, NRANKS / 2>(mbox, barrierFlag, cliqueRank, sendbuff, tmpbuff, count);
   __threadfence_system();
 
-  peerBarrier(localMbox, peerMbox, reinterpret_cast<uintptr_t>(tmpbuff) | barrierFlag);
-  const T* src = reinterpret_cast<const T*>((*localMbox) & ~1UL);
-  peerReduce<T>(barrierFlag, src, tmpbuff, recvbuff, count);
+  uintptr_t *localMbox = commMdDev[rank].barrierMbox[barrierMboxId] + NRANKS;
+  uintptr_t *peerMbox = commMdDev[peerRank].barrierMbox[barrierMboxId] + NRANKS;
+  peerBarrier(localMbox, peerMbox, barrierFlag);
+  peerReduce<T>(barrierFlag, tmpbuff, peerTmpbuff, recvbuff, count);
 }
 
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_HCM_Tree(
-    uintptr_t* cliqueBarrierMbox,
-    uintptr_t* localMbox,
-    uintptr_t* peerMbox,
-    uintptr_t barrierFlag,
-    int cliqueRank,
-    const T* sendbuff,
-    T* tmpbuff,
-    T* recvbuff,
-    size_t count) {
-  reduceScatter<T, NRANKS / 2>(cliqueBarrierMbox, barrierFlag, cliqueRank, sendbuff, tmpbuff, count);
+  uintptr_t barrierFlag,
+  int barrierMboxId,
+  struct commMd *commMdDev,
+  int rank,
+  const T* sendbuff,
+  T* recvbuff,
+  size_t count) {
+  int cliqueRootRankIdx = commMdDev[rank].topoRankIdx & ~(NRANKS / 2 - 1);
+  int cliqueRootRank = commMdDev[rank].topoRanks[cliqueRootRankIdx];
+  int cliqueRank = commMdDev[rank].topoRankIdx & (NRANKS / 2 - 1);
+  int peerRankIdx = commMdDev[rank].topoRankIdx < NRANKS / 2 ? commMdDev[rank].topoRankIdx + NRANKS / 2 :
+    commMdDev[rank].topoRankIdx - NRANKS / 2;
+  int peerRank = commMdDev[rank].topoRanks[peerRankIdx];
+
+  T *tmpbuff = reinterpret_cast<T*>(commMdDev[rank].tmpbuff);
+  T *peerTmpbuff = reinterpret_cast<T*>(commMdDev[peerRank].tmpbuff);
+
+  uintptr_t *mbox = commMdDev[cliqueRootRank].barrierMbox[barrierMboxId];
+  reduceScatter<T, NRANKS / 2>(mbox, barrierFlag, cliqueRank, sendbuff, tmpbuff, count);
   __threadfence_system();
 
-  peerBarrier(localMbox, peerMbox, reinterpret_cast<uintptr_t>(tmpbuff) | barrierFlag);
-  const T* src = reinterpret_cast<const T*>((*localMbox) & ~1UL);
-  peerReduce<T>(barrierFlag, src, tmpbuff, recvbuff + cliqueRank * count * 2 / NRANKS, count * 2 / NRANKS);
+  uintptr_t *localMbox = commMdDev[rank].barrierMbox[barrierMboxId] + NRANKS;
+  uintptr_t *peerMbox = commMdDev[peerRank].barrierMbox[barrierMboxId] + NRANKS;
+  peerBarrier(localMbox, peerMbox, barrierFlag);
+  peerReduce<T>(barrierFlag, tmpbuff, peerTmpbuff, recvbuff + cliqueRank * count * 2 / NRANKS, count * 2 / NRANKS);
   __threadfence_system();
 
-  allGather<T, NRANKS / 2>(cliqueBarrierMbox + NRANKS, barrierFlag, cliqueRank,
-                           recvbuff + cliqueRank * count * 2 / NRANKS, recvbuff, count);
+  mbox = commMdDev[cliqueRootRank].barrierMbox[barrierMboxId] + 2 * NRANKS;
+  allGather<T, NRANKS / 2>(mbox, barrierFlag, cliqueRank, recvbuff + cliqueRank * count * 2 / NRANKS, recvbuff, count);
 }
 
 DECL_DDA_FUNC(char);

@@ -9,76 +9,19 @@
 #include "checks.h"
 #include "ddaThreadSharedMd.h"
 #include "ddaMemHandles.h"
+#include "ddaPrivateMd.h"
 
 int64_t ncclParamMaxDDARanks(void);
 int64_t ncclParamDDAAllreduceTmpbuffSize(void);
 int64_t ncclParamDDAAllreduceTreeThresholdNVS(void);
 int64_t ncclParamDDAAllreduceTreeThresholdHCM(void);
-
-typedef enum {
-  NCCL_DDA_TOPO_TYPE__NVS,
-  NCCL_DDA_TOPO_TYPE__HCM,
-  NCCL_DDA_TOPO_TYPE__UNKNOWN,
-} ncclDDATopoType_t;
+int64_t ncclParamForceP2pAccess(void);
 
 typedef enum {
   NCCL_DDA_ALLREDUCE_ALGO_DEFAULT,
   NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC,
   NCCL_DDA_ALLREDUCE_ALGO_DDA_THREADED,
 } ncclDDAAllReduceAlgo_t;
-
-class ddaPrivateMd {
-public:
-  ddaPrivateMd(ddaThreadSharedMd *threadSharedMd, int rank, int cudaDev, int nRanks, int numCliques, ncclComm *comm) {
-    this->barrierFlag = 0;
-    this->barrierMboxId = 1;
-    CUDACHECKIGNORE(cudaGetDeviceProperties(&this->devProp, cudaDev));
-
-    CUDACHECKIGNORE(cudaMalloc(&this->tmpbuff, ncclParamDDAAllreduceTmpbuffSize()));
-
-    /* add topology information */
-    this->topoType = NCCL_DDA_TOPO_TYPE__UNKNOWN;
-    if (numCliques == 1) {
-      this->topoType = NCCL_DDA_TOPO_TYPE__NVS;
-    } else if (numCliques == 2) {
-      this->topoType = NCCL_DDA_TOPO_TYPE__HCM;
-    }
-
-    this->threadSharedMd = threadSharedMd;
-    this->memHandles = std::unique_ptr<class ddaMemHandles>(new ddaMemHandles(threadSharedMd, comm));
-  }
-
-  ~ddaPrivateMd() {
-    CUDACHECKIGNORE(cudaFree(this->tmpbuff));
-  }
-
-  // flag indicating that each rank has arrived at the barrier
-  uintptr_t barrierFlag;
-
-  // barrier mailbox ID to use
-  int barrierMboxId;
-
-  // device properties
-  cudaDeviceProp devProp;
-
-  // local tmpbuff
-  void* tmpbuff{nullptr};
-
-  // topology type
-  ncclDDATopoType_t topoType;
-
-  // thread-shared meta-data
-  ddaThreadSharedMd *threadSharedMd;
-
-  // ipc states
-  // barrier mailboxes
-  uintptr_t* barrierMbox[2];
-
-  // all ranks' tmpbuff addresses
-  void** allTmpSendbuffs{nullptr};
-
-  std::unique_ptr<class ddaMemHandles> memHandles;
-};
 
 ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
                                         size_t count, ncclDataType_t datatype, ncclRedOp_t op,

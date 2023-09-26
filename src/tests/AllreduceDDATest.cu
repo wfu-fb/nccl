@@ -80,7 +80,7 @@ class GpuAgent {
     CUDACHECKIGNORE(cudaSetDevice(rank_));
     uintptr_t barrierFlag = 1;
     ncclKernel_AllReduce_DDA_Flat<float, 2><<<1, 2>>>(
-        barrierMbox_d_, barrierFlag, rank_, sendbuf_d_, recvbuf_d_, count_);
+        barrierFlag, 0, nullptr, rank_, sendbuf_d_, recvbuf_d_, count_);
 
     CUDACHECKIGNORE(cudaDeviceSynchronize());
 
@@ -92,12 +92,7 @@ class GpuAgent {
     CUDACHECKIGNORE(cudaSetDevice(rank_));
     uintptr_t barrierFlag = 1;
     ncclKernel_AllReduce_DDA_Tree<float, 2><<<1, 2>>>(
-        barrierMbox_d_,
-        barrierFlag,
-        rank_,
-        sendbuf_d_,
-        recvbuf_d_,
-        count_);
+        barrierFlag, 0, nullptr, rank_, sendbuf_d_, recvbuf_d_, count_);
 
     CUDACHECKIGNORE(cudaDeviceSynchronize());
 

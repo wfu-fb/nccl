@@ -18,32 +18,41 @@ struct ncclDevRedOpFull {
   uint64_t scalarArg;
 };
 
+struct commMd {
+  int *topoRanks;
+  int topoRankIdx;
+  uintptr_t* barrierMbox[2];
+  void* tmpbuff;
+};
+
 ncclResult_t ncclAllReduceDDA(const void* sendbuff, void* recvbuff, size_t count,
                                    ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm,
                                    cudaStream_t stream);
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA_Flat(uintptr_t *barrierMbox,
-                                                   uintptr_t barrierFlag, int rank,
-                                                   const T *sendbuff, T *recvbuff, size_t count);
+__global__ void ncclKernel_AllReduce_DDA_Flat(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA_Flat_ipc(uintptr_t *barrierMbox,
-                                                   uintptr_t barrierFlag, int rank,
-                                                   T *recvbuff, size_t count, const T **allTmpSendbuffs);
+__global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA_Tree(uintptr_t *barrierMbox, uintptr_t barrierFlag, int rank,
-                                                   const T *sendbuff, T *recvbuff, size_t count);
+__global__ void ncclKernel_AllReduce_DDA_Tree(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA_Tree_ipc(uintptr_t *barrierMbox, uintptr_t barrierFlag, int rank,
-                                                  T **allTmpSendbuffs, T *recvbuff, size_t count);
+__global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA_HCM_Flat(uintptr_t *cliqueBarrierMbox, uintptr_t *localMbox,
-                                                       uintptr_t *peerMbox, uintptr_t barrierFlag, int cliqueRank,
-                                                       const T *sendbuff, T *tmpbuff, T *recvbuff, size_t count);
+__global__ void ncclKernel_AllReduce_DDA_HCM_Flat(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA_HCM_Tree(uintptr_t *cliqueBarrierMbox, uintptr_t *localMbox,
-                                                       uintptr_t *peerMbox, uintptr_t barrierFlag, int cliqueRank,
-                                                       const T *sendbuff, T *tmpbuff, T *recvbuff, size_t count);
+__global__ void ncclKernel_AllReduce_DDA_HCM_Tree(
+  uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T>
 extern __global__ void ncclKernel_AllReduceSparseBlock_Unpack(
     T* unpackBuf,
