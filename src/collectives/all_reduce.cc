@@ -7,34 +7,15 @@
 #include "enqueue.h"
 #include "nccl.h"
 
-#define NCCL_ALLREDUCE_ALGO__ORIG       (0)
-#define NCCL_ALLREDUCE_ALGO__DDA_THREADED   (1)
-#define NCCL_ALLREDUCE_ALGO__DDA_IPC (2)
-
-// if non-zero, enforce new algorithm w/o falling back to original implementation
-NCCL_PARAM(AllreduceAlgoEnforce, "ALLREDUCE_ALGO_ENFORCE", 0);
-
 NCCL_API(ncclResult_t, ncclAllReduce, const void* sendbuff, void* recvbuff, size_t count,
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream);
 ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream) {
-  // read allreduceAlgo and allreduceAlgoEnforce
-  const char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
-  int allreduceAlgo = NCCL_ALLREDUCE_ALGO__ORIG;
-  if (allreduceAlgoStr != nullptr) {
-    if (!strcmp(allreduceAlgoStr, "dda_threaded")) {
-      allreduceAlgo = NCCL_ALLREDUCE_ALGO__DDA_THREADED;
-    } else if (!strcmp(allreduceAlgoStr, "dda_ipc")) {
-      allreduceAlgo = NCCL_ALLREDUCE_ALGO__DDA_IPC;
-    }
-  }
-
-  const bool allReduceAlgoEnforce = ncclParamAllreduceAlgoEnforce() != 0;
-
-  if (allreduceAlgo == NCCL_ALLREDUCE_ALGO__DDA_THREADED || allreduceAlgo == NCCL_ALLREDUCE_ALGO__DDA_IPC) {
+  ncclDDAAllReduceAlgo_t allreduceAlgo = getAllReduceAlgo(sendbuff, recvbuff, count, datatype, op, comm);
+  if (allreduceAlgo != NCCL_DDA_ALLREDUCE_ALGO_DEFAULT) {
     auto ret = ncclAllReduceDDA(sendbuff, recvbuff, count, datatype, op, comm, stream);
-    if (allReduceAlgoEnforce || (ret != ncclInvalidUsage)) {
-      // return immediately if enforced or result in non-ncclInvalidUsage error
+    if (ret != ncclInvalidUsage) {
+      // return immediately if result is non-ncclInvalidUsage error
       return ret;
     }
   }

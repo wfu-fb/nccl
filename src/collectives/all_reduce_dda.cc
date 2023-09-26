@@ -11,12 +11,6 @@ NCCL_PARAM(DDAAllreduceTreeThresholdNVS, "DDA_ALLREDUCE_TREE_THRESHOLD_NVS", 256
 NCCL_PARAM(DDAAllreduceTreeThresholdHCM, "DDA_ALLREDUCE_TREE_THRESHOLD_HCM", 256 * 1024);
 NCCL_PARAM(DDAAllreduceLargeMessageHCM, "DDA_ALLREDUCE_LARGE_MESSAGE_HCM", 0);
 
-static bool enableIpc_(void)
-{
-  char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
-  return (allreduceAlgoStr != nullptr && !strcmp(allreduceAlgoStr, "dda_ipc"));
-}
-
 #define ASSIGN_FUNC(func, templ, nranks)   \
   do {                                     \
     switch ((nranks)) {                    \
@@ -59,9 +53,10 @@ static ncclResult_t launchKernel(
     const void* sendbuff,
     void* recvbuff,
     size_t count,
+    ncclDataType_t datatype,
     cudaStream_t stream) {
-  bool enableIpc = enableIpc_();
-  if (enableIpc) {
+  ncclDDAAllReduceAlgo_t algo = getAllReduceAlgo(sendbuff, recvbuff, count, datatype, ncclSum, comm);
+  if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
     CUDACHECK(cudaMemcpyAsync(
         comm->dda->tmpbuff,
         sendbuff,
@@ -73,13 +68,13 @@ static ncclResult_t launchKernel(
 
   if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
     if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
-      if (enableIpc) {
+      if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
         ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Flat_ipc, comm->nRanks);
       } else {
         ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Flat, comm->nRanks);
       }
     } else {
-      if (enableIpc) {
+      if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
         ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Tree_ipc, comm->nRanks);
       } else {
         ASSIGN_FUNC(func, ncclKernel_AllReduce_DDA_Tree, comm->nRanks);
@@ -186,7 +181,7 @@ static ncclResult_t launchKernel(
     ddaCliqueSharedMd* clique = comm->dda->threadSharedMd->cliques.front();
 
     if (count * sizeof(T) < ncclParamDDAAllreduceTreeThresholdNVS()) {
-      if (enableIpc) {
+      if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
         void* args[] = {
             &comm->dda->barrierMbox[comm->dda->barrierMboxId],
             &comm->dda->barrierFlag,
@@ -207,7 +202,7 @@ static ncclResult_t launchKernel(
       }
     } else {
       // scatter-reduce, allgather tree algorithm
-      if (enableIpc) {
+      if (algo == NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC) {
         void* args[] = {
             &comm->dda->barrierMbox[comm->dda->barrierMboxId],
             &comm->dda->barrierFlag,
@@ -281,7 +276,6 @@ ncclResult_t ncclAllReduceDDA(
     ncclComm* comm,
     cudaStream_t stream) {
   ddaCliqueSharedMd* clique;
-  int numDDAThreads = 0;
   ncclResult_t res;
 
   NCCLCHECK(ncclCommEnsureReady(comm));
@@ -296,106 +290,48 @@ ncclResult_t ncclAllReduceDDA(
   NCCLCHECK(CudaPtrCheck(sendbuff, comm, "sendbuff", "AllReduce"));
   NCCLCHECK(CudaPtrCheck(recvbuff, comm, "recvbuff", "AllReduce"));
 
-  for (auto c : comm->dda->threadSharedMd->cliques) {
-    numDDAThreads += c->rankToGpu.size();
-  }
-
-  const auto bytes = count * typeSize(datatype);
-  const auto enableIpc = enableIpc_();
-  if (!enableIpc) {
-    if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
-        (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
-        (numDDAThreads == 1) || /* more than one rank */
-        (numDDAThreads > ncclParamMaxDDAThreads()) || /* only small rank counts are supported */
-        (op != ncclSum) || /* only sum is supported */
-        ((uintptr_t)sendbuff % 16) || /* 16-byte alignment */
-        ((uintptr_t)recvbuff % 16)) { /* 16-byte alignment */
-      goto not_supported;
-    }
-
-    if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
-      if (bytes < ncclParamDDAAllreduceTreeThresholdNVS()) {
-        if ((bytes % 16) || /* allow for 16-byte loads */
-            (sendbuff == recvbuff)) { /* in-place reduction */
-          goto not_supported;
-        }
-      } else { /* bytes >= ncclParamDDAAllreduceTreeThresholdNVS() */
-        if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
-          goto not_supported;
-        }
-      }
-    } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
-      if (bytes < ncclParamDDAAllreduceTreeThresholdHCM()) {
-        if (bytes % 16) { /* allow for 16-byte loads */
-          goto not_supported;
-        }
-        if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
-          goto not_supported;
-        }
-      } else if (ncclParamDDAAllreduceLargeMessageHCM()) {
-        if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
-          goto not_supported;
-        }
-        if (bytes > comm->nRanks * ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
-          goto not_supported;
-        }
-      } else {
-        goto not_supported;
-      }
-    }
-  } else { /* enableIpc */
-    // TODO: check all processes belong to a single node
-    if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
-      if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff for IPC */
-        goto not_supported;
-      }
-    } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
-      goto not_supported;
-    }
-  }
-
   switch (datatype) {
     case ncclInt8:
-      NCCLCHECK(launchKernel<char>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<char>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclUint8:
-      NCCLCHECK(launchKernel<uint8_t>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<uint8_t>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclInt32:
-      NCCLCHECK(launchKernel<int32_t>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<int32_t>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclUint32:
       NCCLCHECK(
-          launchKernel<uint32_t>(comm, sendbuff, recvbuff, count, stream));
+          launchKernel<uint32_t>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclInt64:
-      NCCLCHECK(launchKernel<int64_t>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<int64_t>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclUint64:
       NCCLCHECK(
-          launchKernel<uint64_t>(comm, sendbuff, recvbuff, count, stream));
+          launchKernel<uint64_t>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclFloat16:
-      NCCLCHECK(launchKernel<half>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<half>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclFloat32:
-      NCCLCHECK(launchKernel<float>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<float>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
     case ncclFloat64:
-      NCCLCHECK(launchKernel<double>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<double>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     case ncclBfloat16:
-      NCCLCHECK(launchKernel<__nv_bfloat16>(comm, sendbuff, recvbuff, count, stream));
+      NCCLCHECK(launchKernel<__nv_bfloat16>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 #endif
 

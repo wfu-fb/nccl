@@ -12,6 +12,8 @@
 
 int64_t ncclParamMaxDDAThreads(void);
 int64_t ncclParamDDAAllreduceTmpbuffSize(void);
+int64_t ncclParamDDAAllreduceTreeThresholdNVS(void);
+int64_t ncclParamDDAAllreduceTreeThresholdHCM(void);
 
 typedef enum {
   NCCL_DDA_TOPO_TYPE__NVS,
@@ -78,6 +80,9 @@ public:
   std::unique_ptr<class ddaMemHandles> memHandles;
 };
 
+ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
+                                        size_t count, ncclDataType_t datatype, ncclRedOp_t op,
+                                        ncclComm* comm);
 ncclResult_t allocDDAMd(ncclComm *comm, ncclUniqueId commId);
 ncclResult_t freeDDAMd(ncclComm *comm);
 

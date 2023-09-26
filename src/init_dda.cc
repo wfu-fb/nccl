@@ -31,6 +31,94 @@ bool operator==(const ddaThreadSharedMd& lhs, const ddaThreadSharedMd& rhs) {
   return (lhs.commId == rhs.commId);
 }
 
+ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
+                                        size_t count, ncclDataType_t datatype, ncclRedOp_t op,
+                                        ncclComm* comm) {
+  const auto bytes = count * typeSize(datatype);
+  int numDDAThreads = 0;
+  const char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
+
+  if (allreduceAlgoStr == nullptr || strcmp(allreduceAlgoStr, "dda")) {
+    goto algo_default;
+  }
+
+  /* first try to see if the threaded DDA algo would work */
+  for (auto c : comm->dda->threadSharedMd->cliques) {
+    numDDAThreads += c->rankToGpu.size();
+  }
+
+  if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
+      (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
+      (numDDAThreads == 1) || /* more than one rank */
+      (numDDAThreads > ncclParamMaxDDAThreads()) || /* only small rank counts are supported */
+      (op != ncclSum) || /* only sum is supported */
+      ((uintptr_t)sendbuff % 16) || /* 16-byte alignment */
+      ((uintptr_t)recvbuff % 16)) { /* 16-byte alignment */
+      goto algo_ipc;
+  }
+
+  if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+    if (bytes < ncclParamDDAAllreduceTreeThresholdNVS()) {
+      if ((bytes % 16) || /* allow for 16-byte loads */
+          (sendbuff == recvbuff)) { /* in-place reduction */
+        goto algo_ipc;
+      }
+    } else { /* bytes >= ncclParamDDAAllreduceTreeThresholdNVS() */
+      if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
+        goto algo_ipc;
+      }
+    }
+  } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
+    if (bytes < ncclParamDDAAllreduceTreeThresholdHCM()) {
+      if (bytes % 16) { /* allow for 16-byte loads */
+        goto algo_ipc;
+      }
+      if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+        goto algo_ipc;
+      }
+    } else {
+      if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
+        goto algo_ipc;
+      }
+      if (bytes > comm->nRanks * ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+        goto algo_ipc;
+      }
+    }
+  }
+  return NCCL_DDA_ALLREDUCE_ALGO_DDA_THREADED;
+
+algo_ipc:
+  if ((comm->nRanks != comm->localRanks) || /* all ranks must be local */
+      (comm->nRanks & (comm->nRanks - 1)) || /* power of two ranks */
+      (comm->nRanks == 1) || /* more than one rank */
+      (comm->nRanks > ncclParamMaxDDAThreads()) || /* only small rank counts are supported */
+      (op != ncclSum)) { /* only sum is supported */
+    goto algo_default;
+  }
+
+  if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
+    if (bytes < ncclParamDDAAllreduceTreeThresholdNVS()) {
+      if (bytes % 16) { /* allow for 16-byte loads */
+        goto algo_default;
+      }
+    } else { /* bytes >= ncclParamDDAAllreduceTreeThresholdNVS() */
+      if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
+        goto algo_default;
+      }
+    }
+
+    if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff for IPC */
+      goto algo_default;
+    }
+  } else { /* comm->dda.md->topoType == NCCL_DDA_TOPO_TYPE__HCM */
+    goto algo_default;
+  }
+  return NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC;
+
+algo_default:
+  return NCCL_DDA_ALLREDUCE_ALGO_DEFAULT;
+}
+
 /* This function only returns two types of cliques: fully connected
  * (NVSwitch) or HCM, to support typically GPU topologies.  In all
  * other cases, we return an empty vector.
