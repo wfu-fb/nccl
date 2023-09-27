@@ -94,6 +94,9 @@ ncclResult_t ddaMemHandles::exchangeMemHandles(void) {
 
   /* deserialize global handles */
   for (int r = 0; r < this->comm->nRanks; r++) {
+    if (this->comm->rankToNode[r] != this->comm->node) {
+      continue;
+    }
     if (r == this->comm->rank) {
       continue;
     }
