@@ -201,8 +201,6 @@ ncclResult_t ncclAllReduceDDA(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream) {
-  ncclResult_t res;
-
   NCCLCHECK(ncclCommEnsureReady(comm));
   if (datatype < 0 || datatype >= ncclNumTypes) {
     WARN("AllReduce : invalid type %d", datatype);
