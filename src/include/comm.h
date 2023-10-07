@@ -17,6 +17,7 @@
 #include "info.h"
 #include "colltrace.h"
 #include "ctranMapper.h"
+#include "ctranGpe.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -359,6 +360,7 @@ struct ncclComm {
 
   ddaPrivateMd *dda;
   class ctranMapper *ctranMapper;
+  class ctranGpe *ctranGpe;
 };
 
 enum ncclLaunchMode {

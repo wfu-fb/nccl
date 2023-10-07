@@ -1391,6 +1391,7 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   NCCLCHECKGOTO(allocDDAMd(comm, job->commId), res, fail);
 
   comm->ctranMapper = new ctranMapper(comm, job->parent, parentRanks);
+  comm->ctranGpe = new ctranGpe(comm->cudaDev);
 
 exit:
   if (job->newcomm) {
@@ -1762,6 +1763,7 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   ncclResult_t ret = ncclSuccess;
 
   delete comm->ctranMapper;
+  delete comm->ctranGpe;
   NCCLCHECKGOTO(freeDDAMd(comm), ret, fail);
 
   CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
