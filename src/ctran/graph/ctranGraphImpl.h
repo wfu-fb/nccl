@@ -4,6 +4,7 @@
 #define CTRAN_GRAPH_IMPL_H_
 
 #include <vector>
+#include <functional>
 #include "nccl.h"
 #include "ctranMapper.h"
 
@@ -60,6 +61,7 @@ public:
   std::vector<struct ctranGraphElem *> readyOps;
   std::vector<struct ctranGraphElem *> postedOps;
   int opHandleCounter;
+  std::function<void(void)> graphCB = nullptr;
 
   ncclResult_t processGraph();
 

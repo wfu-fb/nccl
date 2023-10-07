@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 #include "nccl.h"
 #include "ctranMapper.h"
 
@@ -16,6 +17,7 @@ public:
   ncclResult_t irecv(void *buf, std::size_t len, int rank, void *hdl, std::vector<int> deps, int *opHandle);
   ncclResult_t icopy(void *dbuf, const void *sbuf, std::size_t len, std::vector<int> deps, int *opHandle);
   ncclResult_t test(bool *isComplete);
+  ncclResult_t registerCB(std::function<void(void)> hook);
 
   const void *ncclKernel;
 

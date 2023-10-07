@@ -272,18 +272,21 @@ exit:
 }
 
 ncclResult_t ctranMapper::getTmpBuf(void** addr, std::size_t len, void **hdl) {
+    this->tmpBufLock.lock();
     *hdl = nullptr;
     std::size_t bufLen;
     NCCLCHECK(this->pimpl->memPool->getBuf(len, addr, hdl, &bufLen));
     if (*hdl == nullptr) {
       NCCLCHECK(this->regMem(*addr, bufLen, hdl));
     }
-
+    this->tmpBufLock.unlock();
     return ncclSuccess;
 }
 
 ncclResult_t ctranMapper::releaseTmpBuf(void* addr, void *hdl) {
+    this->tmpBufLock.lock();
     NCCLCHECK(this->pimpl->memPool->release(addr, hdl));
+    this->tmpBufLock.unlock();
 
     return ncclSuccess;
 }

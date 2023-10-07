@@ -3,6 +3,7 @@
 #ifndef CTRAN_MAPPER_H_
 #define CTRAN_MAPPER_H_
 
+#include <mutex>
 #include <memory>
 #include <functional>
 #include "nccl.h"
@@ -77,6 +78,7 @@ public:
 private:
   class impl;
   std::unique_ptr<impl> pimpl;
+  std::mutex tmpBufLock;
 };
 
 #endif

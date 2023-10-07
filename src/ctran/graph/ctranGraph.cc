@@ -185,6 +185,16 @@ ncclResult_t ctranGraph::test(bool *isComplete) {
     *isComplete = false;
   }
 
+  // callback function after all ops are completed if registered
+  if (*isComplete && this->pimpl->graphCB != nullptr) {
+    this->pimpl->graphCB();
+  }
+
 exit:
   return res;
+}
+
+ncclResult_t ctranGraph::registerCB(std::function<void(void)> hook) {
+  this->pimpl->graphCB = hook;
+  return ncclSuccess;
 }
