@@ -98,6 +98,10 @@ ctranMapper::ctranMapper(ncclComm *comm, ncclComm *parent, int *parentRanks) {
   }
 
   CUDACHECKIGNORE(cudaStreamCreateWithFlags(&this->pimpl->s, cudaStreamNonBlocking));
+
+  this->rank = comm->rank;
+  this->commHash = comm->commHash;
+  this->collId = 0;
 }
 
 ctranMapper::~ctranMapper() {

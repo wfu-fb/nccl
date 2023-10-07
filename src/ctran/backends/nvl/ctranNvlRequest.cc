@@ -2,6 +2,7 @@
 
 #include "ctranNvl.h"
 #include "ctranNvlRequestImpl.h"
+#include <chrono>
 
 ctranNvlRequest::ctranNvlRequest(void *addr, std::size_t len, ctranNvl *parent) {
   this->pimpl = std::unique_ptr<impl>(new impl());
@@ -35,3 +36,10 @@ exit:
   return res;
 }
 
+uint64_t ctranNvlRequest::getWaitTime() {
+  return std::chrono::microseconds::zero().count();
+}
+
+uint64_t ctranNvlRequest::getCommTime() {
+  return std::chrono::microseconds::zero().count();
+}

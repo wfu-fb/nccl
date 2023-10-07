@@ -20,6 +20,8 @@ public:
   ctranMapperRequest();
   ~ctranMapperRequest();
   ncclResult_t test(bool *isComplete);
+  uint64_t getWaitTime();
+  uint64_t getCommTime();
 
   ctranIbRequest *ibReq;
   ctranNvlRequest *nvlReq;
@@ -42,6 +44,10 @@ public:
   ncclResult_t isend(const void *buf, std::size_t len, int rank, void *hdl, ctranMapperRequest **req);
   ncclResult_t irecv(void *buf, std::size_t len, int rank, void *hdl, ctranMapperRequest **req);
   ncclResult_t icopy(void *dbuf, const void *sbuf, std::size_t len, ctranMapperRequest **req);
+
+  int rank;
+  uint64_t commHash;
+  uint64_t collId;
 
 private:
   class impl;

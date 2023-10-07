@@ -4,18 +4,20 @@
 #define CTRAN_GRAPH_H_
 
 #include <vector>
+#include <string>
 #include "nccl.h"
 #include "ctranMapper.h"
 
 class ctranGraph {
 public:
-  ctranGraph(ctranMapper *mapper);
+  ctranGraph(ctranMapper *mapper, std::string name);
   ~ctranGraph();
-  const void *ncclKernel;
   ncclResult_t isend(const void *buf, std::size_t len, int rank, void *hdl, std::vector<int> deps, int *opHandle);
   ncclResult_t irecv(void *buf, std::size_t len, int rank, void *hdl, std::vector<int> deps, int *opHandle);
   ncclResult_t icopy(void *dbuf, const void *sbuf, std::size_t len, std::vector<int> deps, int *opHandle);
   ncclResult_t test(bool *isComplete);
+
+  const void *ncclKernel;
 
 private:
   class impl;

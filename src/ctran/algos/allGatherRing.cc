@@ -20,7 +20,7 @@ ncclResult_t ctranAllGatherRing(const void* sendbuff, void* recvbuff,
   NCCLCHECKGOTO(comm->ctranMapper->searchRegHandle(recvbuff, nRanks * sendcount * ncclTypeSize(datatype), &recvHdl),
       res, fail);
 
-  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper));
+  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper, "ncclAllGatherCtranRing"));
   g->ncclKernel = reinterpret_cast<void *>(ncclKernelAllGatherCTR);
 
   hdl = new int[2 * nRanks];

@@ -408,6 +408,8 @@ ncclResult_t ctranIb::impl::vc::progress(void) {
       dataWqeState->u.data.req = r;
       NCCLCHECKGOTO(this->postSendDataMsg(dataWqeState, mr), res, exit);
       q->send.postedQ.push_back(dataWqeState);
+      r->timestamp(ctranIbRequestTimestamp::GOT_RTR);
+      r->timestamp(ctranIbRequestTimestamp::SEND_DATA_START);
 
       /* repost receive control WQE */
       NCCLCHECKGOTO(this->postRecvControlMsg(controlWqeState), res, exit);
@@ -453,6 +455,8 @@ ncclResult_t ctranIb::impl::vc::processCqe(struct wqeState *wqeState) {
 
         int numSends = (r->len / this->maxMsgSize) + !!(r->len % this->maxMsgSize);
         this->pendingSendQpWr -= numSends;
+
+        wqeState->u.data.req->timestamp(ctranIbRequestTimestamp::SEND_DATA_END);
       }
       break;
 
@@ -483,6 +487,8 @@ void ctranIb::impl::vc::enqueueIsend(ctranIbRequest *req, uint64_t commId) {
     this->data.commQueues[commId] = new commQueues();
   }
   this->data.commQueues[commId]->send.pendingQ.push_back(req);
+
+  req->timestamp(ctranIbRequestTimestamp::REQ_POSTED);
 
   this->m.unlock();
 }

@@ -3,13 +3,17 @@
 #include <iostream>
 #include <algorithm>
 #include "nccl.h"
+#include "param.h"
 #include "ctranGraph.h"
 #include "ctranGraphImpl.h"
 
-ctranGraph::ctranGraph(ctranMapper *mapper) {
+NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
+
+ctranGraph::ctranGraph(ctranMapper *mapper, std::string name) {
   this->pimpl = std::unique_ptr<impl>(new impl());
   this->pimpl->opHandleCounter = 0;
   this->pimpl->mapper = mapper;
+  this->pimpl->name = name;
 }
 
 ctranGraph::~ctranGraph() {
@@ -106,6 +110,21 @@ ncclResult_t ctranGraph::test(bool *isComplete) {
   for (auto op : this->pimpl->postedOps) {
     NCCLCHECKGOTO(op->req->test(&reqComplete), res, exit);
     if (reqComplete) {
+      if (ncclParamCtranProfiling() && op->type == ctranGraphElem::ISEND &&
+          op->u.isend.rank != this->pimpl->mapper->rank) {
+        struct timestamp t;
+        t.waitTime = op->req->getWaitTime();
+        t.commTime = op->req->getCommTime();
+        if (op->type == ctranGraphElem::ISEND) {
+          t.peer = op->u.isend.rank;
+          t.len = op->u.isend.len;
+        } else {
+          t.peer = op->u.irecv.rank;
+          t.len = op->u.irecv.len;
+        }
+        this->pimpl->timestamps.push_back(t);
+      }
+
       for (auto d : op->downstreamDeps) {
         d->upstreamDeps.erase(std::remove(d->upstreamDeps.begin(), d->upstreamDeps.end(), op), d->upstreamDeps.end());
         if (d->upstreamDeps.empty()) {
@@ -145,6 +164,23 @@ ncclResult_t ctranGraph::test(bool *isComplete) {
 
   if (this->pimpl->postedOps.empty() && this->pimpl->readyOps.empty()) {
     *isComplete = true;
+
+    if (ncclParamCtranProfiling()) {
+      for (auto t : this->pimpl->timestamps) {
+        std::cout << "CTRAN-GRAPH: "
+          << "coll=" << this->pimpl->name
+          << "; collId=" << this->pimpl->mapper->collId
+          << "; rank=" << this->pimpl->mapper->rank
+          << "; peer=" << t.peer
+          << "; comm=" << this->pimpl->mapper->commHash
+          << "; len=" << t.len
+          << "; waitTime(us)=" << t.waitTime
+          << "; commTime(us)=" << t.commTime
+          << "; commBW(GB/s)=" << static_cast<double>(t.len) / ((t.waitTime + t.commTime) * 1000.0)
+          << std::endl << std::flush;
+      }
+      this->pimpl->mapper->collId++;
+    }
   } else {
     *isComplete = false;
   }

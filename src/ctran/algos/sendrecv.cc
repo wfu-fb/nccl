@@ -14,7 +14,7 @@ ncclResult_t ctranSend(const void* sendbuff, size_t count, ncclDataType_t dataty
   NCCLCHECKGOTO(comm->ctranMapper->searchRegHandle(sendbuff, sendSize, &sendHdl),
       res, fail);
 
-  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper));
+  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper, "ncclSendCtran"));
   g->ncclKernel = reinterpret_cast<void *>(ncclKernelSend);
 
   int dummy;
@@ -38,7 +38,7 @@ ncclResult_t ctranRecv(void* recvbuff, size_t count, ncclDataType_t datatype, in
   NCCLCHECKGOTO(comm->ctranMapper->searchRegHandle(recvbuff, recvSize, &recvHdl),
       res, fail);
 
-  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper));
+  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper, "ncclRecvCtran"));
   g->ncclKernel = reinterpret_cast<void *>(ncclKernelRecv);
 
   int dummy;

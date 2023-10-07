@@ -18,6 +18,8 @@ public:
 
   void complete();
   ncclResult_t test(bool *isComplete);
+  uint64_t getWaitTime();
+  uint64_t getCommTime();
 
   void *addr;
   std::size_t len;

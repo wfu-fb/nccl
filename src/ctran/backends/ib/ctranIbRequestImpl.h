@@ -18,6 +18,13 @@ public:
     COMPLETE,
   } state;
   std::mutex m;
+
+  std::chrono::time_point<std::chrono::high_resolution_clock> reqPosted;
+  std::chrono::time_point<std::chrono::high_resolution_clock> gotRtr;
+  std::chrono::time_point<std::chrono::high_resolution_clock> sendDataStart;
+  std::chrono::time_point<std::chrono::high_resolution_clock> sendDataEnd;
+  std::chrono::microseconds waitTime;
+  std::chrono::microseconds commTime;
 };
 
 #endif

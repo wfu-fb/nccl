@@ -47,3 +47,25 @@ ncclResult_t ctranMapperRequest::test(bool *isComplete) {
 exit:
   return res;
 }
+
+uint64_t ctranMapperRequest::getWaitTime() {
+  if (this->ibReq != nullptr) {
+    return this->ibReq->getWaitTime();
+  }
+  if (this->nvlReq != nullptr) {
+    return this->nvlReq->getWaitTime();
+  }
+
+  return 0;
+}
+
+uint64_t ctranMapperRequest::getCommTime() {
+  if (this->ibReq != nullptr) {
+    return this->ibReq->getCommTime();
+  }
+  if (this->nvlReq != nullptr) {
+    return this->nvlReq->getCommTime();
+  }
+
+  return 0;
+}

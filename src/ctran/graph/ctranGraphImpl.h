@@ -43,6 +43,13 @@ struct ctranGraphElem {
   ctranMapperRequest *req;
 };
 
+struct timestamp {
+  uint64_t waitTime;
+  uint64_t commTime;
+  int peer;
+  size_t len;
+};
+
 class ctranGraph::impl {
 public:
   impl() = default;
@@ -55,6 +62,9 @@ public:
   int opHandleCounter;
 
   ncclResult_t processGraph();
+
+  std::vector<struct timestamp> timestamps;
+  std::string name;
 };
 
 #endif
