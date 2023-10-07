@@ -6,6 +6,7 @@
 
 #include "enqueue.h"
 #include "collectives.h"
+#include "ctranAlgos.h"
 
 NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 512 * 1024);
 
@@ -16,6 +17,16 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
   bool directSend = (comm->localRanks == 1) && (rankOffset <= ncclParamAgDirectCutoff());
+
+  ctranAlgo algo = ctranAlgoGet(ctranAlgoType::ALLGATHER);
+
+  if (comm->ctranMapper != nullptr) {
+    if (algo == ctranAlgo::ALLGATHER_CTRAN_DIRECT) {
+      return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RING) {
+      return ctranAllGatherRing(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    }
+  }
 
   if (directSend) {
     if (sendcount == 0) return ncclSuccess;
