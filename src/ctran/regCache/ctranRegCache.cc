@@ -39,17 +39,18 @@ ncclResult_t ctranRegCache::remove(void *hdl) {
 
 ncclResult_t ctranRegCache::search(const void *addr, std::size_t len, void **hdl) {
   uintptr_t a = reinterpret_cast<uintptr_t>(addr);
+  *hdl = nullptr;
 
   for (auto e : this->pimpl->root) {
     if (e->addr <= a && (e->addr + e->len >= a + len)) {
       *hdl = e;
-      goto success;
     }
   }
 
-  return ncclSystemError;
+  if (*hdl == nullptr) {
+    TRACE("CTRAN-REGCACHE: buffer %p, %lu bytes is not registered", addr, len);
+  }
 
-success:
   return ncclSuccess;
 }
 

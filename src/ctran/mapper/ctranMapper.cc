@@ -102,17 +102,34 @@ ctranMapper::ctranMapper(ncclComm *comm, ncclComm *parent, int *parentRanks) {
   this->rank = comm->rank;
   this->commHash = comm->commHash;
   this->collId = 0;
+
+  /* Memory pool */
+  this->pimpl->memPool = new class ctranMapperMemPool();
+  this->pimpl->memPool->regMem(
+      [&](const void* buf, std::size_t len, void** hdl) -> ncclResult_t {
+          return this->regMem(buf, len, hdl);
+      });
 }
 
 ctranMapper::~ctranMapper() {
+  if (this->pimpl->memPool != nullptr) {
+    this->pimpl->memPool->deregMem(
+      [&](void* hdl) -> ncclResult_t {
+          return this->deregMem(hdl);
+      });
+  }
+
   std::vector<void *> v = this->pimpl->regCache->flush();
   if (!v.empty()) {
     WARN("CTRAN-Mapper: found %lu leaked registrations", v.size());
   }
   for (auto hdl : v) {
     NCCLCHECKIGNORE(this->deregMem(hdl));
+    WARN("CTRAN-Mapper: leak hdl %p", hdl);
   }
   delete this->pimpl->regCache;
+
+  delete this->pimpl->memPool;
 
   CUDACHECKIGNORE(cudaStreamDestroy(this->pimpl->s));
 
@@ -252,4 +269,21 @@ ncclResult_t ctranMapper::icopy(void *dbuf, const void *sbuf, std::size_t len, c
 
 exit:
   return res;
+}
+
+ncclResult_t ctranMapper::getTmpBuf(void** addr, std::size_t len, void **hdl) {
+    *hdl = nullptr;
+    std::size_t bufLen;
+    NCCLCHECK(this->pimpl->memPool->getBuf(len, addr, hdl, &bufLen));
+    if (*hdl == nullptr) {
+      NCCLCHECK(this->regMem(*addr, bufLen, hdl));
+    }
+
+    return ncclSuccess;
+}
+
+ncclResult_t ctranMapper::releaseTmpBuf(void* addr, void *hdl) {
+    NCCLCHECK(this->pimpl->memPool->release(addr, hdl));
+
+    return ncclSuccess;
 }

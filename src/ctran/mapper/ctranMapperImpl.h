@@ -44,6 +44,7 @@ public:
   std::vector<enum ctranBackend> rankBackendMap;
 
   class ctranRegCache *regCache;
+  class ctranMapperMemPool *memPool;
 
   std::vector<enum ctranMapperBackend> backends;
   std::shared_ptr<class ctranIb> ctranIb;
