@@ -16,6 +16,7 @@
 #include "comm_dda.h"
 #include "info.h"
 #include "colltrace.h"
+#include "ctranMapper.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -357,6 +358,7 @@ struct ncclComm {
   COLLTRACE_OBJECT();
 
   ddaPrivateMd *dda;
+  class ctranMapper *ctranMapper;
 };
 
 enum ncclLaunchMode {

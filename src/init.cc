@@ -1390,6 +1390,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   /* allocate dda metadata as the last part of the communicator creation */
   NCCLCHECKGOTO(allocDDAMd(comm, job->commId), res, fail);
 
+  comm->ctranMapper = new ctranMapper(comm, job->parent, parentRanks);
+
 exit:
   if (job->newcomm) {
     /* assign it to user pointer. */
@@ -1759,6 +1761,7 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   int commDevice = comm->cudaDev;
   ncclResult_t ret = ncclSuccess;
 
+  delete comm->ctranMapper;
   NCCLCHECKGOTO(freeDDAMd(comm), ret, fail);
 
   CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
