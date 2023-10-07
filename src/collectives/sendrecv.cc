@@ -7,6 +7,7 @@
 #include "enqueue.h"
 #include "collectives.h"
 #include "argcheck.h" // Need some checks here since we access comm
+#include "ctranAlgos.h"
 
 struct NvtxParamsSendRecv {
     size_t bytes;
@@ -21,6 +22,13 @@ NCCL_API(ncclResult_t, ncclSend, const void* sendbuff, size_t count, ncclDataTyp
     ncclComm_t comm, cudaStream_t stream);
 ncclResult_t ncclSend(const void* sendbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream) {
+  ctranAlgo algo = ctranAlgoGet(ctranAlgoType::SENDRECV);
+  if (comm->ctranMapper != nullptr) {
+    if (algo == ctranAlgo::SENDRECV_CTRAN) {
+      return ctranSend(sendbuff, count, datatype, peer, comm, stream);
+    }
+  }
+
   NvtxParamsSendRecv payload{count * ncclTypeSize(datatype), peer};
   NVTX3_FUNC_WITH_PARAMS(Send, SendRecvSchema, payload)
 
@@ -38,6 +46,13 @@ NCCL_API(ncclResult_t, ncclRecv, void* recvbuff, size_t count, ncclDataType_t da
     ncclComm_t comm, cudaStream_t stream);
 ncclResult_t ncclRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream) {
+  ctranAlgo algo = ctranAlgoGet(ctranAlgoType::SENDRECV);
+  if (comm->ctranMapper != nullptr) {
+    if (algo == ctranAlgo::SENDRECV_CTRAN) {
+      return ctranRecv(recvbuff, count, datatype, peer, comm, stream);
+    }
+  }
+
   NvtxParamsSendRecv payload{count * ncclTypeSize(datatype), peer};
   NVTX3_FUNC_WITH_PARAMS(Recv, SendRecvSchema, payload)
 

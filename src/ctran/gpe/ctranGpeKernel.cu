@@ -15,3 +15,11 @@ __global__ void ncclKernelAllGatherCTD(int *flag) {
 __global__ void ncclKernelAllGatherCTR(int *flag) {
   ncclKernelStallStream(flag);
 }
+
+__global__ void ncclKernelSend(int *flag) {
+  ncclKernelStallStream(flag);
+}
+
+__global__ void ncclKernelRecv(int *flag) {
+  ncclKernelStallStream(flag);
+}

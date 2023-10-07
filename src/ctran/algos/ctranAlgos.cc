@@ -19,6 +19,17 @@ ctranAlgo ctranAlgoGet(ctranAlgoType type) {
         return ctranAlgo::ALLGATHER_ORIG;
       }
 
+    case ctranAlgoType::SENDRECV:
+      {
+        const char *algoStr = getenv("NCCL_SENDRECV_ALGO");
+        if (algoStr != nullptr) {
+          if (!strcmp(algoStr, "ctran")) {
+            return ctranAlgo::SENDRECV_CTRAN;
+          }
+        }
+        return ctranAlgo::SENDRECV_ORIG;
+      }
+
     default:
       return ctranAlgo::UNKNOWN;
   }

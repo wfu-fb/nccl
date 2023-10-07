@@ -18,5 +18,7 @@ class ctranGpe {
 
 __global__ void ncclKernelAllGatherCTD(int *flag);
 __global__ void ncclKernelAllGatherCTR(int *flag);
+__global__ void ncclKernelSend(int *flag);
+__global__ void ncclKernelRecv(int *flag);
 
 #endif
