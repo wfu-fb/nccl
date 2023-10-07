@@ -21,6 +21,23 @@ LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
 							 collectives/all_reduce_dda.cc
 
+LIBSRCFILES += ctran/regCache/ctranRegCache.cc
+LIBSRCFILES += ctran/backends/ib/ctranIb.cc ctran/backends/ib/ctranIbImpl.cc \
+							 ctran/backends/ib/ctranIbRequest.cc ctran/backends/ib/ctranIbVc.cc
+LIBSRCFILES += ctran/backends/nvl/ctranNvl.cc ctran/backends/nvl/ctranNvlRequest.cc
+LIBSRCFILES += ctran/mapper/ctranMapper.cc ctran/mapper/ctranMapperImpl.cc \
+							 ctran/mapper/ctranMapperRequest.cc
+LIBSRCFILES += ctran/graph/ctranGraph.cc
+LIBSRCFILES += ctran/gpe/ctranGpe.cc ctran/gpe/ctranGpeImpl.cc
+LIBSRCFILES += ctran/frontend/ncclRegister.cc
+LIBSRCFILES += ctran/algos/allGatherDirect.cc ctran/algos/allGatherRing.cc \
+							 ctran/algos/sendrecv.cc \
+							 ctran/algos/ctranAlgos.cc
+
+INCLUDES := -Iinclude
+INCLUDES += -Ictran/regCache -Ictran/backends/ib -Ictran/backends/nvl \
+						-Ictran/mapper -Ictran/graph -Ictran/gpe -Ictran/frontend \
+						-Ictran/algos
 
 ##### lib files
 LIBNAME     := libnccl.so
@@ -123,8 +140,8 @@ $(PKGDIR)/%.pc : %.pc
 $(OBJDIR)/%.o : %.cc $(INCTARGETS)
 	@printf "Compiling  %-35s > %s\n" $< $@
 	mkdir -p `dirname $@`
-	$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) -Iinclude -c $< -o $@
-	@$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) -Iinclude -M $< > $(@:%.o=%.d.tmp)
+	$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	@$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) $(INCLUDES) -M $< > $(@:%.o=%.d.tmp)
 	@sed "0,/^.*:/s//$(subst /,\/,$@):/" $(@:%.o=%.d.tmp) > $(@:%.o=%.d)
 	@sed -e 's/.*://' -e 's/\\$$//' < $(@:%.o=%.d.tmp) | fmt -1 | \
                 sed -e 's/^ *//' -e 's/$$/:/' >> $(@:%.o=%.d)
