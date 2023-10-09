@@ -29,7 +29,7 @@ bool operator==(const ncclUniqueId& lhs, const ncclUniqueId& rhs) {
 }
 
 bool operator==(const ddaThreadSharedMd& lhs, const ddaThreadSharedMd& rhs) {
-  return (lhs.commId == rhs.commId);
+  return (lhs.commHash == rhs.commHash);
 }
 
 ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
@@ -40,6 +40,11 @@ ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
   const char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
 
   if (allreduceAlgoStr == nullptr || strcmp(allreduceAlgoStr, "dda")) {
+    goto algo_default;
+  }
+
+  /* allocate dda metadata if not initialized yet, fallback if failed to initialize */
+  if (!comm->dda && allocDDAMd(comm) != ncclSuccess) {
     goto algo_default;
   }
 
@@ -129,23 +134,23 @@ algo_default:
   return NCCL_DDA_ALLREDUCE_ALGO_DEFAULT;
 }
 
-ncclResult_t allocDDAMd(ncclComm *comm, ncclUniqueId commId) {
+ncclResult_t allocDDAMd(ncclComm *comm) {
   ddaThreadSharedMd* threadSharedMd;
   ncclResult_t ret = ncclSuccess;
 
   ddaThreadSharedMdListMutex.lock();
 
   /* allocate the ddaThreadSharedMd structure or find an existing
-   * one for this commId */
+   * one for this commHash */
   threadSharedMd = nullptr;
   for (auto t : ddaThreadSharedMdList) {
-    if (t->commId == commId) {
+    if (t->commHash == comm->commHash) {
       threadSharedMd = t;
       break;
     }
   }
   if (threadSharedMd == nullptr) {
-    threadSharedMd = new ddaThreadSharedMd(commId);
+    threadSharedMd = new ddaThreadSharedMd(comm->commHash);
     ddaThreadSharedMdList.push_back(threadSharedMd);
   }
 
@@ -154,6 +159,7 @@ ncclResult_t allocDDAMd(ncclComm *comm, ncclUniqueId commId) {
   ddaThreadSharedMdListMutex.unlock();
 
   comm->dda = new ddaPrivateMd(threadSharedMd, comm);
+  INFO(NCCL_INIT, "Initialized DDA for commHash %lu", comm->commHash);
 
   return ret;
 }
