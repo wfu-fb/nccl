@@ -32,7 +32,8 @@ LIBSRCFILES += ctran/gpe/ctranGpe.cc ctran/gpe/ctranGpeImpl.cc
 LIBSRCFILES += ctran/frontend/ncclRegister.cc
 LIBSRCFILES += ctran/algos/allGatherDirect.cc ctran/algos/allGatherRing.cc \
 							 ctran/algos/sendrecv.cc \
-							 ctran/algos/ctranAlgos.cc
+							 ctran/algos/ctranAlgos.cc \
+							 ctran/algos/allGatherRd.cc
 
 INCLUDES := -Iinclude
 INCLUDES += -Ictran/regCache -Ictran/backends/ib -Ictran/backends/nvl \

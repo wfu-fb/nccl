@@ -25,6 +25,8 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
       return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
     } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RING) {
       return ctranAllGatherRing(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RD) {
+      return ctranAllGatherRd(sendbuff, recvbuff, sendcount, datatype, comm, stream);
     }
   }
 

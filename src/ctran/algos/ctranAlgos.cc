@@ -14,6 +14,8 @@ ctranAlgo ctranAlgoGet(ctranAlgoType type) {
             return ctranAlgo::ALLGATHER_CTRAN_DIRECT;
           } else if (!strcmp(allgatherAlgoStr, "ctran:ring")) {
             return ctranAlgo::ALLGATHER_CTRAN_RING;
+          } else if (!strcmp(allgatherAlgoStr, "ctran:rd")) {
+            return ctranAlgo::ALLGATHER_CTRAN_RD;
           }
         }
         return ctranAlgo::ALLGATHER_ORIG;
