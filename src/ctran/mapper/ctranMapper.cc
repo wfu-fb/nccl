@@ -76,7 +76,6 @@ ctranMapper::ctranMapper(ncclComm *comm) {
 
   this->rank = comm->rank;
   this->commHash = comm->commHash;
-  this->collId = 0;
 
   /* Memory pool */
   this->pimpl->memPool = new class ctranMapperMemPool();

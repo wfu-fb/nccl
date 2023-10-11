@@ -80,7 +80,6 @@ public:
 
   int rank;
   uint64_t commHash;
-  uint64_t collId;
 
 protected:
   ncclResult_t progress(void);

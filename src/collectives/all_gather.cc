@@ -24,6 +24,16 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
 
   // only use CTRAN for inter-node only allgather
   if (comm->ctranMapper != nullptr && enableCtran && nRanks > 1 && rankOffset > getpagesize()) {
+    const char *algoStr =
+      (algo == ctranAlgo::ALLGATHER_CTRAN_DIRECT) ? "ctranAllGatherDirect" :
+      (algo == ctranAlgo::ALLGATHER_CTRAN_RING) ? "ctranAllGatherRing" :
+      (algo == ctranAlgo::ALLGATHER_CTRAN_RD) ? "ctranAllGatherRd" :
+      "ctranAllGatherUnknown";
+    INFO(NCCL_COLL,
+        "%s: sendbuff=%p, recvbuff=%p, sendcount=%lu, datatype=%d, comm=%lu, commSize=%d, commLocalSize=%d, allgatherId=%lu, stream=%p\n",
+        algoStr, sendbuff, recvbuff, sendcount, datatype, comm->commHash, comm->nRanks,
+        comm->localRanks, comm->opCount, stream);
+    comm->opCount++;
     if (algo == ctranAlgo::ALLGATHER_CTRAN_DIRECT) {
       return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
     } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RING) {
