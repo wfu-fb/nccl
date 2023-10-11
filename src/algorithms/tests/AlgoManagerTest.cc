@@ -8,6 +8,7 @@
 
 #include "AlgoManager.h"
 #include "checks.h"
+#include "comm.h"
 #include "nccl.h"
 
 namespace nccl {
@@ -30,8 +31,8 @@ TEST(AlgoManagerTest, Create) {
   CUDACHECKIGNORE(cudaMalloc(&sendbuf_d, count * sizeof(float)));
   CUDACHECKIGNORE(cudaMalloc(&recvbuf_d, count * sizeof(float)));
 
-  auto mgr = std::make_unique<AlgoManager>(comm);
-  auto algo = mgr->getAllReduceAlgo(
+  EXPECT_TRUE(comm->algoMgr);
+  auto algo = comm->algoMgr->getAllReduceAlgo(
       sendbuf_d, recvbuf_d, count, ncclFloat, ncclSum, comm, stream);
   EXPECT_EQ(algo, nullptr);
 }
