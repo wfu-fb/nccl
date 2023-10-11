@@ -152,8 +152,8 @@ ncclResult_t ctranIb::regMem(const void *buf, std::size_t len, void **hdl) {
   ncclResult_t res = ncclSuccess;
 
   int pageSize = getpagesize();
-  if (len < pageSize) {
-    WARN("CTRAN-IB: cannot register buffer, size (%lu) smaller than page size (%d)", len, pageSize);
+  if (len <= pageSize) {
+    WARN("CTRAN-IB: cannot register buffer, size (%lu) <= page size (%d)", len, pageSize);
     res = ncclSystemError;
     goto exit;
   }
