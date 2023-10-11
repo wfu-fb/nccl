@@ -23,7 +23,7 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
   ctranAlgo algo = ctranAlgoGet(ctranAlgoType::ALLGATHER);
 
   // only use CTRAN for inter-node only allgather
-  if (comm->ctranMapper != nullptr && !disableLocalIb && nRanks > 1) {
+  if (comm->ctranMapper != nullptr && !disableLocalIb && nRanks > 1 && rankOffset > getpagesize()) {
     if (algo == ctranAlgo::ALLGATHER_CTRAN_DIRECT) {
       return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
     } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RING) {
