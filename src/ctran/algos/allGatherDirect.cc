@@ -19,6 +19,7 @@ static ncclResult_t impl(struct collOp *op) {
   bool irecvComplete[nRanks];
   bool isendComplete[nRanks];
   bool iputComplete[nRanks];
+  bool localRegSend, localRegRecv;
 
   for (int i = 0; i < nRanks; i++) {
     irecvComplete[i] = false;
@@ -28,8 +29,21 @@ static ncclResult_t impl(struct collOp *op) {
 
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl),
       res, exit);
+  if (sendHdl == nullptr) {
+    NCCLCHECKGOTO(mapper->regMem(op->allgather.sendbuff, sendSize, &sendHdl), res, exit);
+    localRegSend = true;
+  } else {
+    localRegSend = false;
+  }
+
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.recvbuff,
         nRanks * sendSize, &recvHdl), res, exit);
+  if (recvHdl == nullptr) {
+    NCCLCHECKGOTO(mapper->regMem(op->allgather.recvbuff, nRanks * sendSize, &recvHdl), res, exit);
+    localRegRecv = true;
+  } else {
+    localRegRecv = false;
+  }
 
   for (int p = 1; p < nRanks; p++) {
     int peer = (rank + p) % nRanks;
@@ -84,6 +98,13 @@ static ncclResult_t impl(struct collOp *op) {
 
   if (iputComplete[rank] == false) {
     NCCLCHECKGOTO(iputReq[rank]->wait(), res, exit);
+  }
+
+  if (localRegSend == true) {
+    NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
+  }
+  if (localRegRecv == true) {
+    NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
   }
 
 exit:

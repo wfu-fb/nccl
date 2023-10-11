@@ -12,9 +12,16 @@ static ncclResult_t sendImpl(struct collOp *op) {
   void *sendHdl;
   ctranMapperRequest *req;
   bool isComplete;
+  bool localRegSend;
 
   NCCLCHECKGOTO(mapper->searchRegHandle(op->send.sendbuff, sendSize, &sendHdl),
       res, exit);
+  if (sendHdl == nullptr) {
+    NCCLCHECKGOTO(mapper->regMem(op->send.sendbuff, sendSize, &sendHdl), res, exit);
+    localRegSend = true;
+  } else {
+    localRegSend = false;
+  }
 
   NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuff, &remoteAccessKey, op->send.peerRank,
         &req), res, exit);
@@ -23,6 +30,10 @@ static ncclResult_t sendImpl(struct collOp *op) {
   NCCLCHECKGOTO(mapper->iput(op->send.sendbuff, remoteRecvBuff, sendSize, op->send.peerRank,
         sendHdl, remoteAccessKey, true, &req), res, exit);
   NCCLCHECKGOTO(req->wait(), res, exit);
+
+  if (localRegSend == true) {
+    NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
+  }
 
 exit:
   return res;
@@ -56,13 +67,24 @@ static ncclResult_t recvImpl(struct collOp *op) {
   ctranMapperRequest *req;
   bool isComplete;
   bool notify;
+  bool localRegRecv;
 
   NCCLCHECKGOTO(mapper->searchRegHandle(op->recv.recvbuff, recvSize, &recvHdl),
       res, exit);
+  if (recvHdl == nullptr) {
+    NCCLCHECKGOTO(mapper->regMem(op->recv.recvbuff, recvSize, &recvHdl), res, exit);
+    localRegRecv = true;
+  } else {
+    localRegRecv = false;
+  }
 
   NCCLCHECKGOTO(mapper->isendCtrl(op->recv.recvbuff, recvHdl, op->recv.peerRank, &req), res, exit);
   NCCLCHECKGOTO(req->wait(), res, exit);
   NCCLCHECKGOTO(mapper->waitNotify(op->recv.peerRank), res, exit);
+
+  if (localRegRecv == true) {
+    NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
+  }
 
 exit:
   return res;

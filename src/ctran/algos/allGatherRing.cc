@@ -10,6 +10,7 @@ static ncclResult_t impl(struct collOp *op) {
   int nRanks = op->allgather.comm->nRanks;
   ctranMapper *mapper = op->allgather.comm->ctranMapper;
   void *sendHdl, *recvHdl;
+  bool localRegSend, localRegRecv;
   void *remoteRecvBuff;
   struct ctranMapperRemoteAccessKey remoteAccessKey;
 
@@ -23,8 +24,21 @@ static ncclResult_t impl(struct collOp *op) {
 
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl),
       res, exit);
+  if (sendHdl == nullptr) {
+    NCCLCHECKGOTO(mapper->regMem(op->allgather.sendbuff, sendSize, &sendHdl), res, exit);
+    localRegSend = true;
+  } else {
+    localRegSend = false;
+  }
+
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.recvbuff,
         nRanks * sendSize, &recvHdl), res, exit);
+  if (recvHdl == nullptr) {
+    NCCLCHECKGOTO(mapper->regMem(op->allgather.recvbuff, nRanks * sendSize, &recvHdl), res, exit);
+    localRegRecv = true;
+  } else {
+    localRegRecv = false;
+  }
 
   NCCLCHECKGOTO(mapper->icopy((void *) ((uintptr_t) op->allgather.recvbuff + rank * sendSize),
         op->allgather.sendbuff, sendSize, &icopyReq), res, exit);
@@ -55,6 +69,13 @@ static ncclResult_t impl(struct collOp *op) {
 
   if (iputComplete == false) {
     NCCLCHECKGOTO(iputReq->wait(), res, exit);
+  }
+
+  if (localRegSend == true) {
+    NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
+  }
+  if (localRegRecv == true) {
+    NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
   }
 
 exit:
