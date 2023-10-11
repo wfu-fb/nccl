@@ -20,6 +20,12 @@ static ncclResult_t impl(struct collOp *op) {
   bool isendComplete[nRanks];
   bool iputComplete[nRanks];
 
+  for (int i = 0; i < nRanks; i++) {
+    irecvComplete[i] = false;
+    isendComplete[i] = false;
+    iputComplete[i] = false;
+  }
+
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl),
       res, exit);
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.recvbuff,
@@ -29,11 +35,9 @@ static ncclResult_t impl(struct collOp *op) {
     int peer = (rank + p) % nRanks;
     NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuffs[peer],
           &remoteAccessKeys[peer], peer, &irecvReq[peer]), res, exit);
-    irecvComplete[peer] = false;
 
     NCCLCHECKGOTO(mapper->isendCtrl(op->allgather.recvbuff,
           recvHdl, peer, &isendReq[peer]), res, exit);
-    isendComplete[peer] = false;
   }
 
   irecvComplete[rank] = true;
@@ -42,7 +46,6 @@ static ncclResult_t impl(struct collOp *op) {
   if ((uintptr_t) op->allgather.recvbuff + rank * sendSize != (uintptr_t) op->allgather.sendbuff) {
     NCCLCHECKGOTO(mapper->icopy((void *) ((uintptr_t) op->allgather.recvbuff + rank * sendSize),
           op->allgather.sendbuff, sendSize, &iputReq[rank]), res, exit);
-    iputComplete[rank] = false;
   } else {
     iputComplete[rank] = true;
   }
