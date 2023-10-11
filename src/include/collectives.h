@@ -25,10 +25,19 @@ struct commMd {
   void* tmpbuff;
 };
 
+struct DdaDeviceState {
+  uintptr_t* barrierMbox;
+  void* tmpbuff;
+};
+
 ncclResult_t ncclAllReduceDDA(const void* sendbuff, void* recvbuff, size_t count,
                                    ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm,
                                    cudaStream_t stream);
 
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA2_Flat(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Flat(
   uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,

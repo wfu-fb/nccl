@@ -34,7 +34,7 @@ TEST(AlgoManagerTest, Create) {
   EXPECT_TRUE(comm->algoMgr);
   auto algo = comm->algoMgr->getAllReduceAlgo(
       sendbuf_d, recvbuf_d, count, ncclFloat, ncclSum, comm, stream);
-  EXPECT_EQ(algo, nullptr);
+  EXPECT_NE(algo, nullptr);
 }
 
 } // namespace algorithms
