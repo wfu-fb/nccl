@@ -9,6 +9,7 @@
 #include "ctranAlgos.h"
 
 NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 512 * 1024);
+NCCL_PARAM(CtranDisableLocalIb, "CTRAN_DISABLE_LOCAL_IB", 0);
 
 NCCL_API(ncclResult_t, ncclAllGather, const void* sendbuff, void* recvbuff, size_t sendcount,
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
@@ -17,11 +18,12 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
   bool directSend = (comm->localRanks == 1) && (rankOffset <= ncclParamAgDirectCutoff());
+  bool disableLocalIb = (ncclParamCtranDisableLocalIb() && comm->localRanks != 1) ? true : false;
 
   ctranAlgo algo = ctranAlgoGet(ctranAlgoType::ALLGATHER);
 
   // only use CTRAN for inter-node only allgather
-  if (comm->ctranMapper != nullptr && comm->localRanks == 1 && nRanks > 1) {
+  if (comm->ctranMapper != nullptr && !disableLocalIb && nRanks > 1) {
     if (algo == ctranAlgo::ALLGATHER_CTRAN_DIRECT) {
       return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
     } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RING) {
