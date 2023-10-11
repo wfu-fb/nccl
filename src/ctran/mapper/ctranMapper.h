@@ -40,16 +40,16 @@ class ctranMapperMemPool {
 class ctranMapper;
 class ctranMapperRequest {
 public:
-  ctranMapperRequest(ctranMapper *mapper);
+  ctranMapperRequest(ctranMapper *mapper, cudaEvent_t e);
   ~ctranMapperRequest();
   ncclResult_t test(bool *isComplete);
   ncclResult_t wait();
 
   ctranIbRequest *ibReq;
   ctranNvlRequest *nvlReq;
-  cudaEvent_t e;
 
 private:
+  cudaEvent_t e;
   ctranMapper *mapper;
   enum {
     INCOMPLETE,
