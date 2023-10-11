@@ -27,13 +27,10 @@ public:
   class ctranRegCache *regCache;
   class ctranMapperMemPool *memPool;
 
-  cudaEvent_t e;
   std::vector<enum ctranMapperBackend> rankBackendMap;
   std::vector<enum ctranMapperBackend> backends;
   std::unique_ptr<class ctranIb> ctranIb;
   std::unique_ptr<class ctranNvl> ctranNvl;
-
-  cudaStream_t s;
 };
 
 #endif

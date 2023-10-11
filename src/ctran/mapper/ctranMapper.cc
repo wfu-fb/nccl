@@ -39,8 +39,6 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   /* enable backends that are possible */
   std::vector<enum ctranMapperBackend>::iterator it;
 
-  CUDACHECKIGNORE(cudaEventCreate(&this->pimpl->e));
-
   this->pimpl->ctranIb = nullptr;
   it = std::find(this->pimpl->backends.begin(), this->pimpl->backends.end(),
       ctranMapperBackend::IB);
@@ -74,7 +72,7 @@ ctranMapper::ctranMapper(ncclComm *comm) {
     }
   }
 
-  CUDACHECKIGNORE(cudaStreamCreateWithFlags(&this->pimpl->s, cudaStreamNonBlocking));
+  CUDACHECKIGNORE(cudaStreamCreateWithFlags(&this->s, cudaStreamNonBlocking));
 
   this->rank = comm->rank;
   this->commHash = comm->commHash;
@@ -107,8 +105,7 @@ ctranMapper::~ctranMapper() {
 
   delete this->pimpl->memPool;
 
-  CUDACHECKIGNORE(cudaEventDestroy(this->pimpl->e));
-  CUDACHECKIGNORE(cudaStreamDestroy(this->pimpl->s));
+  CUDACHECKIGNORE(cudaStreamDestroy(this->s));
 
   if (this->pimpl->ctranIb != nullptr) {
     this->pimpl->ctranIb.reset();
@@ -170,12 +167,8 @@ exit:
 ncclResult_t ctranMapper::icopy(void *dbuf, const void *sbuf, std::size_t len, ctranMapperRequest **req) {
   ncclResult_t res = ncclSuccess;
 
-  auto r = new ctranMapperRequest(this, this->pimpl->e);
-
-  CUDACHECKGOTO(cudaMemcpyAsync(dbuf, sbuf, len, cudaMemcpyDefault, this->pimpl->s), res, exit);
-  CUDACHECKGOTO(cudaEventRecord(this->pimpl->e, this->pimpl->s), res, exit);
-
-  *req = r;
+  *req = new ctranMapperRequest(this);
+  CUDACHECKGOTO(cudaMemcpyAsync(dbuf, sbuf, len, cudaMemcpyDefault, this->s), res, exit);
 
 exit:
   return res;
@@ -222,7 +215,7 @@ ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperR
     if (req == nullptr) {
       return this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, nullptr);
     } else {
-      *req = new ctranMapperRequest(this, this->pimpl->e);
+      *req = new ctranMapperRequest(this);
       NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, &((*req)->ibReq)), res, exit);
     }
   }
@@ -239,7 +232,7 @@ ncclResult_t ctranMapper::irecvCtrl(void **buf, struct ctranMapperRemoteAccessKe
     if (req == nullptr) {
       return this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, nullptr);
     } else {
-      *req = new ctranMapperRequest(this, this->pimpl->e);
+      *req = new ctranMapperRequest(this);
       NCCLCHECKGOTO(this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, &((*req)->ibReq)), res, exit);
     }
   }
@@ -260,7 +253,7 @@ ncclResult_t ctranMapper::iput(const void *sbuf, void *dbuf, std::size_t len, in
       NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, regElem->ibHdl, remoteAccessKey.ibKey,
             notify, nullptr), res, exit);
     } else {
-      *req = new ctranMapperRequest(this, this->pimpl->e);
+      *req = new ctranMapperRequest(this);
       NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, regElem->ibHdl, remoteAccessKey.ibKey,
             notify, &((*req)->ibReq)), res, exit);
     }

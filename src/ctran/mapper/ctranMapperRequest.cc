@@ -3,12 +3,11 @@
 #include "ctranMapper.h"
 #include "debug.h"
 
-ctranMapperRequest::ctranMapperRequest(ctranMapper *mapper, cudaEvent_t e) {
+ctranMapperRequest::ctranMapperRequest(ctranMapper *mapper) {
   this->mapper = mapper;
   this->state = ctranMapperRequest::INCOMPLETE;
   this->ibReq = nullptr;
   this->nvlReq = nullptr;
-  this->e = e;
 }
 
 ctranMapperRequest::~ctranMapperRequest() {
@@ -31,11 +30,11 @@ ncclResult_t ctranMapperRequest::test(bool *isComplete) {
   } else if (this->nvlReq != nullptr) {
     NCCLCHECKGOTO(this->nvlReq->test(isComplete), res, exit);
   } else {
-    auto cudaErr = cudaEventQuery(this->e);
+    auto cudaErr = cudaStreamQuery(this->mapper->s);
     if (cudaErr == cudaSuccess) {
       *isComplete = true;
     } else if (cudaErr != cudaErrorNotReady) {
-      WARN("CTRAN-NVL: cudaEventQuery returned error '%s'\n", cudaGetErrorString(cudaErr));
+      WARN("CTRAN-NVL: cudaStreamQuery returned error '%s'\n", cudaGetErrorString(cudaErr));
       res = ncclSystemError;
       goto exit;
     }
