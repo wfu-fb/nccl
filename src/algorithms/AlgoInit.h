@@ -7,7 +7,9 @@
 namespace nccl {
 namespace algorithms {
 
-ncclResult_t algoInit(ncclComm_t comm);
+// if forceInit==true, will init algoMgr regardless environment var
+// NCCL_ALLREDUCE_ALGO=dda2 or not (useful for UT)
+ncclResult_t algoInit(ncclComm_t comm, bool forceInit = false);
 
 } // namespace algorithms
 } // namespace nccl

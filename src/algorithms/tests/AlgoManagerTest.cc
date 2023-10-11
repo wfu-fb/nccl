@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "AlgoManager.h"
+#include "AlgoInit.h"
 #include "checks.h"
 #include "comm.h"
 #include "nccl.h"
@@ -26,6 +27,7 @@ TEST(AlgoManagerTest, Create) {
   NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
   CUDACHECKIGNORE(cudaStreamCreate(&stream));
   NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks, commId, 0));
+  NCCLCHECKIGNORE(algoInit(comm, true));
 
   CUDACHECKIGNORE(cudaSetDevice(0));
   CUDACHECKIGNORE(cudaMalloc(&sendbuf_d, count * sizeof(float)));

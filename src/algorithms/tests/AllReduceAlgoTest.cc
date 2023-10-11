@@ -8,6 +8,7 @@
 
 #include "AllReduceDdaNvsFlatThreadedAlgo.h"
 #include "AllReduceDdaNvsTreeThreadedAlgo.h"
+#include "AlgoInit.h"
 #include "checks.h"
 #include "comm.h"
 
@@ -91,6 +92,7 @@ class GpuAgent {
     CUDACHECKIGNORE(cudaSetDevice(rank_));
     CUDACHECKIGNORE(cudaStreamCreate(&stream));
     NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks_, commId_, rank_));
+    NCCLCHECKIGNORE(algoInit(comm, true));
 
     // init host/dev buffs
     for (int i = 0; i < nIter_; ++i) {
