@@ -3,6 +3,7 @@
 #include "ctranGpe.h"
 #include "ctranGpeImpl.h"
 #include "ctranGpeKernel.h"
+#include "checks.h"
 #include <iostream>
 
 ctranGpe::impl::impl() {
@@ -14,7 +15,7 @@ ctranGpe::impl::~impl() {
   CUDACHECKIGNORE(cudaFreeHost(this->kernelFlag));
 }
 
-ncclResult_t ctranGpe::impl::enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr<ctranGraph> graph,
+ncclResult_t ctranGpe::impl::enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr<struct collOp> op,
     cudaStream_t stream) {
   ncclResult_t res = ncclSuccess;
 
@@ -22,18 +23,16 @@ ncclResult_t ctranGpe::impl::enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr
   cmd->type = type;
 
   if (type == ctranGpeCmd::typeEnum::GRAPH_ENQUEUE) {
-    cmd->graph.g = std::move(graph);
-    cmd->graph.stream = stream;
+    cmd->coll.op = std::move(op);
+    cmd->coll.stream = stream;
 
     /* Enqueue the kernel.  It will not start till all other
-     * operations on this stream have completed, so set the kernel
-     * state as "NOT_STARTED". */
-    cmd->graph.cmdState = cmdState::KERNEL_NOT_STARTED;
+     * operations on this stream have completed. */
     dim3 grid = { 1, 1, 1 };
     dim3 blocks = { 1, 1, 1 };
     void *args[] = { &this->kernelFlag };
     CUDACHECKGOTO(
-        cudaLaunchKernel(cmd->graph.g->ncclKernel, grid, blocks, args, 0, cmd->graph.stream),
+        cudaLaunchKernel(cmd->coll.op->ncclKernel, grid, blocks, args, 0, cmd->coll.stream),
         res, exit);
   }
 
@@ -65,31 +64,17 @@ void ctranGpe::impl::gpeThreadFn(ctranGpe::impl *pimpl, int cudaDev) {
       goto exit;
     }
 
-    while (1) {
-      if (cmd->graph.cmdState == cmdState::KERNEL_NOT_STARTED) {
-        volatile int *flag_d = pimpl->kernelFlag;
-        while (*flag_d != KERNEL_STARTED);
-        cmd->graph.cmdState = cmdState::GRAPH_INCOMPLETE;
-      }
+    /* wait for the kernel to launch */
+    volatile int *flag_d = pimpl->kernelFlag;
+    while (*flag_d != KERNEL_STARTED);
 
-      if (cmd->graph.cmdState == cmdState::GRAPH_INCOMPLETE) {
-        bool isComplete;
-        NCCLCHECKIGNORE(cmd->graph.g->test(&isComplete));
-        if (isComplete == true) {
-          /* stop kernel */
-          volatile int *flag_d = pimpl->kernelFlag;
-          *flag_d = KERNEL_TERMINATE;
-          cmd->graph.cmdState = cmdState::GRAPH_COMPLETED;
-        } else {
-          continue;
-        }
-      }
+    /* run collective */
+    NCCLCHECKIGNORE(cmd->coll.op->func(cmd->coll.op.get()));
 
-      if (cmd->graph.cmdState == cmdState::GRAPH_COMPLETED) {
-        delete cmd;
-        break;
-      }
-    }
+    /* stop kernel */
+    *flag_d = KERNEL_TERMINATE;
+
+    delete cmd;
   }
 
 exit:

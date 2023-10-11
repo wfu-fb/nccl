@@ -12,6 +12,8 @@ ncclResult_t ctranAllGatherRd(
     ncclComm_t comm,
     cudaStream_t stream) {
   ncclResult_t res = ncclSuccess;
+
+#if 0
   int rank = comm->rank;
   int nRanks = comm->nRanks;
   int nSteps = log2i(nRanks);
@@ -166,5 +168,6 @@ ncclResult_t ctranAllGatherRd(
   NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(g), stream), res, fail);
 
 fail:
+#endif
   return res;
 }

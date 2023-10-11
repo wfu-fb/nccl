@@ -64,11 +64,11 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   for (int i = 0; i < comm->nRanks; i++) {
     /* FIXME: we currently only support NVL for self communication */
     if (i == comm->rank && this->pimpl->ctranNvl != nullptr) {
-      this->pimpl->rankBackendMap.push_back(CTRAN_BACKEND_NVL);
+      this->pimpl->rankBackendMap.push_back(ctranMapperBackend::NVL);
     } else if (this->pimpl->ctranIb != nullptr) {
-      this->pimpl->rankBackendMap.push_back(CTRAN_BACKEND_IB);
+      this->pimpl->rankBackendMap.push_back(ctranMapperBackend::IB);
     } else {
-      this->pimpl->rankBackendMap.push_back(CTRAN_BACKEND_UNSET);
+      this->pimpl->rankBackendMap.push_back(ctranMapperBackend::UNSET);
     }
   }
 
@@ -165,76 +165,10 @@ exit:
   return res;
 }
 
-ncclResult_t ctranMapper::isend(const void *buf, std::size_t len, int peerRank, void *hdl, ctranMapperRequest **req) {
-  ncclResult_t res = ncclSuccess;
-
-  auto r = new ctranMapperRequest();
-  struct ctranMapperRegElem *regElem;
-  NCCLCHECKGOTO(this->pimpl->regCache->lookup(hdl, (void **) &regElem), res, exit);
-
-  switch (this->pimpl->rankBackendMap[peerRank]) {
-    case CTRAN_BACKEND_IB:
-      {
-        NCCLCHECKGOTO(this->pimpl->ctranIb->isend(buf, len, peerRank,
-              regElem->ibHdl, &r->ibReq), res, exit);
-      }
-      break;
-
-    case CTRAN_BACKEND_NVL:
-      {
-        NCCLCHECKGOTO(this->pimpl->ctranNvl->isend(buf, len, peerRank,
-              regElem->nvlHdl, &r->nvlReq), res, exit);
-      }
-      break;
-
-    default:
-      res = ncclSystemError;
-      goto exit;
-  }
-
-  *req = r;
-
-exit:
-  return res;
-}
-
-ncclResult_t ctranMapper::irecv(void *buf, std::size_t len, int peerRank, void *hdl, ctranMapperRequest **req) {
-  ncclResult_t res = ncclSuccess;
-
-  auto r = new ctranMapperRequest();
-  struct ctranMapperRegElem *regElem;
-  NCCLCHECKGOTO(this->pimpl->regCache->lookup(hdl, (void **) &regElem), res, exit);
-
-  switch (this->pimpl->rankBackendMap[peerRank]) {
-    case CTRAN_BACKEND_IB:
-      {
-        NCCLCHECKGOTO(this->pimpl->ctranIb->irecv(buf, len, peerRank,
-              regElem->ibHdl, &r->ibReq), res, exit);
-      }
-      break;
-
-    case CTRAN_BACKEND_NVL:
-      {
-        NCCLCHECKGOTO(this->pimpl->ctranNvl->irecv(buf, len, peerRank,
-              regElem->nvlHdl, &r->nvlReq), res, exit);
-      }
-      break;
-
-    default:
-      res = ncclSystemError;
-      goto exit;
-  }
-
-  *req = r;
-
-exit:
-  return res;
-}
-
 ncclResult_t ctranMapper::icopy(void *dbuf, const void *sbuf, std::size_t len, ctranMapperRequest **req) {
   ncclResult_t res = ncclSuccess;
 
-  auto r = new ctranMapperRequest();
+  auto r = new ctranMapperRequest(this);
 
   CUDACHECKGOTO(cudaMemcpyAsync(dbuf, sbuf, len, cudaMemcpyDefault, this->pimpl->s), res, exit);
   CUDACHECKGOTO(cudaEventCreate(&r->e), res, exit);
@@ -244,6 +178,17 @@ ncclResult_t ctranMapper::icopy(void *dbuf, const void *sbuf, std::size_t len, c
 
 exit:
   return res;
+}
+
+ncclResult_t ctranMapper::progress(void) {
+  if (this->pimpl->ctranIb != nullptr) {
+    NCCLCHECK(this->pimpl->ctranIb->progress());
+  }
+  if (this->pimpl->ctranNvl != nullptr) {
+    NCCLCHECK(this->pimpl->ctranNvl->progress());
+  }
+
+  return ncclSuccess;
 }
 
 ncclResult_t ctranMapper::getTmpBuf(void** addr, std::size_t len, void **hdl) {
@@ -265,3 +210,85 @@ ncclResult_t ctranMapper::releaseTmpBuf(void* addr, void *hdl) {
 
     return ncclSuccess;
 }
+
+ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperRequest **req) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->pimpl->ctranIb != nullptr) {
+    struct ctranMapperRegElem *regElem;
+    NCCLCHECKGOTO(this->pimpl->regCache->lookup(hdl, (void **) &regElem), res, exit);
+
+    if (req == nullptr) {
+      return this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, nullptr);
+    } else {
+      *req = new ctranMapperRequest(this);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, &((*req)->ibReq)), res, exit);
+    }
+  }
+
+exit:
+  return ncclSuccess;
+}
+
+ncclResult_t ctranMapper::irecvCtrl(void **buf, struct ctranMapperRemoteAccessKey *key, int rank,
+    ctranMapperRequest **req) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->pimpl->ctranIb != nullptr) {
+    if (req == nullptr) {
+      return this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, nullptr);
+    } else {
+      *req = new ctranMapperRequest(this);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, &((*req)->ibReq)), res, exit);
+    }
+  }
+
+exit:
+  return ncclSuccess;
+}
+
+ncclResult_t ctranMapper::iput(const void *sbuf, void *dbuf, std::size_t len, int rank, void *shdl,
+    struct ctranMapperRemoteAccessKey remoteAccessKey, bool notify, ctranMapperRequest **req) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->pimpl->ctranIb != nullptr) {
+    struct ctranMapperRegElem *regElem;
+    NCCLCHECKGOTO(this->pimpl->regCache->lookup(shdl, (void **) &regElem), res, exit);
+
+    if (req == nullptr) {
+      NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, regElem->ibHdl, remoteAccessKey.ibKey,
+            notify, nullptr), res, exit);
+    } else {
+      *req = new ctranMapperRequest(this);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, regElem->ibHdl, remoteAccessKey.ibKey,
+            notify, &((*req)->ibReq)), res, exit);
+    }
+  }
+
+exit:
+  return res;
+}
+
+ncclResult_t ctranMapper::checkNotify(int rank, bool *notify) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->pimpl->ctranIb != nullptr) {
+    NCCLCHECKGOTO(this->pimpl->ctranIb->checkNotify(rank, notify), res, exit);
+  }
+
+exit:
+  return ncclSuccess;
+}
+
+ncclResult_t ctranMapper::waitNotify(int rank) {
+  ncclResult_t res = ncclSuccess;
+
+  bool notify = false;
+  while (notify == false) {
+    NCCLCHECKGOTO(this->checkNotify(rank, &notify), res, exit);
+  }
+
+exit:
+  return ncclSuccess;
+}
+

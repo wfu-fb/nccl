@@ -13,20 +13,17 @@ struct ncclComm;
 
 class ctranNvlRequest {
 public:
-  ctranNvlRequest(void *addr, std::size_t len, ctranNvl *parent);
+  ctranNvlRequest(void *addr, std::size_t len);
   ~ctranNvlRequest();
 
   void complete();
   ncclResult_t test(bool *isComplete);
-  uint64_t getWaitTime();
-  uint64_t getCommTime();
-
-  void *addr;
-  std::size_t len;
 
 private:
-  class impl;
-  std::unique_ptr<impl> pimpl;
+  enum {
+    INCOMPLETE,
+    COMPLETE,
+  } state;
 };
 
 class ctranNvl {
@@ -37,14 +34,11 @@ public:
   ncclResult_t deregMem(const void *hdl);
   ncclResult_t isend(const void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req);
   ncclResult_t irecv(void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req);
-
-protected:
   ncclResult_t progress(void);
 
 private:
   class impl;
   std::unique_ptr<impl> pimpl;
-  friend class ctranNvlRequest;
 };
 
 #endif

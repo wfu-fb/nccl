@@ -27,7 +27,7 @@ ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *
   elem->type = ctranNvlElem::elemType::ISEND;
   elem->u.isend.buf = buf;
   elem->u.isend.len = len;
-  elem->req = new class ctranNvlRequest(const_cast<void *>(buf), len, this);
+  elem->req = new class ctranNvlRequest(const_cast<void *>(buf), len);
   *req = elem->req;
 
   this->pimpl->pendingSends.push_back(elem);
@@ -40,7 +40,7 @@ ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *hdl, c
   elem->type = ctranNvlElem::elemType::IRECV;
   elem->u.irecv.buf = buf;
   elem->u.irecv.len = len;
-  elem->req = new ctranNvlRequest(buf, len, this);
+  elem->req = new ctranNvlRequest(buf, len);
   *req = elem->req;
 
   this->pimpl->pendingRecvs.push_back(elem);

@@ -28,7 +28,7 @@ void ctranIb::impl::bootstrapAccept(ctranIb::impl *pimpl) {
 
     auto vc = pimpl->vcList[peerRank];
 
-    pimpl->bootstrapMutex.lock();
+    pimpl->m.lock();
 
     /* exchange business cards */
     std::size_t size;
@@ -39,7 +39,12 @@ void ctranIb::impl::bootstrapAccept(ctranIb::impl *pimpl) {
     NCCLCHECKIGNORE(vc->getLocalBusCard(localBusCard));
     NCCLCHECKIGNORE(ncclSocketRecv(&sock, remoteBusCard, size));
     NCCLCHECKIGNORE(ncclSocketSend(&sock, localBusCard, size));
-    NCCLCHECKIGNORE(vc->setupVc(remoteBusCard));
+
+    uint32_t controlQp, dataQp;
+    NCCLCHECKIGNORE(vc->setupVc(remoteBusCard, &controlQp, &dataQp));
+    pimpl->qpToRank[controlQp] = peerRank;
+    pimpl->qpToRank[dataQp] = peerRank;
+
     free(localBusCard);
     free(remoteBusCard);
 
@@ -50,7 +55,7 @@ void ctranIb::impl::bootstrapAccept(ctranIb::impl *pimpl) {
 
     NCCLCHECKIGNORE(ncclSocketClose(&sock));
 
-    pimpl->bootstrapMutex.unlock();
+    pimpl->m.unlock();
   }
 }
 
@@ -58,7 +63,7 @@ ncclResult_t ctranIb::impl::bootstrapConnect(int peerRank, int cmd) {
   ncclResult_t res = ncclSuccess;
   auto vc = this->vcList[peerRank];
 
-  this->bootstrapMutex.lock();
+  this->m.lock();
 
   struct ncclSocket sock;
   NCCLCHECKGOTO(ncclSocketInit(&sock, &allListenSocketAddrs[peerRank]), res, exit);
@@ -80,7 +85,12 @@ ncclResult_t ctranIb::impl::bootstrapConnect(int peerRank, int cmd) {
   NCCLCHECKGOTO(vc->getLocalBusCard(localBusCard), res, exit);
   NCCLCHECKGOTO(ncclSocketSend(&sock, localBusCard, size), res, exit);
   NCCLCHECKGOTO(ncclSocketRecv(&sock, remoteBusCard, size), res, exit);
-  NCCLCHECKGOTO(vc->setupVc(remoteBusCard), res, exit);
+
+  uint32_t controlQp, dataQp;
+  NCCLCHECKGOTO(vc->setupVc(remoteBusCard, &controlQp, &dataQp), res, exit);
+  this->qpToRank[controlQp] = peerRank;
+  this->qpToRank[dataQp] = peerRank;
+
   free(localBusCard);
   free(remoteBusCard);
 
@@ -92,7 +102,7 @@ ncclResult_t ctranIb::impl::bootstrapConnect(int peerRank, int cmd) {
   NCCLCHECKGOTO(ncclSocketClose(&sock), res, exit);
 
 exit:
-  this->bootstrapMutex.unlock();
+  this->m.unlock();
   return res;
 }
 

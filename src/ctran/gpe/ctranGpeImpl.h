@@ -9,12 +9,6 @@
 #include <thread>
 #include <queue>
 
-enum cmdState {
-  KERNEL_NOT_STARTED,
-  GRAPH_INCOMPLETE,
-  GRAPH_COMPLETED,
-};
-
 class ctranGpeCmd {
   public:
     ctranGpeCmd() = default;
@@ -26,10 +20,9 @@ class ctranGpeCmd {
     } type;
 
     struct {
-      std::unique_ptr<ctranGraph> g;
-      enum cmdState cmdState;
+      std::unique_ptr<struct collOp> op;
       cudaStream_t stream;
-    } graph;
+    } coll;
 };
 
 class ctranGpe::impl {
@@ -37,7 +30,8 @@ class ctranGpe::impl {
     impl();
     ~impl();
 
-    ncclResult_t enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr<ctranGraph> graph, cudaStream_t stream);
+    ncclResult_t enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr<struct collOp> op,
+        cudaStream_t stream);
     static void gpeThreadFn(class ctranGpe::impl *pimpl, int cudaDev);
 
     std::thread t;

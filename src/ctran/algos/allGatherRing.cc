@@ -3,81 +3,79 @@
 #include "ctranAlgos.h"
 #include "comm.h"
 
+static ncclResult_t impl(struct collOp *op) {
+  ncclResult_t res = ncclSuccess;
+  size_t sendSize = op->allgather.sendcount * ncclTypeSize(op->allgather.datatype);
+  int rank = op->allgather.comm->rank;
+  int nRanks = op->allgather.comm->nRanks;
+  ctranMapper *mapper = op->allgather.comm->ctranMapper;
+  void *sendHdl, *recvHdl;
+  void *remoteRecvBuff;
+  struct ctranMapperRemoteAccessKey remoteAccessKey;
+
+  ctranMapperRequest *irecvReq;
+  ctranMapperRequest *isendReq;
+  ctranMapperRequest *iputReq;
+  ctranMapperRequest *icopyReq;
+  bool iputComplete;
+  int left = (rank + nRanks - 1) % nRanks;
+  int right = (rank + 1) % nRanks;
+
+  NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl),
+      res, exit);
+  NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.recvbuff,
+        nRanks * sendSize, &recvHdl), res, exit);
+
+  NCCLCHECKGOTO(mapper->icopy((void *) ((uintptr_t) op->allgather.recvbuff + rank * sendSize),
+        op->allgather.sendbuff, sendSize, &icopyReq), res, exit);
+
+  NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuff, &remoteAccessKey, right, &irecvReq), res, exit);
+  NCCLCHECKGOTO(mapper->isendCtrl(op->allgather.recvbuff, recvHdl, left, &isendReq), res, exit);
+  NCCLCHECKGOTO(irecvReq->wait(), res, exit);
+
+  NCCLCHECKGOTO(mapper->iput(op->allgather.sendbuff,
+        (void *) ((uintptr_t) remoteRecvBuff + rank * sendSize), sendSize, right,
+        sendHdl, remoteAccessKey, true, nullptr), res, exit);
+
+  iputComplete = true;
+  for (int i = 0; i < nRanks - 2; i++) {
+    int blockId = (rank - i - 1 + nRanks) % nRanks;
+
+    NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
+    NCCLCHECKGOTO(mapper->iput(
+          (void *) ((uintptr_t) op->allgather.recvbuff + blockId * sendSize),
+          (void *) ((uintptr_t) remoteRecvBuff + blockId * sendSize), sendSize, right,
+          recvHdl, remoteAccessKey, true, (i < nRanks - 3) ? nullptr : &iputReq), res, exit);
+    iputComplete = false;
+  }
+
+  NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
+  NCCLCHECKGOTO(icopyReq->wait(), res, exit);
+  NCCLCHECKGOTO(isendReq->wait(), res, exit);
+
+  if (iputComplete == false) {
+    NCCLCHECKGOTO(iputReq->wait(), res, exit);
+  }
+
+exit:
+  return res;
+}
+
 ncclResult_t ctranAllGatherRing(const void* sendbuff, void* recvbuff,
 	size_t sendcount, ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream) {
   ncclResult_t res = ncclSuccess;
-  int nRanks = comm->nRanks;
-  size_t sendSize = sendcount * ncclTypeSize(datatype);
-  std::unique_ptr<ctranGraph> g;
-  int *hdl;
-  int cpyHdl;
-  std::vector<int> deps;
-  void *sendHdl, *recvHdl;
-  void *isendbuf = (void*) sendbuff;
-  void *irecvbuf = recvbuff;
-  int left = (comm->rank + comm->nRanks - 1) % comm->nRanks;
-  int right = (comm->rank + 1) % comm->nRanks;
+  std::unique_ptr<struct collOp> op;
 
-  NCCLCHECKGOTO(comm->ctranMapper->searchRegHandle(sendbuff, sendcount * ncclTypeSize(datatype), &sendHdl),
-      res, fail);
-  NCCLCHECKGOTO(comm->ctranMapper->searchRegHandle(recvbuff, nRanks * sendcount * ncclTypeSize(datatype), &recvHdl),
-      res, fail);
+  op = std::unique_ptr<struct collOp>(new struct collOp);
+  op->func = impl;
+  op->ncclKernel = reinterpret_cast<void *>(ncclKernelAllGatherCTR);
+  op->allgather.sendbuff = sendbuff;
+  op->allgather.recvbuff = recvbuff;
+  op->allgather.sendcount = sendcount;
+  op->allgather.datatype = datatype;
+  op->allgather.comm = comm;
 
-  g = std::unique_ptr<ctranGraph>(new ctranGraph(comm->ctranMapper, "ncclAllGatherCtranRing"));
-  g->ncclKernel = reinterpret_cast<void *>(ncclKernelAllGatherCTR);
-
-  if (!sendHdl) {
-    TRACE("CTRAN: No registered handle found for send buffer %p", sendbuff);
-    comm->ctranMapper->getTmpBuf(&isendbuf, sendSize, &sendHdl);
-    /* copy data from user buf to tmp buf */
-    NCCLCHECKGOTO(g->icopy(isendbuf, sendbuff, sendSize, {}, &cpyHdl), res, fail);
-    deps.push_back(cpyHdl);
-  }
-  if (!recvHdl) {
-    TRACE("CTRAN: No registered handle found for recv buffer %p", recvbuff);
-    comm->ctranMapper->getTmpBuf(&irecvbuf, nRanks * sendSize, &recvHdl);
-  }
-
-  hdl = new int[2 * nRanks];
-  NCCLCHECK(g->icopy((void *) ((uintptr_t) recvbuff + comm->rank * sendSize),
-      sendbuff, sendSize, deps, &hdl[0]));
-  for (int p = 1; p < nRanks; p++) {
-    int peer = (comm->rank - p + nRanks) % nRanks;
-    NCCLCHECK(g->irecv((void *) ((uintptr_t) irecvbuf + peer * sendSize),
-          sendSize, left, recvHdl, deps, &hdl[p]));
-    if (irecvbuf != recvbuff) {
-      int dummy;
-      NCCLCHECKGOTO(g->icopy((void *) ((uintptr_t) recvbuff + peer * sendSize),
-                             (void *) ((uintptr_t) irecvbuf + peer * sendSize),
-                             sendSize, {hdl[p]}, &dummy), res, fail);
-    }
-  }
-  for (int p = 1; p < nRanks; p++) {
-    int peer = (comm->rank - p + 1 + nRanks) % nRanks;
-    if (p == 1) {
-      NCCLCHECK(g->isend(isendbuf, sendSize, right, sendHdl, deps, &hdl[nRanks + p]));
-    } else {
-      std::vector<int> v;
-      v.push_back(hdl[p-1]);
-      NCCLCHECK(g->isend((void *) ((uintptr_t) irecvbuf + peer * sendSize),
-            sendSize, right, recvHdl, v, &hdl[nRanks + p]));
-      v.clear();
-    }
-  }
-  delete[] hdl;
-
-  // add callback followed by the completion of the graph
-  g->registerCB([comm, irecvbuf, recvbuff, recvHdl, isendbuf, sendbuff, sendHdl](void) -> void {
-    // if tmp buffers are used, release them back to pool
-    if (irecvbuf != recvbuff) {
-      comm->ctranMapper->releaseTmpBuf(irecvbuf, recvHdl);
-    }
-    if (isendbuf != sendbuff) {
-      comm->ctranMapper->releaseTmpBuf(isendbuf, sendHdl);
-    }
-  });
-
-  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(g), stream), res, fail);
+  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(op), stream), res, fail);
 
 fail:
   return res;

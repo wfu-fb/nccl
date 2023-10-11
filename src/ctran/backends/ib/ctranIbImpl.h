@@ -6,12 +6,31 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <chrono>
+#include <unordered_map>
 #include "ibvwrap.h"
 #include "bootstrap.h"
 
 #define BOOTSTRAP_CMD_SETUP  (0)
 #define BOOTSTRAP_CMD_TERMINATE  (1)
+
+struct pendingOp {
+  enum pendingOpType {
+    ISEND_CTRL,
+    IRECV_CTRL,
+  } type;
+  struct {
+    void *buf;
+    void *hdl;
+    int peerRank;
+    ctranIbRequest *req;
+  } isendCtrl;
+  struct {
+    void **buf;
+    struct ctranIbRemoteAccessKey *key;
+    int peerRank;
+    ctranIbRequest *req;
+  } irecvCtrl;
+};
 
 class ctranIb::impl {
 public:
@@ -38,10 +57,13 @@ public:
   /* individual VCs for each peer */
   class vc;
   std::vector<class vc *> vcList;
+  std::unordered_map<uint32_t, int> qpToRank;
+  std::mutex m;
+
+  std::vector<struct pendingOp *> pendingOps;
 
 private:
   ncclResult_t bootstrapConnect(int peerRank, int cmd);
-  std::mutex bootstrapMutex;
 };
 
 #endif

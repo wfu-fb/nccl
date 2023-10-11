@@ -14,6 +14,7 @@ struct ctranMapperRegElem {
 };
 
 enum ctranMapperBackend {
+  UNSET,
   NVL,
   IB,
 };
@@ -23,11 +24,10 @@ public:
   impl() = default;
   ~impl() = default;
 
-  std::vector<enum ctranBackend> rankBackendMap;
-
   class ctranRegCache *regCache;
   class ctranMapperMemPool *memPool;
 
+  std::vector<enum ctranMapperBackend> rankBackendMap;
   std::vector<enum ctranMapperBackend> backends;
   std::unique_ptr<class ctranIb> ctranIb;
   std::unique_ptr<class ctranNvl> ctranNvl;

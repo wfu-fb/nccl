@@ -1,12 +1,11 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "ctranMapper.h"
-#include "ctranMapperRequestImpl.h"
 #include "debug.h"
 
-ctranMapperRequest::ctranMapperRequest() {
-  this->pimpl = std::unique_ptr<impl>(new impl());
-  this->pimpl->state = ctranMapperRequest::impl::CTRAN_REQUEST_STATE_INCOMPLETE;
+ctranMapperRequest::ctranMapperRequest(ctranMapper *mapper) {
+  this->mapper = mapper;
+  this->state = ctranMapperRequest::INCOMPLETE;
   this->ibReq = nullptr;
   this->nvlReq = nullptr;
 }
@@ -22,6 +21,8 @@ ctranMapperRequest::~ctranMapperRequest() {
 
 ncclResult_t ctranMapperRequest::test(bool *isComplete) {
   ncclResult_t res = ncclSuccess;
+
+  NCCLCHECKGOTO(this->mapper->progress(), res, exit);
 
   *isComplete = false;
   if (this->ibReq != nullptr) {
@@ -41,31 +42,21 @@ ncclResult_t ctranMapperRequest::test(bool *isComplete) {
   }
 
   if (*isComplete) {
-    this->pimpl->state = ctranMapperRequest::impl::CTRAN_REQUEST_STATE_COMPLETE;
+    this->state = ctranMapperRequest::COMPLETE;
   }
 
 exit:
   return res;
 }
 
-uint64_t ctranMapperRequest::getWaitTime() {
-  if (this->ibReq != nullptr) {
-    return this->ibReq->getWaitTime();
-  }
-  if (this->nvlReq != nullptr) {
-    return this->nvlReq->getWaitTime();
+ncclResult_t ctranMapperRequest::wait(void) {
+  ncclResult_t res = ncclSuccess;
+  bool isComplete = false;
+
+  while (isComplete == false) {
+    NCCLCHECKGOTO(this->test(&isComplete), res, exit);
   }
 
-  return 0;
-}
-
-uint64_t ctranMapperRequest::getCommTime() {
-  if (this->ibReq != nullptr) {
-    return this->ibReq->getCommTime();
-  }
-  if (this->nvlReq != nullptr) {
-    return this->nvlReq->getCommTime();
-  }
-
-  return 0;
+exit:
+  return res;
 }

@@ -11,10 +11,8 @@
 #include "ctranIb.h"
 #include "ctranNvl.h"
 
-enum ctranBackend {
-  CTRAN_BACKEND_UNSET,
-  CTRAN_BACKEND_IB,
-  CTRAN_BACKEND_NVL,
+struct ctranMapperRemoteAccessKey {
+  struct ctranIbRemoteAccessKey ibKey;
 };
 
 class ctranMapperMemPool {
@@ -36,24 +34,27 @@ class ctranMapperMemPool {
 
  private:
   class impl;
-  std::unique_ptr<class impl> pimpl;
+  std::unique_ptr<impl> pimpl;
 };
 
+class ctranMapper;
 class ctranMapperRequest {
 public:
-  ctranMapperRequest();
+  ctranMapperRequest(ctranMapper *mapper);
   ~ctranMapperRequest();
   ncclResult_t test(bool *isComplete);
-  uint64_t getWaitTime();
-  uint64_t getCommTime();
+  ncclResult_t wait();
 
   ctranIbRequest *ibReq;
   ctranNvlRequest *nvlReq;
   cudaEvent_t e;
 
 private:
-  class impl;
-  std::unique_ptr<impl> pimpl;
+  ctranMapper *mapper;
+  enum {
+    INCOMPLETE,
+    COMPLETE,
+  } state;
 };
 
 struct ncclComm;
@@ -65,20 +66,30 @@ public:
   ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
   ncclResult_t deregMem(void *hdl);
   ncclResult_t searchRegHandle(const void *buf, std::size_t len, void **hdl);
-  ncclResult_t isend(const void *buf, std::size_t len, int rank, void *hdl, ctranMapperRequest **req);
-  ncclResult_t irecv(void *buf, std::size_t len, int rank, void *hdl, ctranMapperRequest **req);
   ncclResult_t icopy(void *dbuf, const void *sbuf, std::size_t len, ctranMapperRequest **req);
   ncclResult_t getTmpBuf(void** addr, std::size_t len, void **hdl);
   ncclResult_t releaseTmpBuf(void* addr, void *hdl);
+
+  ncclResult_t isendCtrl(void *buf, void *hdl, int rank, ctranMapperRequest **req);
+  ncclResult_t irecvCtrl(void **buf, struct ctranMapperRemoteAccessKey *key, int rank,
+      ctranMapperRequest **req);
+  ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, int rank, void *shdl,
+      struct ctranMapperRemoteAccessKey remoteAccessKey, bool notify, ctranMapperRequest **req);
+  ncclResult_t checkNotify(int rank, bool *notify);
+  ncclResult_t waitNotify(int rank);
 
   int rank;
   uint64_t commHash;
   uint64_t collId;
 
+protected:
+  ncclResult_t progress(void);
+
 private:
   class impl;
   std::unique_ptr<impl> pimpl;
   std::mutex tmpBufLock;
+  friend class ctranMapperRequest;
 };
 
 #endif

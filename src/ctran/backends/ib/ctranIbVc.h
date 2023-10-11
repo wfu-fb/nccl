@@ -5,6 +5,8 @@
 
 #include <vector>
 #include <unordered_map>
+#include <mutex>
+#include <deque>
 #include "ibvwrap.h"
 #include "ctranIbBase.h"
 
@@ -20,40 +22,48 @@ class ctranIb::impl::vc {
     bool isReady();
     std::size_t getBusCardSize();
     ncclResult_t getLocalBusCard(void *busCard);
-    ncclResult_t setupVc(void *busCard);
+    ncclResult_t setupVc(void *busCard, uint32_t *controlQp, uint32_t *dataQp);
     ncclResult_t progress();
-    ncclResult_t processCqe(struct wqeState *wqeState);
-    void enqueueIsend(ctranIbRequest *req);
-    void enqueueIrecv(ctranIbRequest *req);
+    ncclResult_t processCqe(enum ibv_wc_opcode opcode, uint64_t wrId);
+    ncclResult_t isendCtrl(void *buf, void *hdl, ctranIbRequest *req);
+    ncclResult_t irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, ctranIbRequest *req);
+    ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, void *shdl,
+        struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest *req);
+    ncclResult_t checkNotify(bool *notify);
+
+    int peerRank;
 
   private:
     void setReady();
-    ncclResult_t postRecvControlMsg(struct wqeState *wqeState);
-    ncclResult_t postSendControlMsg(struct wqeState *wqeState);
-    ncclResult_t postRecvDataMsg(struct wqeState *wqeState);
-    ncclResult_t postSendDataMsg(struct wqeState *wqeState, struct ibv_mr *mr);
+    ncclResult_t postRecvCtrlMsg(struct controlMsg *cmsg);
+    ncclResult_t postSendCtrlMsg(struct controlMsg *cmsg);
+    ncclResult_t postPutMsg(const void *sbuf, void *dbuf, std::size_t len,
+        uint32_t lkey, uint32_t rkey, bool localNotify, bool notify);
+    ncclResult_t postRecvNotifyMsg(void);
 
     struct ibv_qp *controlQp;
     struct ibv_qp *dataQp;
 
     struct {
-      struct {
-        struct wqeState wqeState[MAX_CONTROL_MSGS];
-        struct controlMsg controlMsgs[MAX_CONTROL_MSGS];
-        struct ibv_mr *mr;
-      } send, recv;
-    } control;
-
+      struct controlWr wr[MAX_CONTROL_MSGS];
+      struct controlMsg cmsg[MAX_CONTROL_MSGS];
+      struct ibv_mr *mr;
+      std::deque<struct controlMsg *> freeMsg;
+      std::deque<struct controlMsg *> postedMsg;
+      std::deque<ctranIbRequest *> postedReq;
+      std::deque<struct controlWr *> enqueuedWr;
+    } sendCtrl;
     struct {
-      struct {
-        struct wqeState wqeState[MAX_CONTROL_MSGS];
-        std::vector<struct wqeState *> postedQ;
-        std::vector<ctranIbRequest *> pendingQ;
-      } send, recv;
-      std::vector<struct wqeState *> rtrQ;
-    } data;
-
-    std::vector<struct wqeState *> freeSendControlWqes;
+      struct controlWr wr[MAX_CONTROL_MSGS];
+      struct controlMsg cmsg[MAX_CONTROL_MSGS];
+      struct ibv_mr *mr;
+      std::deque<struct controlMsg *> postedMsg;
+      std::deque<struct controlWr *> unexWr;
+      std::deque<struct controlWr *> enqueuedWr;
+    } recvCtrl;
+    struct {
+      std::deque<ctranIbRequest *> postedWr;
+    } put;
 
     bool isReady_;
     struct ibv_context *context;
@@ -61,7 +71,8 @@ class ctranIb::impl::vc {
     struct ibv_cq *cq;
     int port;
     uint32_t maxMsgSize;
-    int pendingSendQpWr;
+    std::mutex m;
+    int notifications;
 };
 
 #endif

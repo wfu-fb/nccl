@@ -192,30 +192,66 @@ ncclResult_t ctranIb::progress(void) {
 
     /* wc.wr_id is valid even if the poll_cq returned an error; use it
      * to gather information about the error */
-    auto wqeState = reinterpret_cast<struct wqeState *>(static_cast<uintptr_t>(wc.wr_id));
-    int peerRank = wqeState->peerRank;
-    auto vc = this->pimpl->vcList[peerRank];
+    this->pimpl->m.lock();
+    auto vc = this->pimpl->vcList[this->pimpl->qpToRank[wc.qp_num]];
+    this->pimpl->m.unlock();
 
     if (wc.status != IBV_WC_SUCCESS) {
-      WARN("CTRAN-IB: wrap_ibv_poll_cq failed on op=%s, wqeId=%lu, peerRank=%d, with status=%d, '%s'",
-          wqeName(wqeState->wqeType), wqeState->wqeId, peerRank, wc.status, this->pimpl->ibv_wc_status_str(wc.status));
+      WARN("CTRAN-IB: wrap_ibv_poll_cq failed, peerRank=%d, with status=%d, '%s'",
+          vc->peerRank, wc.status, this->pimpl->ibv_wc_status_str(wc.status));
       res = ncclSystemError;
       goto exit;
     }
 
-    NCCLCHECKGOTO(vc->processCqe(wqeState), res, exit);
+    NCCLCHECKGOTO(vc->processCqe(wc.opcode, wc.wr_id), res, exit);
   }
 
-  /* issue pending operations */
-  for (int peerRank = 0; peerRank < this->pimpl->nRanks; peerRank++) {
-    NCCLCHECKGOTO(this->pimpl->vcList[peerRank]->progress(), res, exit);
+  /* we should have pendingOps only if the connection was not
+   * established yet.  The below algorithm is a bit inefficient, but
+   * that is OK as it should not happen in the critical path. */
+  if (!this->pimpl->pendingOps.empty()) {
+    std::vector<int> peerRanks;
+    std::vector<struct pendingOp *> tmp = this->pimpl->pendingOps;
+    this->pimpl->pendingOps.clear();
+
+    for (auto op : tmp) {
+      int rank = (op->type == pendingOp::pendingOpType::ISEND_CTRL) ? op->isendCtrl.peerRank :
+        op->irecvCtrl.peerRank;
+
+      /* if we already encounted this peer, skip all operations to the
+       * same peer; otherwise we might end up sending messages out of
+       * order */
+      if (std::find(peerRanks.begin(), peerRanks.end(), rank) != peerRanks.end()) {
+        this->pimpl->pendingOps.push_back(op);
+        continue;
+      }
+
+      auto vc = this->pimpl->vcList[rank];
+      if (op->type == pendingOp::pendingOpType::ISEND_CTRL) {
+        if (vc->isReady() == true) {
+          NCCLCHECKGOTO(vc->isendCtrl(op->isendCtrl.buf, op->isendCtrl.hdl, op->isendCtrl.req), res, exit);
+          delete op;
+        } else {
+          this->pimpl->pendingOps.push_back(op);
+          peerRanks.push_back(rank);
+        }
+      } else {
+        if (vc->isReady() == true) {
+          NCCLCHECKGOTO(vc->irecvCtrl(op->irecvCtrl.buf, op->irecvCtrl.key, op->irecvCtrl.req), res, exit);
+          delete op;
+        } else {
+          this->pimpl->pendingOps.push_back(op);
+          peerRanks.push_back(rank);
+        }
+      }
+    }
   }
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::isend(const void *buf, std::size_t len, int peerRank, void *hdl, ctranIbRequest **req) {
+ncclResult_t ctranIb::isendCtrl(void *buf, void *hdl, int peerRank, ctranIbRequest **req) {
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl->vcList[peerRank];
@@ -223,16 +259,25 @@ ncclResult_t ctranIb::isend(const void *buf, std::size_t len, int peerRank, void
     NCCLCHECKGOTO(this->pimpl->bootstrapConnect(peerRank), res, exit);
   }
 
-  *req = new ctranIbRequest(const_cast<void *>(buf), len, hdl, this);
-  vc->enqueueIsend(*req);
-
-  NCCLCHECKGOTO(this->progress(), res, exit);
+  *req = new ctranIbRequest();
+  if (vc->isReady() == true) {
+    NCCLCHECKGOTO(vc->isendCtrl(buf, hdl, *req), res, exit);
+  } else {
+    auto pendingOp = new struct pendingOp;
+    pendingOp->type = pendingOp::pendingOpType::ISEND_CTRL;
+    pendingOp->isendCtrl.buf = buf;
+    pendingOp->isendCtrl.hdl = hdl;
+    pendingOp->isendCtrl.peerRank = peerRank;
+    pendingOp->isendCtrl.req = *req;
+    this->pimpl->pendingOps.push_back(pendingOp);
+  }
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::irecv(void *buf, std::size_t len, int peerRank, void *hdl, ctranIbRequest **req) {
+ncclResult_t ctranIb::irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, int peerRank,
+    ctranIbRequest **req) {
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl->vcList[peerRank];
@@ -240,10 +285,44 @@ ncclResult_t ctranIb::irecv(void *buf, std::size_t len, int peerRank, void *hdl,
     NCCLCHECKGOTO(this->pimpl->bootstrapConnect(peerRank), res, exit);
   }
 
-  *req = new ctranIbRequest(const_cast<void *>(buf), len, hdl, this);
-  vc->enqueueIrecv(*req);
+  *req = new ctranIbRequest();
+  if (vc->isReady() == true) {
+    NCCLCHECKGOTO(vc->irecvCtrl(buf, key, *req), res, exit);
+  } else {
+    auto pendingOp = new struct pendingOp;
+    pendingOp->type = pendingOp::pendingOpType::IRECV_CTRL;
+    pendingOp->irecvCtrl.buf = buf;
+    pendingOp->irecvCtrl.key = key;
+    pendingOp->irecvCtrl.peerRank = peerRank;
+    pendingOp->irecvCtrl.req = *req;
+    this->pimpl->pendingOps.push_back(pendingOp);
+  }
+
+exit:
+  return res;
+}
+
+ncclResult_t ctranIb::iput(const void *sbuf, void *dbuf, std::size_t len, int peerRank, void *shdl,
+    struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest **req) {
+  ncclResult_t res = ncclSuccess;
+  ctranIbRequest *r = nullptr;
+
+  if (req != nullptr) {
+    *req = new ctranIbRequest();
+    r = *req;
+  }
+  NCCLCHECKGOTO(this->pimpl->vcList[peerRank]->iput(sbuf, dbuf, len, shdl, remoteAccessKey, notify, r),
+      res, exit);
+
+exit:
+  return res;
+}
+
+ncclResult_t ctranIb::checkNotify(int peerRank, bool *notify) {
+  ncclResult_t res = ncclSuccess;
 
   NCCLCHECKGOTO(this->progress(), res, exit);
+  NCCLCHECKGOTO(this->pimpl->vcList[peerRank]->checkNotify(notify), res, exit);
 
 exit:
   return res;

@@ -6,35 +6,25 @@
 #include "nccl.h"
 #include <memory>
 
-class ctranIb;
-
-enum ctranIbRequestTimestamp {
-  REQ_POSTED,
-  GOT_RTR,
-  SEND_DATA_START,
-  SEND_DATA_END,
+struct ctranIbRemoteAccessKey {
+  uint32_t rkey;
 };
+
+class ctranIb;
 
 class ctranIbRequest {
 public:
-  ctranIbRequest(void *addr, std::size_t len, void *hdl, ctranIb *parent);
+  ctranIbRequest();
   ~ctranIbRequest();
 
   void complete();
   ncclResult_t test(bool *isComplete);
-  uint64_t getWaitTime();
-  uint64_t getCommTime();
-
-  void *addr;
-  std::size_t len;
-  void *hdl;
-
-  void timestamp(ctranIbRequestTimestamp type);
 
 private:
-  class impl;
-  std::unique_ptr<impl> pimpl;
-  friend class ctranIb;
+  enum {
+    INCOMPLETE,
+    COMPLETE,
+  } state;
 };
 
 class ctranIb {
@@ -44,11 +34,13 @@ public:
 
   ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
   ncclResult_t deregMem(void *hdl);
-  ncclResult_t isend(const void *buf, size_t len, int rank, void *hdl, ctranIbRequest **req);
-  ncclResult_t irecv(void *buf, size_t len, int rank, void *hdl, ctranIbRequest **req);
-
-protected:
   ncclResult_t progress(void);
+
+  ncclResult_t isendCtrl(void *buf, void *hdl, int rank, ctranIbRequest **req);
+  ncclResult_t irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, int rank, ctranIbRequest **req);
+  ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, int rank, void *shdl,
+      struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest **req);
+  ncclResult_t checkNotify(int rank, bool *notify);
 
 private:
   class impl;

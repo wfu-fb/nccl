@@ -29,6 +29,7 @@ struct busCard {
 
 ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv_cq *cq,
     int port, int peerRank) {
+  this->peerRank = peerRank;
   this->controlQp = nullptr;
   this->dataQp = nullptr;
   this->context = context;
@@ -36,51 +37,27 @@ ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv
   this->cq = cq;
   this->port = port;
 
-  NCCLCHECKIGNORE(wrap_ibv_reg_mr(&this->control.send.mr, pd, (void *) this->control.send.controlMsgs,
+  NCCLCHECKIGNORE(wrap_ibv_reg_mr(&this->sendCtrl.mr, pd, (void *) this->sendCtrl.cmsg,
         MAX_CONTROL_MSGS * sizeof(struct controlMsg),
         IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
         IBV_ACCESS_REMOTE_READ));
 
-  NCCLCHECKIGNORE(wrap_ibv_reg_mr(&this->control.recv.mr, pd, (void *) this->control.recv.controlMsgs,
+  NCCLCHECKIGNORE(wrap_ibv_reg_mr(&this->recvCtrl.mr, pd, (void *) this->recvCtrl.cmsg,
         MAX_CONTROL_MSGS * sizeof(struct controlMsg),
         IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
         IBV_ACCESS_REMOTE_READ));
 
   for (int i = 0; i < MAX_CONTROL_MSGS; i++) {
-    this->control.send.wqeState[i].wqeType = wqeState::wqeType::CONTROL_SEND;
-    this->control.send.wqeState[i].peerRank = peerRank;
-    this->control.send.wqeState[i].peerWqe = &this->data.recv.wqeState[i];
-    this->control.send.wqeState[i].u.control.cmsg = &this->control.send.controlMsgs[i];
-    this->control.send.wqeState[i].wqeId = static_cast<uint64_t>(i);
-
-    this->control.recv.wqeState[i].wqeType = wqeState::wqeType::CONTROL_RECV;
-    this->control.recv.wqeState[i].peerRank = peerRank;
-    this->control.recv.wqeState[i].peerWqe = &this->data.send.wqeState[i];
-    this->control.recv.wqeState[i].u.control.cmsg = &this->control.recv.controlMsgs[i];
-    this->control.recv.wqeState[i].wqeId = static_cast<uint64_t>(i);
-
-    this->data.send.wqeState[i].wqeType = wqeState::wqeType::DATA_SEND;
-    this->data.send.wqeState[i].peerRank = peerRank;
-    this->data.send.wqeState[i].peerWqe = &this->control.recv.wqeState[i];
-    this->data.send.wqeState[i].u.data.req = nullptr;
-    this->data.send.wqeState[i].wqeId = static_cast<uint64_t>(i);
-
-    this->data.recv.wqeState[i].wqeType = wqeState::wqeType::DATA_RECV;
-    this->data.recv.wqeState[i].peerRank = peerRank;
-    this->data.recv.wqeState[i].peerWqe = &this->control.send.wqeState[i];
-    this->data.recv.wqeState[i].u.data.req = nullptr;
-    this->data.recv.wqeState[i].wqeId = static_cast<uint64_t>(i);
-
-    this->freeSendControlWqes.push_back(&this->control.send.wqeState[i]);
+    this->sendCtrl.freeMsg.push_back(&this->sendCtrl.cmsg[i]);
   }
 
   this->isReady_ = false;
-  this->pendingSendQpWr = 0;
+  this->notifications = 0;
 }
 
 ctranIb::impl::vc::~vc() {
-  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->control.send.mr));
-  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->control.recv.mr));
+  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->sendCtrl.mr));
+  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->recvCtrl.mr));
 
   if (this->controlQp != nullptr) {
     /* we don't need to clean up the posted WQEs; destroying the QP
@@ -91,11 +68,19 @@ ctranIb::impl::vc::~vc() {
 }
 
 bool ctranIb::impl::vc::isReady() {
-  return this->isReady_;
+  bool r;
+
+  this->m.lock();
+  r = this->isReady_;
+  this->m.unlock();
+
+  return r;
 }
 
 void ctranIb::impl::vc::setReady() {
+  this->m.lock();
   this->isReady_ = true;
+  this->m.unlock();
 }
 
 std::size_t ctranIb::impl::vc::getBusCardSize() {
@@ -156,10 +141,13 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::setupVc(void *busCard) {
+ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, uint32_t *dataQp) {
   ncclResult_t res = ncclSuccess;
   struct ibv_qp_attr qpAttr;
   struct busCard *remoteBusCard = reinterpret_cast<struct busCard *>(busCard);
+
+  *controlQp = this->controlQp->qp_num;
+  *dataQp = this->dataQp->qp_num;
 
   /* set QP to RTR state */
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
@@ -210,7 +198,10 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard) {
 
   /* post control WQEs */
   for (int i = 0; i < MAX_CONTROL_MSGS; i++) {
-    NCCLCHECKGOTO(this->postRecvControlMsg(&this->control.recv.wqeState[i]), res, exit);
+    NCCLCHECKGOTO(this->postRecvCtrlMsg(&this->recvCtrl.cmsg[i]), res, exit);
+    this->recvCtrl.postedMsg.push_back(&this->recvCtrl.cmsg[i]);
+
+    NCCLCHECKGOTO(this->postRecvNotifyMsg(), res, exit);
   }
 
   this->setReady();
@@ -219,85 +210,69 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::postRecvControlMsg(struct wqeState *wqeState) {
+ncclResult_t ctranIb::impl::vc::postRecvCtrlMsg(struct controlMsg *cmsg) {
   ncclResult_t res = ncclSuccess;
-
 
   struct ibv_sge sg;
   memset(&sg, 0, sizeof(sg));
-  sg.addr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(wqeState->u.control.cmsg));
+  sg.addr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(cmsg));
   sg.length = sizeof(struct controlMsg);
-  sg.lkey = this->control.recv.mr->lkey;
+  sg.lkey = this->recvCtrl.mr->lkey;
 
-  struct ibv_recv_wr wr, *badWr;
-  memset(&wr, 0, sizeof(wr));
-  wr.wr_id = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(wqeState));
-  wr.next = nullptr;
-  wr.sg_list = &sg;
-  wr.num_sge = 1;
-  NCCLCHECKGOTO(wrap_ibv_post_recv(this->controlQp, &wr, &badWr), res, exit);
+  struct ibv_recv_wr postWr, *badWr;
+  memset(&postWr, 0, sizeof(postWr));
+  postWr.wr_id = 0;
+  postWr.next = nullptr;
+  postWr.sg_list = &sg;
+  postWr.num_sge = 1;
+  NCCLCHECKGOTO(wrap_ibv_post_recv(this->controlQp, &postWr, &badWr), res, exit);
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::postSendControlMsg(struct wqeState *wqeState) {
+ncclResult_t ctranIb::impl::vc::postSendCtrlMsg(struct controlMsg *cmsg) {
   ncclResult_t res = ncclSuccess;
-
 
   struct ibv_sge sg;
   memset(&sg, 0, sizeof(sg));
-  sg.addr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(wqeState->u.control.cmsg));
+  sg.addr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(cmsg));
   sg.length = sizeof(struct controlMsg);
-  sg.lkey = this->control.send.mr->lkey;
+  sg.lkey = this->sendCtrl.mr->lkey;
 
-  struct ibv_send_wr wr, *badWr;
-  memset(&wr, 0, sizeof(wr));
-  wr.wr_id = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(wqeState));
-  wr.next = nullptr;
-  wr.sg_list = &sg;
-  wr.num_sge = 1;
-  wr.opcode = IBV_WR_SEND;
-  wr.send_flags = IBV_SEND_SIGNALED;
-  NCCLCHECKGOTO(wrap_ibv_post_send(this->controlQp, &wr, &badWr), res, exit);
-
-exit:
-  return res;
-}
-
-ncclResult_t ctranIb::impl::vc::postRecvDataMsg(struct wqeState *wqeState) {
-  ncclResult_t res = ncclSuccess;
-
-
-  struct ibv_recv_wr wr, *badWr;
-  memset(&wr, 0, sizeof(wr));
-  wr.wr_id = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(wqeState));
-  wr.next = nullptr;
-  wr.num_sge = 0;
-  NCCLCHECKGOTO(wrap_ibv_post_recv(this->dataQp, &wr, &badWr), res, exit);
+  struct ibv_send_wr postWr, *badWr;
+  memset(&postWr, 0, sizeof(postWr));
+  postWr.wr_id = 0;
+  postWr.next = nullptr;
+  postWr.sg_list = &sg;
+  postWr.num_sge = 1;
+  postWr.opcode = IBV_WR_SEND;
+  postWr.send_flags = IBV_SEND_SIGNALED;
+  NCCLCHECKGOTO(wrap_ibv_post_send(this->controlQp, &postWr, &badWr), res, exit);
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::postSendDataMsg(struct wqeState *wqeState, struct ibv_mr *mr) {
+ncclResult_t ctranIb::impl::vc::postPutMsg(const void *sbuf, void *dbuf, std::size_t len_,
+    uint32_t lkey, uint32_t rkey, bool localNotify, bool notify) {
   ncclResult_t res = ncclSuccess;
 
   uint64_t offset = 0;
-  uint64_t len = wqeState->u.data.req->len;
+  uint64_t len = len_;
 
   while (len > 0) {
     uint64_t toSend = std::min(len, static_cast<uint64_t>(this->maxMsgSize));
 
     struct ibv_sge sg;
     memset(&sg, 0, sizeof(sg));
-    sg.addr = reinterpret_cast<uint64_t>(wqeState->u.data.req->addr) + offset;
+    sg.addr = reinterpret_cast<uint64_t>(sbuf) + offset;
     sg.length = toSend;
-    sg.lkey = mr->lkey;
+    sg.lkey = lkey;
 
     struct ibv_send_wr wr, *badWr;
     memset(&wr, 0, sizeof(wr));
-    wr.wr_id = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(wqeState));
+    wr.wr_id = 0;
     wr.next = nullptr;
     wr.sg_list = &sg;
     wr.num_sge = 1;
@@ -306,143 +281,129 @@ ncclResult_t ctranIb::impl::vc::postSendDataMsg(struct wqeState *wqeState, struc
       wr.opcode = IBV_WR_RDMA_WRITE;
       wr.send_flags = 0;
     } else {
-      wr.opcode = IBV_WR_RDMA_WRITE_WITH_IMM;
-      wr.send_flags = IBV_SEND_SIGNALED;
-    }
-    wr.wr.rdma.remote_addr = wqeState->u.data.remoteAddr + offset;
-    wr.wr.rdma.rkey = wqeState->u.data.rkey;
+      if (notify == true) {
+        wr.opcode = IBV_WR_RDMA_WRITE_WITH_IMM;
+      } else {
+        wr.opcode = IBV_WR_RDMA_WRITE;
+      }
 
-    NCCLCHECKGOTO(wrap_ibv_post_send(this->dataQp, &wr, &badWr), res, exit);
+      if (localNotify == true) {
+        wr.send_flags = IBV_SEND_SIGNALED;
+      } else {
+        wr.send_flags = 0;
+      }
+    }
+    wr.wr.rdma.remote_addr = reinterpret_cast<uint64_t>(dbuf) + offset;
+    wr.wr.rdma.rkey = rkey;
+
+    int ret;
+    do {
+      ret = this->dataQp->context->ops.post_send(this->dataQp, &wr, &badWr);
+    } while (ret == ENOMEM);
+    if (ret != IBV_SUCCESS) {
+      WARN("ibv_post_send() failed with error %d, '%s'\n", ret, strerror(ret));
+      res = ncclSystemError;
+      goto exit;
+    }
 
     len -= toSend;
     offset += toSend;
-    this->pendingSendQpWr++;
   }
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::progress(void) {
+ncclResult_t ctranIb::impl::vc::postRecvNotifyMsg() {
   ncclResult_t res = ncclSuccess;
 
-  if (this->isReady() == false) {
-    goto exit;
-  }
-
-  while (!this->data.recv.pendingQ.empty() && !this->freeSendControlWqes.empty()) {
-    /* get a slot for a control message */
-    auto controlWqeState = this->freeSendControlWqes.front();
-    this->freeSendControlWqes.erase(this->freeSendControlWqes.begin());
-
-    auto dataWqeState = controlWqeState->peerWqe;
-
-    auto r = this->data.recv.pendingQ.front();
-    this->data.recv.pendingQ.erase(this->data.recv.pendingQ.begin());
-
-    struct ibv_mr *mr;
-    mr = reinterpret_cast<struct ibv_mr *>(r->hdl);
-    if (mr == nullptr) {
-      WARN("CTRAN-IB: memory registration not found for addr %p", r->addr);
-      res = ncclSystemError;
-      goto exit;
-    }
-
-    /* post recv data WQE */
-    dataWqeState->u.data.remoteAddr = 0;
-    dataWqeState->u.data.rkey = 0;
-    dataWqeState->u.data.req = r;
-    NCCLCHECKGOTO(this->postRecvDataMsg(dataWqeState), res, exit);
-    this->data.recv.postedQ.push_back(dataWqeState);
-
-    /* post send control WQE */
-    auto cmsg = controlWqeState->u.control.cmsg;
-    cmsg->u.msg.remoteAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(r->addr));
-    cmsg->u.msg.rkey = mr->rkey;
-    NCCLCHECKGOTO(this->postSendControlMsg(controlWqeState), res, exit);
-  }
-
-  while (!this->data.send.pendingQ.empty() && !this->data.rtrQ.empty()) {
-    /* get the next pending send operation */
-    auto r = this->data.send.pendingQ.front();
-    int numSends = (r->len / this->maxMsgSize) + !!(r->len % this->maxMsgSize);
-    if (this->pendingSendQpWr + numSends > MAX_SEND_WR) {
-      break;
-    }
-    this->data.send.pendingQ.erase(this->data.send.pendingQ.begin());
-
-    /* get the next RTR message */
-    auto controlWqeState = this->data.rtrQ.front();
-    this->data.rtrQ.erase(this->data.rtrQ.begin());
-
-    auto dataWqeState = controlWqeState->peerWqe;
-
-    struct ibv_mr *mr;
-    mr = reinterpret_cast<struct ibv_mr *>(r->hdl);
-    if (mr == nullptr) {
-      WARN("CTRAN-IB: memory registration not found for addr %p", r->addr);
-      res = ncclSystemError;
-      goto exit;
-    }
-
-    /* post send data WQE */
-    dataWqeState->u.data.remoteAddr = controlWqeState->u.control.cmsg->u.msg.remoteAddr;
-    dataWqeState->u.data.rkey = controlWqeState->u.control.cmsg->u.msg.rkey;
-    dataWqeState->u.data.req = r;
-    NCCLCHECKGOTO(this->postSendDataMsg(dataWqeState, mr), res, exit);
-    this->data.send.postedQ.push_back(dataWqeState);
-    r->timestamp(ctranIbRequestTimestamp::GOT_RTR);
-    r->timestamp(ctranIbRequestTimestamp::SEND_DATA_START);
-
-    /* repost receive control WQE */
-    NCCLCHECKGOTO(this->postRecvControlMsg(controlWqeState), res, exit);
-  }
+  struct ibv_recv_wr wr, *badWr;
+  memset(&wr, 0, sizeof(wr));
+  wr.wr_id = 0;
+  wr.next = nullptr;
+  wr.num_sge = 0;
+  NCCLCHECKGOTO(wrap_ibv_post_recv(this->dataQp, &wr, &badWr), res, exit);
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::processCqe(struct wqeState *wqeState) {
+ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, uint64_t wrId) {
   ncclResult_t res = ncclSuccess;
 
-  switch (wqeState->wqeType) {
-    case wqeState::wqeType::CONTROL_SEND:
-      /* finished sending a control message */
-      this->freeSendControlWqes.push_back(wqeState);
-      break;
-
-    case wqeState::wqeType::CONTROL_RECV:
-      /* received a control message */
+  switch (opcode) {
+    case IBV_WC_SEND:
       {
-        this->data.rtrQ.push_back(wqeState);
+        auto req = this->sendCtrl.postedReq.front();
+        this->sendCtrl.postedReq.pop_front();
+        req->complete();
+
+        auto cmsg = this->sendCtrl.postedMsg.front();
+        this->sendCtrl.postedMsg.pop_front();
+        this->sendCtrl.freeMsg.push_back(cmsg);
+
+        if (!this->sendCtrl.enqueuedWr.empty()) {
+          auto enqueuedWr = this->sendCtrl.enqueuedWr.front();
+          this->sendCtrl.enqueuedWr.pop_front();
+
+          cmsg = this->sendCtrl.freeMsg.front();
+          this->sendCtrl.freeMsg.pop_front();
+
+          cmsg->remoteAddr = reinterpret_cast<uint64_t>(enqueuedWr->enqueued.send.buf);
+          cmsg->rkey = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(enqueuedWr->enqueued.send.hdl));
+          NCCLCHECKGOTO(this->postSendCtrlMsg(cmsg), res, exit);
+
+          this->sendCtrl.postedMsg.push_back(cmsg);
+          this->sendCtrl.postedReq.push_back(req);
+          delete enqueuedWr;
+        }
       }
       break;
 
-    case wqeState::wqeType::DATA_SEND:
-      /* finished sending a data message */
+    case IBV_WC_RECV:
       {
-        auto r = this->data.send.postedQ.front()->u.data.req;
+        auto cmsg = this->recvCtrl.postedMsg.front();
+        this->recvCtrl.postedMsg.pop_front();
 
-        this->data.send.postedQ.front()->u.data.req->complete();
-        this->data.send.postedQ.erase(this->data.send.postedQ.begin());
+        if (this->recvCtrl.enqueuedWr.empty()) {
+          /* unexpected message */
+          struct controlWr *unexWr = new struct controlWr;
+          unexWr->enqueued.unex.remoteAddr = cmsg->remoteAddr;
+          unexWr->enqueued.unex.rkey = cmsg->rkey;
+          this->recvCtrl.unexWr.push_back(unexWr);
+        } else {
+          auto enqueuedWr = this->recvCtrl.enqueuedWr.front();
+          this->recvCtrl.enqueuedWr.pop_front();
 
-        int numSends = (r->len / this->maxMsgSize) + !!(r->len % this->maxMsgSize);
-        this->pendingSendQpWr -= numSends;
+          *(enqueuedWr->enqueued.recv.buf) = reinterpret_cast<void *>(cmsg->remoteAddr);
+          enqueuedWr->enqueued.recv.key->rkey = cmsg->rkey;
+          enqueuedWr->enqueued.recv.req->complete();
 
-        wqeState->u.data.req->timestamp(ctranIbRequestTimestamp::SEND_DATA_END);
+          delete enqueuedWr;
+        }
+
+        NCCLCHECKGOTO(this->postRecvCtrlMsg(cmsg), res, exit);
+        this->recvCtrl.postedMsg.push_back(cmsg);
       }
       break;
 
-    case wqeState::wqeType::DATA_RECV:
-      /* received a data message */
+    case IBV_WC_RDMA_WRITE:
       {
-        this->data.recv.postedQ.front()->u.data.req->complete();
-        this->data.recv.postedQ.erase(this->data.recv.postedQ.begin());
+        auto req = this->put.postedWr.front();
+        this->put.postedWr.pop_front();
+        req->complete();
+      }
+      break;
+
+    case IBV_WC_RECV_RDMA_WITH_IMM:
+      {
+        this->notifications++;
+        NCCLCHECKGOTO(this->postRecvNotifyMsg(), res, exit);
       }
       break;
 
     default:
-      WARN("CTRAN-IB: Found unknown wqe type: %d", wqeState->wqeType);
+      WARN("CTRAN-IB: Found unknown opcode: %d", opcode);
       res = ncclSystemError;
       goto exit;
   }
@@ -451,11 +412,89 @@ exit:
   return res;
 }
 
-void ctranIb::impl::vc::enqueueIsend(ctranIbRequest *req) {
-  this->data.send.pendingQ.push_back(req);
-  req->timestamp(ctranIbRequestTimestamp::REQ_POSTED);
+ncclResult_t ctranIb::impl::vc::isendCtrl(void *buf, void *hdl, ctranIbRequest *req) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->sendCtrl.freeMsg.empty()) {
+    auto enqueuedWr = new struct controlWr;
+    enqueuedWr->enqueued.send.buf = buf;
+    enqueuedWr->enqueued.send.hdl = hdl;
+    enqueuedWr->enqueued.send.req = req;
+    this->sendCtrl.enqueuedWr.push_back(enqueuedWr);
+  } else {
+    auto cmsg = this->sendCtrl.freeMsg.front();
+    this->sendCtrl.freeMsg.pop_front();
+
+    cmsg->remoteAddr = reinterpret_cast<uint64_t>(buf);
+    cmsg->rkey = reinterpret_cast<struct ibv_mr *>(hdl)->rkey;
+    NCCLCHECKGOTO(this->postSendCtrlMsg(cmsg), res, exit);
+    this->sendCtrl.postedMsg.push_back(cmsg);
+    this->sendCtrl.postedReq.push_back(req);
+  }
+
+exit:
+  return res;
 }
 
-void ctranIb::impl::vc::enqueueIrecv(ctranIbRequest *req) {
-  this->data.recv.pendingQ.push_back(req);
+ncclResult_t ctranIb::impl::vc::irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, ctranIbRequest *req) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->recvCtrl.unexWr.empty()) {
+    auto enqueuedWr = new struct controlWr;
+    enqueuedWr->enqueued.recv.buf = buf;
+    enqueuedWr->enqueued.recv.key = key;
+    enqueuedWr->enqueued.recv.req = req;
+    this->recvCtrl.enqueuedWr.push_back(enqueuedWr);
+  } else {
+    auto unexWr = this->recvCtrl.unexWr.front();
+    this->recvCtrl.unexWr.pop_front();
+
+    *buf = reinterpret_cast<void *>(unexWr->enqueued.unex.remoteAddr);
+    key->rkey = unexWr->enqueued.unex.rkey;
+    req->complete();
+
+    delete unexWr;
+  }
+
+  return res;
+}
+
+ncclResult_t ctranIb::impl::vc::iput(const void *sbuf, void *dbuf, std::size_t len, void *shdl,
+    struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest *req) {
+  ncclResult_t res = ncclSuccess;
+  struct ibv_mr *smr;
+  uint32_t rkey;
+
+  smr = reinterpret_cast<struct ibv_mr *>(shdl);
+  if (smr == nullptr) {
+    WARN("CTRAN-IB: memory registration not found for addr %p", sbuf);
+    res = ncclSystemError;
+    goto exit;
+  }
+
+  rkey = remoteAccessKey.rkey;
+
+  bool localNotify;
+  if (req != nullptr) {
+    localNotify = true;
+    this->put.postedWr.push_back(req);
+  } else {
+    localNotify = false;
+  }
+
+  NCCLCHECKGOTO(this->postPutMsg(sbuf, dbuf, len, smr->lkey, rkey, localNotify, notify), res, exit);
+
+exit:
+  return res;
+}
+
+ncclResult_t ctranIb::impl::vc::checkNotify(bool *notify) {
+  if (this->notifications) {
+    *notify = true;
+    this->notifications--;
+  } else {
+    *notify = false;
+  }
+
+  return ncclSuccess;
 }
