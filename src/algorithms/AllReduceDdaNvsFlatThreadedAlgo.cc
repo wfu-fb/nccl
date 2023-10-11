@@ -18,7 +18,8 @@ AllReduceDdaNvsFlatThreadedAlgo::AllReduceDdaNvsFlatThreadedAlgo(
     ncclComm* comm,
     cudaStream_t stream,
     const DdaDeviceState* devStates_d,
-    uintptr_t barrierFlag)
+    uintptr_t barrierFlag,
+    int multiProcessorCount)
     : sendbuff_(sendbuff),
       recvbuff_(recvbuff),
       count_(count),
@@ -27,7 +28,8 @@ AllReduceDdaNvsFlatThreadedAlgo::AllReduceDdaNvsFlatThreadedAlgo(
       comm_(comm),
       stream_(stream),
       devStates_d_(devStates_d),
-      barrierFlag_(barrierFlag) {}
+      barrierFlag_(barrierFlag),
+      multiProcessorCount_(multiProcessorCount) {}
 
 AllReduceDdaNvsFlatThreadedAlgo::~AllReduceDdaNvsFlatThreadedAlgo() {}
 
@@ -36,15 +38,10 @@ ncclResult_t AllReduceDdaNvsFlatThreadedAlgo::launchKernel() {
   const void* func = nullptr;
   ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Flat, comm_->nRanks);
 
-  dim3 grid;
-  dim3 blocks;
-  grid.x = 1;
-  grid.y = 1;
-  grid.z = 1;
-
-  blocks.x = 128;
-  blocks.y = 1;
-  blocks.z = 1;
+  auto gridBlock =
+      getGridAndBlockDims(func, count_, datatype_, multiProcessorCount_);
+  const auto& grid = gridBlock.first;
+  const auto& block = gridBlock.second;
 
   void* args[] = {
       &barrierFlag_,
@@ -53,7 +50,7 @@ ncclResult_t AllReduceDdaNvsFlatThreadedAlgo::launchKernel() {
       &sendbuff_,
       &recvbuff_,
       &count_};
-  CUDACHECK(cudaLaunchKernel(func, grid, blocks, args, 0, stream_));
+  CUDACHECK(cudaLaunchKernel(func, grid, block, args, 0, stream_));
   return ncclSuccess;
 }
 

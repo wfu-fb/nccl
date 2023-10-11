@@ -32,6 +32,9 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
     }
   }
 
+  // get device property (expensive call: 10+ ms)
+  CUDACHECKIGNORE(cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
+
   // allocate device memory
   const size_t kNumBarriers = 3;
   CUDACHECKIGNORE(cudaMalloc(
@@ -105,7 +108,8 @@ AlgoManager::getAllReduceDdaNvsFlatThreadedAlgo(
           comm,
           stream,
           devStates_d_,
-          barrierFlag_});
+          barrierFlag_,
+          devProp_.multiProcessorCount});
   return algo;
 }
 

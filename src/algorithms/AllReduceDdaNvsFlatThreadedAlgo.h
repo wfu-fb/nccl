@@ -18,7 +18,8 @@ class AllReduceDdaNvsFlatThreadedAlgo : public AllReduceAlgo {
       ncclComm* comm,
       cudaStream_t stream,
       const DdaDeviceState* devStates_d,
-      uintptr_t barrierFlag);
+      uintptr_t barrierFlag,
+      int multiProcessorCount);
   ~AllReduceDdaNvsFlatThreadedAlgo();
 
   ncclResult_t allReduce() override;
@@ -36,6 +37,7 @@ class AllReduceDdaNvsFlatThreadedAlgo : public AllReduceAlgo {
   cudaStream_t stream_{nullptr};
   const DdaDeviceState* devStates_d_{nullptr};
   uintptr_t barrierFlag_{0};
+  const int multiProcessorCount_{0};
 };
 
 } // namespace algorithms

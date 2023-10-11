@@ -1,5 +1,7 @@
 #pragma once
 
+#include "nccl.h"
+
 namespace nccl {
 namespace algorithms {
 
@@ -131,6 +133,15 @@ namespace algorithms {
     __res;                                       \
   })
 #endif
+
+size_t getDataSize(ncclDataType_t datatype);
+
+// determine the optimal grid/block size to launch kernel func
+std::pair<dim3, dim3> getGridAndBlockDims(
+    const void* func,
+    size_t count,
+    ncclDataType_t datatype,
+    int multiProcessorCount);
 
 } // namespace algorithms
 } // namespace nccl

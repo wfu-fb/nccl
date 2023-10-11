@@ -46,6 +46,7 @@ class AlgoManager {
 
  private:
   ncclComm_t comm_{nullptr};
+  cudaDeviceProp devProp_;
   DdaMemHandler memHandler_;
 
   // device buffers
