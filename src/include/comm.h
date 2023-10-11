@@ -16,6 +16,7 @@
 #include "comm_dda.h"
 #include "info.h"
 #include "colltrace.h"
+#include "AlgoManager.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -357,6 +358,8 @@ struct ncclComm {
   COLLTRACE_OBJECT();
 
   ddaPrivateMd *dda;
+
+  std::unique_ptr<nccl::algorithms::AlgoManager> algoMgr{nullptr};
 };
 
 enum ncclLaunchMode {
