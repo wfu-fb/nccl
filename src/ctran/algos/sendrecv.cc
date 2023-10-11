@@ -18,17 +18,11 @@ static ncclResult_t sendImpl(struct collOp *op) {
 
   NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuff, &remoteAccessKey, op->send.peerRank,
         &req), res, exit);
-  isComplete = false;
-  while (isComplete == false) {
-    NCCLCHECKGOTO(req->test(&isComplete), res, exit);
-  }
+  NCCLCHECKGOTO(req->wait(), res, exit);
 
   NCCLCHECKGOTO(mapper->iput(op->send.sendbuff, remoteRecvBuff, sendSize, op->send.peerRank,
         sendHdl, remoteAccessKey, true, &req), res, exit);
-  isComplete = false;
-  while (isComplete == false) {
-    NCCLCHECKGOTO(req->test(&isComplete), res, exit);
-  }
+  NCCLCHECKGOTO(req->wait(), res, exit);
 
 exit:
   return res;
@@ -67,15 +61,8 @@ static ncclResult_t recvImpl(struct collOp *op) {
       res, exit);
 
   NCCLCHECKGOTO(mapper->isendCtrl(op->recv.recvbuff, recvHdl, op->recv.peerRank, &req), res, exit);
-  isComplete = false;
-  while (isComplete == false) {
-    NCCLCHECKGOTO(req->test(&isComplete), res, exit);
-  }
-
-  notify = false;
-  while (notify == false) {
-    NCCLCHECKGOTO(mapper->checkNotify(op->recv.peerRank, &notify), res, exit);
-  }
+  NCCLCHECKGOTO(req->wait(), res, exit);
+  NCCLCHECKGOTO(mapper->waitNotify(op->recv.peerRank), res, exit);
 
 exit:
   return res;
