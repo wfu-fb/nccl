@@ -18,9 +18,7 @@ ctranNvlRequest::~ctranNvlRequest() {
 }
 
 void ctranNvlRequest::complete() {
-  this->pimpl->m.lock();
   this->pimpl->state = ctranNvlRequest::impl::COMPLETE;
-  this->pimpl->m.unlock();
 }
 
 ncclResult_t ctranNvlRequest::test(bool *isComplete) {
@@ -28,9 +26,7 @@ ncclResult_t ctranNvlRequest::test(bool *isComplete) {
 
   NCCLCHECKGOTO(this->pimpl->parent->progress(), res, exit);
 
-  this->pimpl->m.lock();
   *isComplete = (this->pimpl->state == ctranNvlRequest::impl::COMPLETE);
-  this->pimpl->m.unlock();
 
 exit:
   return res;

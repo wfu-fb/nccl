@@ -20,7 +20,6 @@
 struct controlMsg {
   union {
     struct {
-      uint64_t commId;
       uint64_t remoteAddr;
       uint32_t rkey;
     } msg;
@@ -49,7 +48,6 @@ struct wqeState {
       struct controlMsg *cmsg;
     } control;
     struct {
-      uint64_t commId;
       uint64_t remoteAddr;
       uint32_t rkey;
       ctranIbRequest *req;
@@ -57,14 +55,6 @@ struct wqeState {
   } u;
 
   uint64_t wqeId;
-};
-
-struct commQueues {
-  struct {
-    std::vector<struct wqeState *> postedQ;
-    std::vector<ctranIbRequest *> pendingQ;
-  } send, recv;
-  std::vector<struct wqeState *> rtrQ;
 };
 
 static const char *wqeName(enum wqeState::wqeType wqeType) {

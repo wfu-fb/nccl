@@ -37,9 +37,9 @@ ncclResult_t ctranGpe::impl::enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr
         res, exit);
   }
 
-  m.lock();
+  this->m.lock();
   cmdQueue.push(cmd);
-  m.unlock();
+  this->m.unlock();
   c.notify_one();
 
 exit:

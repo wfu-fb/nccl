@@ -3,7 +3,6 @@
 #ifndef CTRAN_NVL_REQUEST_IMPL_H_
 #define CTRAN_NVL_REQUEST_IMPL_H_
 
-#include <mutex>
 #include "ctranNvl.h"
 
 class ctranNvlRequest::impl {
@@ -16,7 +15,6 @@ public:
     INCOMPLETE,
     COMPLETE,
   } state;
-  std::mutex m;
 };
 
 #endif

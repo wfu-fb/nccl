@@ -3,8 +3,8 @@
 #ifndef CTRAN_IB_REQUEST_IMPL_H_
 #define CTRAN_IB_REQUEST_IMPL_H_
 
-#include <mutex>
 #include "ctranIb.h"
+#include <chrono>
 
 class ctranIbRequest::impl {
 public:
@@ -17,7 +17,6 @@ public:
     INCOMPLETE,
     COMPLETE,
   } state;
-  std::mutex m;
 
   std::chrono::time_point<std::chrono::high_resolution_clock> reqPosted;
   std::chrono::time_point<std::chrono::high_resolution_clock> gotRtr;

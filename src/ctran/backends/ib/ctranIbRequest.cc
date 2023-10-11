@@ -23,9 +23,7 @@ ctranIbRequest::~ctranIbRequest() {
 }
 
 void ctranIbRequest::complete() {
-  this->pimpl->m.lock();
   this->pimpl->state = ctranIbRequest::impl::COMPLETE;
-  this->pimpl->m.unlock();
 }
 
 void ctranIbRequest::timestamp(ctranIbRequestTimestamp type) {
@@ -45,9 +43,7 @@ ncclResult_t ctranIbRequest::test(bool *isComplete) {
 
   NCCLCHECKGOTO(this->pimpl->parent->progress(), res, exit);
 
-  this->pimpl->m.lock();
   *isComplete = (this->pimpl->state == ctranIbRequest::impl::COMPLETE);
-  this->pimpl->m.unlock();
 
   if (*isComplete == true) {
     this->pimpl->waitTime = std::chrono::duration_cast<std::chrono::microseconds>

@@ -38,7 +38,6 @@ public:
   /* individual VCs for each peer */
   class vc;
   std::vector<class vc *> vcList;
-  std::mutex cqMutex;
 
 private:
   ncclResult_t bootstrapConnect(int peerRank, int cmd);

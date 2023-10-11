@@ -23,8 +23,8 @@ class ctranIb::impl::vc {
     ncclResult_t setupVc(void *busCard);
     ncclResult_t progress();
     ncclResult_t processCqe(struct wqeState *wqeState);
-    void enqueueIsend(ctranIbRequest *req, uint64_t commId);
-    void enqueueIrecv(ctranIbRequest *req, uint64_t commId);
+    void enqueueIsend(ctranIbRequest *req);
+    void enqueueIrecv(ctranIbRequest *req);
 
   private:
     void setReady();
@@ -47,14 +47,15 @@ class ctranIb::impl::vc {
     struct {
       struct {
         struct wqeState wqeState[MAX_CONTROL_MSGS];
+        std::vector<struct wqeState *> postedQ;
+        std::vector<ctranIbRequest *> pendingQ;
       } send, recv;
-      std::unordered_map<uint64_t, struct commQueues *> commQueues;
+      std::vector<struct wqeState *> rtrQ;
     } data;
 
     std::vector<struct wqeState *> freeSendControlWqes;
 
     bool isReady_;
-    std::mutex m;
     struct ibv_context *context;
     struct ibv_pd *pd;
     struct ibv_cq *cq;

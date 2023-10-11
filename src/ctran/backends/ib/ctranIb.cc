@@ -183,9 +183,7 @@ ncclResult_t ctranIb::progress(void) {
     struct ibv_wc wc;
     int count;
 
-    this->pimpl->cqMutex.lock();
     res = wrap_ibv_poll_cq(this->pimpl->cq, 1, &wc, &count);
-    this->pimpl->cqMutex.unlock();
     NCCLCHECKGOTO(res, res, exit);
 
     if (count == 0) {
@@ -217,7 +215,7 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::isend(const void *buf, std::size_t len, int peerRank, void *hdl, uint64_t commId, ctranIbRequest **req) {
+ncclResult_t ctranIb::isend(const void *buf, std::size_t len, int peerRank, void *hdl, ctranIbRequest **req) {
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl->vcList[peerRank];
@@ -226,7 +224,7 @@ ncclResult_t ctranIb::isend(const void *buf, std::size_t len, int peerRank, void
   }
 
   *req = new ctranIbRequest(const_cast<void *>(buf), len, hdl, this);
-  vc->enqueueIsend(*req, commId);
+  vc->enqueueIsend(*req);
 
   NCCLCHECKGOTO(this->progress(), res, exit);
 
@@ -234,7 +232,7 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::irecv(void *buf, std::size_t len, int peerRank, void *hdl, uint64_t commId, ctranIbRequest **req) {
+ncclResult_t ctranIb::irecv(void *buf, std::size_t len, int peerRank, void *hdl, ctranIbRequest **req) {
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl->vcList[peerRank];
@@ -243,7 +241,7 @@ ncclResult_t ctranIb::irecv(void *buf, std::size_t len, int peerRank, void *hdl,
   }
 
   *req = new ctranIbRequest(const_cast<void *>(buf), len, hdl, this);
-  vc->enqueueIrecv(*req, commId);
+  vc->enqueueIrecv(*req);
 
   NCCLCHECKGOTO(this->progress(), res, exit);
 

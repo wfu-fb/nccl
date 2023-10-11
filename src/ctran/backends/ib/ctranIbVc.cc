@@ -91,19 +91,11 @@ ctranIb::impl::vc::~vc() {
 }
 
 bool ctranIb::impl::vc::isReady() {
-  bool r;
-
-  this->m.lock();
-  r = this->isReady_;
-  this->m.unlock();
-
-  return r;
+  return this->isReady_;
 }
 
 void ctranIb::impl::vc::setReady() {
-  this->m.lock();
   this->isReady_ = true;
-  this->m.unlock();
 }
 
 std::size_t ctranIb::impl::vc::getBusCardSize() {
@@ -338,93 +330,80 @@ ncclResult_t ctranIb::impl::vc::progress(void) {
     goto exit;
   }
 
-  this->m.lock();
+  while (!this->data.recv.pendingQ.empty() && !this->freeSendControlWqes.empty()) {
+    /* get a slot for a control message */
+    auto controlWqeState = this->freeSendControlWqes.front();
+    this->freeSendControlWqes.erase(this->freeSendControlWqes.begin());
 
-  for (auto qMap : this->data.commQueues) {
-    auto commId = qMap.first;
-    auto q = qMap.second;
+    auto dataWqeState = controlWqeState->peerWqe;
 
-    while (!q->recv.pendingQ.empty() && !this->freeSendControlWqes.empty()) {
-      /* get a slot for a control message */
-      auto controlWqeState = this->freeSendControlWqes.front();
-      this->freeSendControlWqes.erase(this->freeSendControlWqes.begin());
+    auto r = this->data.recv.pendingQ.front();
+    this->data.recv.pendingQ.erase(this->data.recv.pendingQ.begin());
 
-      auto dataWqeState = controlWqeState->peerWqe;
-
-      auto r = q->recv.pendingQ.front();
-      q->recv.pendingQ.erase(q->recv.pendingQ.begin());
-
-      struct ibv_mr *mr;
-      mr = reinterpret_cast<struct ibv_mr *>(r->hdl);
-      if (mr == nullptr) {
-        WARN("CTRAN-IB: memory registration not found for addr %p", r->addr);
-        res = ncclSystemError;
-        goto exit;
-      }
-
-      /* post recv data WQE */
-      dataWqeState->u.data.commId = commId;
-      dataWqeState->u.data.remoteAddr = 0;
-      dataWqeState->u.data.rkey = 0;
-      dataWqeState->u.data.req = r;
-      NCCLCHECKGOTO(this->postRecvDataMsg(dataWqeState), res, exit);
-      q->recv.postedQ.push_back(dataWqeState);
-
-      /* post send control WQE */
-      auto cmsg = controlWqeState->u.control.cmsg;
-      cmsg->u.msg.commId = commId;
-      cmsg->u.msg.remoteAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(r->addr));
-      cmsg->u.msg.rkey = mr->rkey;
-      NCCLCHECKGOTO(this->postSendControlMsg(controlWqeState), res, exit);
+    struct ibv_mr *mr;
+    mr = reinterpret_cast<struct ibv_mr *>(r->hdl);
+    if (mr == nullptr) {
+      WARN("CTRAN-IB: memory registration not found for addr %p", r->addr);
+      res = ncclSystemError;
+      goto exit;
     }
 
-    while (!q->send.pendingQ.empty() && !q->rtrQ.empty()) {
-      /* get the next pending send operation */
-      auto r = q->send.pendingQ.front();
-      int numSends = (r->len / this->maxMsgSize) + !!(r->len % this->maxMsgSize);
-      if (this->pendingSendQpWr + numSends > MAX_SEND_WR) {
-        break;
-      }
-      q->send.pendingQ.erase(q->send.pendingQ.begin());
+    /* post recv data WQE */
+    dataWqeState->u.data.remoteAddr = 0;
+    dataWqeState->u.data.rkey = 0;
+    dataWqeState->u.data.req = r;
+    NCCLCHECKGOTO(this->postRecvDataMsg(dataWqeState), res, exit);
+    this->data.recv.postedQ.push_back(dataWqeState);
 
-      /* get the next RTR message */
-      auto controlWqeState = q->rtrQ.front();
-      q->rtrQ.erase(q->rtrQ.begin());
+    /* post send control WQE */
+    auto cmsg = controlWqeState->u.control.cmsg;
+    cmsg->u.msg.remoteAddr = static_cast<uint64_t>(reinterpret_cast<uintptr_t>(r->addr));
+    cmsg->u.msg.rkey = mr->rkey;
+    NCCLCHECKGOTO(this->postSendControlMsg(controlWqeState), res, exit);
+  }
 
-      auto dataWqeState = controlWqeState->peerWqe;
-
-      struct ibv_mr *mr;
-      mr = reinterpret_cast<struct ibv_mr *>(r->hdl);
-      if (mr == nullptr) {
-        WARN("CTRAN-IB: memory registration not found for addr %p", r->addr);
-        res = ncclSystemError;
-        goto exit;
-      }
-
-      /* post send data WQE */
-      dataWqeState->u.data.commId = controlWqeState->u.control.cmsg->u.msg.commId;
-      dataWqeState->u.data.remoteAddr = controlWqeState->u.control.cmsg->u.msg.remoteAddr;
-      dataWqeState->u.data.rkey = controlWqeState->u.control.cmsg->u.msg.rkey;
-      dataWqeState->u.data.req = r;
-      NCCLCHECKGOTO(this->postSendDataMsg(dataWqeState, mr), res, exit);
-      q->send.postedQ.push_back(dataWqeState);
-      r->timestamp(ctranIbRequestTimestamp::GOT_RTR);
-      r->timestamp(ctranIbRequestTimestamp::SEND_DATA_START);
-
-      /* repost receive control WQE */
-      NCCLCHECKGOTO(this->postRecvControlMsg(controlWqeState), res, exit);
+  while (!this->data.send.pendingQ.empty() && !this->data.rtrQ.empty()) {
+    /* get the next pending send operation */
+    auto r = this->data.send.pendingQ.front();
+    int numSends = (r->len / this->maxMsgSize) + !!(r->len % this->maxMsgSize);
+    if (this->pendingSendQpWr + numSends > MAX_SEND_WR) {
+      break;
     }
+    this->data.send.pendingQ.erase(this->data.send.pendingQ.begin());
+
+    /* get the next RTR message */
+    auto controlWqeState = this->data.rtrQ.front();
+    this->data.rtrQ.erase(this->data.rtrQ.begin());
+
+    auto dataWqeState = controlWqeState->peerWqe;
+
+    struct ibv_mr *mr;
+    mr = reinterpret_cast<struct ibv_mr *>(r->hdl);
+    if (mr == nullptr) {
+      WARN("CTRAN-IB: memory registration not found for addr %p", r->addr);
+      res = ncclSystemError;
+      goto exit;
+    }
+
+    /* post send data WQE */
+    dataWqeState->u.data.remoteAddr = controlWqeState->u.control.cmsg->u.msg.remoteAddr;
+    dataWqeState->u.data.rkey = controlWqeState->u.control.cmsg->u.msg.rkey;
+    dataWqeState->u.data.req = r;
+    NCCLCHECKGOTO(this->postSendDataMsg(dataWqeState, mr), res, exit);
+    this->data.send.postedQ.push_back(dataWqeState);
+    r->timestamp(ctranIbRequestTimestamp::GOT_RTR);
+    r->timestamp(ctranIbRequestTimestamp::SEND_DATA_START);
+
+    /* repost receive control WQE */
+    NCCLCHECKGOTO(this->postRecvControlMsg(controlWqeState), res, exit);
   }
 
 exit:
-  this->m.unlock();
   return res;
 }
 
 ncclResult_t ctranIb::impl::vc::processCqe(struct wqeState *wqeState) {
   ncclResult_t res = ncclSuccess;
-
-  this->m.lock();
 
   switch (wqeState->wqeType) {
     case wqeState::wqeType::CONTROL_SEND:
@@ -435,23 +414,17 @@ ncclResult_t ctranIb::impl::vc::processCqe(struct wqeState *wqeState) {
     case wqeState::wqeType::CONTROL_RECV:
       /* received a control message */
       {
-        struct controlMsg *cmsg = wqeState->u.control.cmsg;
-        uint64_t commId = cmsg->u.msg.commId;
-        if (this->data.commQueues.find(commId) == this->data.commQueues.end()) {
-          this->data.commQueues[commId] = new commQueues();
-        }
-        this->data.commQueues[cmsg->u.msg.commId]->rtrQ.push_back(wqeState);
+        this->data.rtrQ.push_back(wqeState);
       }
       break;
 
     case wqeState::wqeType::DATA_SEND:
       /* finished sending a data message */
       {
-        auto q = this->data.commQueues[wqeState->u.data.commId];
-        auto r = q->send.postedQ.front()->u.data.req;
+        auto r = this->data.send.postedQ.front()->u.data.req;
 
-        q->send.postedQ.front()->u.data.req->complete();
-        q->send.postedQ.erase(q->send.postedQ.begin());
+        this->data.send.postedQ.front()->u.data.req->complete();
+        this->data.send.postedQ.erase(this->data.send.postedQ.begin());
 
         int numSends = (r->len / this->maxMsgSize) + !!(r->len % this->maxMsgSize);
         this->pendingSendQpWr -= numSends;
@@ -463,9 +436,8 @@ ncclResult_t ctranIb::impl::vc::processCqe(struct wqeState *wqeState) {
     case wqeState::wqeType::DATA_RECV:
       /* received a data message */
       {
-        auto q = this->data.commQueues[wqeState->u.data.commId];
-        q->recv.postedQ.front()->u.data.req->complete();
-        q->recv.postedQ.erase(q->recv.postedQ.begin());
+        this->data.recv.postedQ.front()->u.data.req->complete();
+        this->data.recv.postedQ.erase(this->data.recv.postedQ.begin());
       }
       break;
 
@@ -476,30 +448,14 @@ ncclResult_t ctranIb::impl::vc::processCqe(struct wqeState *wqeState) {
   }
 
 exit:
-  this->m.unlock();
   return res;
 }
 
-void ctranIb::impl::vc::enqueueIsend(ctranIbRequest *req, uint64_t commId) {
-  this->m.lock();
-
-  if (this->data.commQueues.find(commId) == this->data.commQueues.end()) {
-    this->data.commQueues[commId] = new commQueues();
-  }
-  this->data.commQueues[commId]->send.pendingQ.push_back(req);
-
+void ctranIb::impl::vc::enqueueIsend(ctranIbRequest *req) {
+  this->data.send.pendingQ.push_back(req);
   req->timestamp(ctranIbRequestTimestamp::REQ_POSTED);
-
-  this->m.unlock();
 }
 
-void ctranIb::impl::vc::enqueueIrecv(ctranIbRequest *req, uint64_t commId) {
-  this->m.lock();
-
-  if (this->data.commQueues.find(commId) == this->data.commQueues.end()) {
-    this->data.commQueues[commId] = new commQueues();
-  }
-  this->data.commQueues[commId]->recv.pendingQ.push_back(req);
-
-  this->m.unlock();
+void ctranIb::impl::vc::enqueueIrecv(ctranIbRequest *req) {
+  this->data.recv.pendingQ.push_back(req);
 }

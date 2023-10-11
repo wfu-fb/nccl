@@ -44,8 +44,8 @@ public:
 
   ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
   ncclResult_t deregMem(void *hdl);
-  ncclResult_t isend(const void *buf, size_t len, int rank, void *hdl, uint64_t commId, ctranIbRequest **req);
-  ncclResult_t irecv(void *buf, size_t len, int rank, void *hdl, uint64_t commId, ctranIbRequest **req);
+  ncclResult_t isend(const void *buf, size_t len, int rank, void *hdl, ctranIbRequest **req);
+  ncclResult_t irecv(void *buf, size_t len, int rank, void *hdl, ctranIbRequest **req);
 
 protected:
   ncclResult_t progress(void);

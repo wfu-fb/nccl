@@ -35,8 +35,8 @@ public:
   ~ctranNvl();
   ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
   ncclResult_t deregMem(const void *hdl);
-  ncclResult_t isend(const void *buf, size_t len, int rank, const void *hdl, uint64_t commId, ctranNvlRequest **req);
-  ncclResult_t irecv(void *buf, size_t len, int rank, const void *hdl, uint64_t commId, ctranNvlRequest **req);
+  ncclResult_t isend(const void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req);
+  ncclResult_t irecv(void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req);
 
 protected:
   ncclResult_t progress(void);

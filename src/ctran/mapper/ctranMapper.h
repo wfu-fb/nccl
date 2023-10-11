@@ -60,7 +60,7 @@ struct ncclComm;
 
 class ctranMapper {
 public:
-  ctranMapper(ncclComm *comm, ncclComm *parent, int *parentRanks);
+  ctranMapper(ncclComm *comm);
   ~ctranMapper();
   ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
   ncclResult_t deregMem(void *hdl);

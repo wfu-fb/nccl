@@ -5,30 +5,11 @@
 #include "ctranMapperImpl.h"
 #include "comm.h"
 
-ctranMapper::ctranMapper(ncclComm *comm, ncclComm *parent, int *parentRanks) {
+ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl = std::unique_ptr<impl>(new impl());
-
-  /* rank mapping */
-  if (parent == nullptr) {
-    for (int i = 0; i < comm->nRanks; i++) {
-      this->pimpl->rankMap.push_back(i);
-    }
-  } else {
-    for (int i = 0; i < comm->nRanks; i++) {
-      this->pimpl->rankMap.push_back(parent->ctranMapper->pimpl->rankMap[parentRanks[i]]);
-    }
-  }
 
   /* regCache */
   this->pimpl->regCache = new class ctranRegCache();
-
-  /* get unique Id */
-  if (parent == nullptr) {
-    this->pimpl->sharedMapper = std::make_shared<class ctranMapperShared>();
-  } else {
-    this->pimpl->sharedMapper = parent->ctranMapper->pimpl->sharedMapper;
-  }
-  NCCLCHECKIGNORE(this->pimpl->sharedMapper->getUniqueId(comm, &this->pimpl->uniqueId));
 
   /* check user preference for backends */
   char *ctranBackendsStr = getenv("NCCL_CTRAN_BACKENDS");
@@ -56,34 +37,28 @@ ctranMapper::ctranMapper(ncclComm *comm, ncclComm *parent, int *parentRanks) {
   }
 
   /* enable backends that are possible */
-  if (parent == nullptr) {
-    std::vector<enum ctranMapperBackend>::iterator it;
+  std::vector<enum ctranMapperBackend>::iterator it;
 
-    this->pimpl->ctranIb = nullptr;
-    this->pimpl->ctranNvl = nullptr;
-
-    it = std::find(this->pimpl->backends.begin(), this->pimpl->backends.end(),
-        ctranMapperBackend::IB);
-    if (it != this->pimpl->backends.end()) {
-      try {
-        this->pimpl->ctranIb = std::shared_ptr<class ctranIb>(new class ctranIb(comm));
-      } catch (const std::bad_alloc& e) {
-        WARN("CTRAN: IB backend not enabled");
-      }
+  this->pimpl->ctranIb = nullptr;
+  it = std::find(this->pimpl->backends.begin(), this->pimpl->backends.end(),
+      ctranMapperBackend::IB);
+  if (it != this->pimpl->backends.end()) {
+    try {
+      this->pimpl->ctranIb = std::unique_ptr<class ctranIb>(new class ctranIb(comm));
+    } catch (const std::bad_alloc& e) {
+      WARN("CTRAN: IB backend not enabled");
     }
+  }
 
-    it = std::find(this->pimpl->backends.begin(), this->pimpl->backends.end(),
-        ctranMapperBackend::NVL);
-    if (it != this->pimpl->backends.end()) {
-      try {
-        this->pimpl->ctranNvl = std::shared_ptr<class ctranNvl>(new class ctranNvl(comm));
-      } catch (const std::bad_alloc& e) {
-        WARN("CTRAN: Nvl backend not enabled");
-      }
+  this->pimpl->ctranNvl = nullptr;
+  it = std::find(this->pimpl->backends.begin(), this->pimpl->backends.end(),
+      ctranMapperBackend::NVL);
+  if (it != this->pimpl->backends.end()) {
+    try {
+      this->pimpl->ctranNvl = std::unique_ptr<class ctranNvl>(new class ctranNvl(comm));
+    } catch (const std::bad_alloc& e) {
+      WARN("CTRAN: Nvl backend not enabled");
     }
-  } else {
-    this->pimpl->ctranIb = parent->ctranMapper->pimpl->ctranIb;
-    this->pimpl->ctranNvl = parent->ctranMapper->pimpl->ctranNvl;
   }
 
   for (int i = 0; i < comm->nRanks; i++) {
@@ -200,15 +175,15 @@ ncclResult_t ctranMapper::isend(const void *buf, std::size_t len, int peerRank, 
   switch (this->pimpl->rankBackendMap[peerRank]) {
     case CTRAN_BACKEND_IB:
       {
-        NCCLCHECKGOTO(this->pimpl->ctranIb->isend(buf, len, this->pimpl->rankMap[peerRank],
-              regElem->ibHdl, this->pimpl->uniqueId, &r->ibReq), res, exit);
+        NCCLCHECKGOTO(this->pimpl->ctranIb->isend(buf, len, peerRank,
+              regElem->ibHdl, &r->ibReq), res, exit);
       }
       break;
 
     case CTRAN_BACKEND_NVL:
       {
-        NCCLCHECKGOTO(this->pimpl->ctranNvl->isend(buf, len, this->pimpl->rankMap[peerRank],
-              regElem->nvlHdl, this->pimpl->uniqueId, &r->nvlReq), res, exit);
+        NCCLCHECKGOTO(this->pimpl->ctranNvl->isend(buf, len, peerRank,
+              regElem->nvlHdl, &r->nvlReq), res, exit);
       }
       break;
 
@@ -233,15 +208,15 @@ ncclResult_t ctranMapper::irecv(void *buf, std::size_t len, int peerRank, void *
   switch (this->pimpl->rankBackendMap[peerRank]) {
     case CTRAN_BACKEND_IB:
       {
-        NCCLCHECKGOTO(this->pimpl->ctranIb->irecv(buf, len, this->pimpl->rankMap[peerRank],
-              regElem->ibHdl, this->pimpl->uniqueId, &r->ibReq), res, exit);
+        NCCLCHECKGOTO(this->pimpl->ctranIb->irecv(buf, len, peerRank,
+              regElem->ibHdl, &r->ibReq), res, exit);
       }
       break;
 
     case CTRAN_BACKEND_NVL:
       {
-        NCCLCHECKGOTO(this->pimpl->ctranNvl->irecv(buf, len, this->pimpl->rankMap[peerRank],
-              regElem->nvlHdl, this->pimpl->uniqueId, &r->nvlReq), res, exit);
+        NCCLCHECKGOTO(this->pimpl->ctranNvl->irecv(buf, len, peerRank,
+              regElem->nvlHdl, &r->nvlReq), res, exit);
       }
       break;
 

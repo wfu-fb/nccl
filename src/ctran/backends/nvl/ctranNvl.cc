@@ -22,7 +22,7 @@ ncclResult_t ctranNvl::deregMem(const void *hdl) {
   return ncclSuccess;
 }
 
-ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *hdl, uint64_t commId, ctranNvlRequest **req) {
+ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req) {
   struct ctranNvlElem *elem = new struct ctranNvlElem;
   elem->type = ctranNvlElem::elemType::ISEND;
   elem->u.isend.buf = buf;
@@ -30,19 +30,12 @@ ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *
   elem->req = new class ctranNvlRequest(const_cast<void *>(buf), len, this);
   *req = elem->req;
 
-  this->pimpl->m.lock();
-
-  if (this->pimpl->ops.find(commId) == this->pimpl->ops.end()) {
-    this->pimpl->ops[commId] = new struct ctranNvlCommQueues;
-  }
-  this->pimpl->ops[commId]->pendingSends.push_back(elem);
-
-  this->pimpl->m.unlock();
+  this->pimpl->pendingSends.push_back(elem);
 
   return ncclSuccess;
 }
 
-ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *hdl, uint64_t commId, ctranNvlRequest **req) {
+ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req) {
   struct ctranNvlElem *elem = new struct ctranNvlElem;
   elem->type = ctranNvlElem::elemType::IRECV;
   elem->u.irecv.buf = buf;
@@ -50,14 +43,7 @@ ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *hdl, u
   elem->req = new ctranNvlRequest(buf, len, this);
   *req = elem->req;
 
-  this->pimpl->m.lock();
-
-  if (this->pimpl->ops.find(commId) == this->pimpl->ops.end()) {
-    this->pimpl->ops[commId] = new struct ctranNvlCommQueues;
-  }
-  this->pimpl->ops[commId]->pendingRecvs.push_back(elem);
-
-  this->pimpl->m.unlock();
+  this->pimpl->pendingRecvs.push_back(elem);
 
   return ncclSuccess;
 }
@@ -65,53 +51,46 @@ ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *hdl, u
 ncclResult_t ctranNvl::progress(void) {
   ncclResult_t res = ncclSuccess;
 
-  this->pimpl->m.lock();
+  while (!this->pimpl->pendingRecvs.empty() && !this->pimpl->pendingSends.empty()) {
+    auto r = this->pimpl->pendingRecvs.front();
+    this->pimpl->pendingRecvs.erase(this->pimpl->pendingRecvs.begin());
 
-  for (auto cMap : this->pimpl->ops) {
-    auto c = cMap.second;
+    auto s = this->pimpl->pendingSends.front();
+    this->pimpl->pendingSends.erase(this->pimpl->pendingSends.begin());
 
-    while (!c->pendingRecvs.empty() && !c->pendingSends.empty()) {
-      auto r = c->pendingRecvs.front();
-      c->pendingRecvs.erase(c->pendingRecvs.begin());
-
-      auto s = c->pendingSends.front();
-      c->pendingSends.erase(c->pendingSends.begin());
-
-      if (r->u.irecv.len != s->u.isend.len) {
-        WARN("CTRAN-NVL: unmatched send and recv\n");
-        res = ncclSystemError;
-        goto exit;
-      }
-
-      CUDACHECKGOTO(cudaMemcpyAsync(r->u.irecv.buf, s->u.isend.buf, r->u.irecv.len,
-            cudaMemcpyDefault, this->pimpl->s), res, exit);
-      CUDACHECKGOTO(cudaEventCreate(&r->e), res, exit);
-      CUDACHECKGOTO(cudaEventRecord(r->e, this->pimpl->s), res, exit);
-
-      c->postedRecvs.push_back(r);
-      c->postedSends.push_back(s);
+    if (r->u.irecv.len != s->u.isend.len) {
+      WARN("CTRAN-NVL: unmatched send and recv\n");
+      res = ncclSystemError;
+      goto exit;
     }
 
-    while (!c->postedRecvs.empty() && !c->postedSends.empty()) {
-      auto cudaErr = cudaEventQuery(c->postedRecvs.front()->e);
-      if (cudaErr == cudaErrorNotReady) {
-        break;
-      } else if (cudaErr == cudaSuccess) {
-        CUDACHECKGOTO(cudaEventDestroy(c->postedRecvs.front()->e), res, exit);
-        c->postedRecvs.front()->req->complete();
-        c->postedRecvs.erase(c->postedRecvs.begin());
-        c->postedSends.front()->req->complete();
-        c->postedSends.erase(c->postedSends.begin());
-      } else {
-        WARN("CTRAN-NVL: cudaEventQuery returned error '%s'\n", cudaGetErrorString(cudaErr));
-        res = ncclSystemError;
-        goto exit;
-      }
+    CUDACHECKGOTO(cudaMemcpyAsync(r->u.irecv.buf, s->u.isend.buf, r->u.irecv.len,
+          cudaMemcpyDefault, this->pimpl->s), res, exit);
+    CUDACHECKGOTO(cudaEventCreate(&r->e), res, exit);
+    CUDACHECKGOTO(cudaEventRecord(r->e, this->pimpl->s), res, exit);
+
+    this->pimpl->postedRecvs.push_back(r);
+    this->pimpl->postedSends.push_back(s);
+  }
+
+  while (!this->pimpl->postedRecvs.empty() && !this->pimpl->postedSends.empty()) {
+    auto cudaErr = cudaEventQuery(this->pimpl->postedRecvs.front()->e);
+    if (cudaErr == cudaErrorNotReady) {
+      break;
+    } else if (cudaErr == cudaSuccess) {
+      CUDACHECKGOTO(cudaEventDestroy(this->pimpl->postedRecvs.front()->e), res, exit);
+      this->pimpl->postedRecvs.front()->req->complete();
+      this->pimpl->postedRecvs.erase(this->pimpl->postedRecvs.begin());
+      this->pimpl->postedSends.front()->req->complete();
+      this->pimpl->postedSends.erase(this->pimpl->postedSends.begin());
+    } else {
+      WARN("CTRAN-NVL: cudaEventQuery returned error '%s'\n", cudaGetErrorString(cudaErr));
+      res = ncclSystemError;
+      goto exit;
     }
   }
 
 exit:
-  this->pimpl->m.unlock();
   return res;
 }
 
