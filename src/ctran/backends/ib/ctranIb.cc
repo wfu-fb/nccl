@@ -85,7 +85,7 @@ ctranIb::ctranIb(ncclComm *comm) {
     throw std::bad_alloc();
   }
 
-  int devId = comm->localRank % devices.size();
+  int devId = comm->cudaDev;
   this->pimpl->port = ports[devId];
   INFO(NCCL_INIT, "CTRAN-IB: using device %s, port %d", devices[devId]->name, this->pimpl->port);
 
