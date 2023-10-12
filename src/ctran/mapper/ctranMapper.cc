@@ -120,6 +120,14 @@ ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
 
   struct ctranMapperRegElem *regElem = new struct ctranMapperRegElem;
 
+  cudaPointerAttributes attr;
+  CUDACHECKGOTO(cudaPointerGetAttributes(&attr, buf), res, exit);
+  if (attr.type != cudaMemoryTypeDevice) {
+    WARN("CTRAN-MAPPER: buf %p is not a device buffer\n", buf);
+    res = ncclSystemError;
+    goto exit;
+  }
+
   if (this->pimpl->ctranIb != nullptr) {
     NCCLCHECKGOTO(this->pimpl->ctranIb->regMem(buf, len, &regElem->ibHdl), res, exit);
   }
