@@ -4,20 +4,24 @@
 #include "argcheck.h"
 #include "comm.h"
 
+NCCL_PARAM(LocalRegister, "LOCAL_REGISTER", 1);
+
 NCCL_API(ncclResult_t, ncclCommRegister, const ncclComm_t comm, void* buff, size_t size, void** handle);
 ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle) {
-  NCCLCHECK(PtrCheck(comm, "ncclCommRegister", "comm"));
+  if (ncclParamLocalRegister()) {
+    NCCLCHECK(PtrCheck(comm, "ncclCommRegister", "comm"));
 
-  NCCLCHECK(comm->ctranMapper->regMem(buff, size, handle));
-
+    NCCLCHECK(comm->ctranMapper->regMem(buff, size, handle));
+  }
   return ncclSuccess;
 }
 
 NCCL_API(ncclResult_t, ncclCommDeregister, const ncclComm_t comm, void* handle);
 ncclResult_t ncclCommDeregister(const ncclComm_t comm, void* handle) {
-  NCCLCHECK(PtrCheck(comm, "ncclCommRegister", "comm"));
+  if (ncclParamLocalRegister()) {
+    NCCLCHECK(PtrCheck(comm, "ncclCommRegister", "comm"));
 
-  NCCLCHECK(comm->ctranMapper->deregMem(handle));
-
+    NCCLCHECK(comm->ctranMapper->deregMem(handle));
+  }
   return ncclSuccess;
 }
