@@ -8,7 +8,7 @@
 #include "collectives.h"
 #include "ctranAlgos.h"
 
-NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 512 * 1024);
+NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 0);
 NCCL_PARAM(CtranEnableLocalIb, "CTRAN_ENABLE_LOCAL_IB", 0);
 
 #define LOG_COLL_INFO(algoStr, sendbuff, recvbuff, sendcount, datatype, comm, stream) do {  \
