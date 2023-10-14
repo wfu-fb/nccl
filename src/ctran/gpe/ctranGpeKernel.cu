@@ -27,3 +27,7 @@ __global__ void ncclKernelSend(int *flag) {
 __global__ void ncclKernelRecv(int *flag) {
   ncclKernelStallStream(flag);
 }
+
+__global__ void ncclKernelSendRecv(int *flag) {
+  ncclKernelStallStream(flag);
+}

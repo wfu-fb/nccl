@@ -36,4 +36,6 @@ ncclResult_t ctranSend(const void* sendbuff, size_t count, ncclDataType_t dataty
 ncclResult_t ctranRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream);
 
+ncclResult_t ctranGroupEndHook(void);
+
 #endif

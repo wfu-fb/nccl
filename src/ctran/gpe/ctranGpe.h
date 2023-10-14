@@ -55,5 +55,6 @@ __global__ void ncclKernelAllGatherCtranRing(int *flag);
 __global__ void ncclKernelAllGatherCtranRecDbl(int *flag);
 __global__ void ncclKernelSend(int *flag);
 __global__ void ncclKernelRecv(int *flag);
+__global__ void ncclKernelSendRecv(int *flag);
 
 #endif

@@ -9,6 +9,7 @@
 #include "enqueue.h"
 #include "transport.h"
 #include "channel.h"
+#include "ctranAlgos.h"
 #include <assert.h>
 
 __thread int ncclGroupDepth = 0; // depth of ncclGroupStart nesting
@@ -370,6 +371,8 @@ ncclResult_t ncclGroupEndInternal() {
   if ((--ncclGroupDepth) > 0) goto exit;
 
   if ((ret = ncclGroupError) != ncclSuccess) goto fail;
+
+  NCCLCHECKGOTO(ctranGroupEndHook(), ret, fail);
 
   if (ncclGroupCommHead != nullptr || !ncclIntruQueueEmpty(&ncclAsyncJobs) || ncclGroupCommPreconnectHead != nullptr) {
     ncclGroupJobMain.groupCommHeadPtr = &ncclGroupCommHead;

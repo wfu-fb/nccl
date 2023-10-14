@@ -23,6 +23,7 @@ ncclResult_t ctranGpe::impl::submit(ctranGpeCmd::typeEnum type,
   cmd->type = type;
 
   if (type == ctranGpeCmd::typeEnum::GRAPH_ENQUEUE) {
+    cudaStream_t stream = opGroup.front()->stream;
     cmd->coll.opGroup = std::move(opGroup);
     cmd->coll.func = func;
 
@@ -31,7 +32,7 @@ ncclResult_t ctranGpe::impl::submit(ctranGpeCmd::typeEnum type,
     dim3 grid = { 1, 1, 1 };
     dim3 blocks = { 1, 1, 1 };
     void *args[] = { &this->kernelFlag };
-    CUDACHECKGOTO(cudaLaunchKernel(ncclKernel, grid, blocks, args, 0, cmd->coll.opGroup.front()->stream), res, exit);
+    CUDACHECKGOTO(cudaLaunchKernel(ncclKernel, grid, blocks, args, 0, stream), res, exit);
   }
 
   this->m.lock();
