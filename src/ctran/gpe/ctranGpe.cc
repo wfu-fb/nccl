@@ -11,14 +11,17 @@ ctranGpe::ctranGpe(int cudaDev) {
 }
 
 ctranGpe::~ctranGpe() {
-  this->pimpl->enqueue(ctranGpeCmd::typeEnum::TERMINATE, nullptr, nullptr);
+  std::vector<std::unique_ptr<struct collOp>> empty;
+  this->pimpl->submit(ctranGpeCmd::typeEnum::TERMINATE, std::move(empty), nullptr, nullptr);
   this->pimpl->t.join();
 }
 
-ncclResult_t ctranGpe::submit(std::unique_ptr<struct collOp> op, cudaStream_t stream) {
+ncclResult_t ctranGpe::submit(std::vector<std::unique_ptr<struct collOp>> opGroup,
+    collOpFunc func, const void *ncclKernel) {
   ncclResult_t res = ncclSuccess;
 
-  NCCLCHECKGOTO(this->pimpl->enqueue(ctranGpeCmd::typeEnum::GRAPH_ENQUEUE, std::move(op), stream), res, exit);
+  NCCLCHECKGOTO(this->pimpl->submit(ctranGpeCmd::typeEnum::GRAPH_ENQUEUE, std::move(opGroup),
+        func, ncclKernel), res, exit);
 
 exit:
   return res;

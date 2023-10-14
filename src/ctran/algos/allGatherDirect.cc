@@ -4,12 +4,13 @@
 #include "comm.h"
 #include <iostream>
 
-static ncclResult_t impl(struct collOp *op) {
+static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   ncclResult_t res = ncclSuccess;
+  struct collOp *op = opGroup.front().get();
   size_t sendSize = op->allgather.sendcount * ncclTypeSize(op->allgather.datatype);
-  int rank = op->allgather.comm->rank;
-  int nRanks = op->allgather.comm->nRanks;
-  ctranMapper *mapper = op->allgather.comm->ctranMapper;
+  int rank = op->comm->rank;
+  int nRanks = op->comm->nRanks;
+  ctranMapper *mapper = op->comm->ctranMapper;
   void *sendHdl, *recvHdl;
   void *remoteRecvBuffs[nRanks];
   struct ctranMapperRemoteAccessKey remoteAccessKeys[nRanks];
@@ -117,15 +118,18 @@ ncclResult_t ctranAllGatherDirect(const void* sendbuff, void* recvbuff,
   std::unique_ptr<struct collOp> op;
 
   op = std::unique_ptr<struct collOp>(new struct collOp);
-  op->func = impl;
-  op->ncclKernel = reinterpret_cast<void *>(ncclKernelAllGatherCtranDirect);
+  op->type = collOp::opType::ALLGATHER;
+  op->comm = comm;
+  op->stream = stream;
   op->allgather.sendbuff = sendbuff;
   op->allgather.recvbuff = recvbuff;
   op->allgather.sendcount = sendcount;
   op->allgather.datatype = datatype;
-  op->allgather.comm = comm;
 
-  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(op), stream), res, fail);
+  std::vector<std::unique_ptr<struct collOp>> opGroup;
+  opGroup.push_back(std::move(op));
+  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(opGroup), impl,
+        reinterpret_cast<void *>(ncclKernelAllGatherCtranDirect)), res, fail);
 
 fail:
   return res;

@@ -20,8 +20,8 @@ class ctranGpeCmd {
     } type;
 
     struct {
-      std::unique_ptr<struct collOp> op;
-      cudaStream_t stream;
+      std::vector<std::unique_ptr<struct collOp>> opGroup;
+      collOpFunc func;
     } coll;
 };
 
@@ -30,8 +30,8 @@ class ctranGpe::impl {
     impl();
     ~impl();
 
-    ncclResult_t enqueue(ctranGpeCmd::typeEnum type, std::unique_ptr<struct collOp> op,
-        cudaStream_t stream);
+    ncclResult_t submit(ctranGpeCmd::typeEnum type, std::vector<std::unique_ptr<struct collOp>> opGroup,
+        collOpFunc func, const void *ncclKernel);
     static void gpeThreadFn(class ctranGpe::impl *pimpl, int cudaDev);
 
     std::thread t;

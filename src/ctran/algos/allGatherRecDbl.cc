@@ -4,18 +4,19 @@
 #include "comm.h"
 #include "ctranAlgos.h"
 
-static ncclResult_t impl(struct collOp* op) {
+static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   ncclResult_t res = ncclSuccess;
+  struct collOp *op = opGroup.front().get();
   size_t sendSize =
       op->allgather.sendcount * ncclTypeSize(op->allgather.datatype);
-  int rank = op->allgather.comm->rank;
-  int nRanks = op->allgather.comm->nRanks;
+  int rank = op->comm->rank;
+  int nRanks = op->comm->nRanks;
   int nSteps = log2i(nRanks);
   void* sendbuff = (void*)op->allgather.sendbuff;
   void* recvbuff = (void*)op->allgather.recvbuff;
   bool inPlace = (char*)sendbuff == (char*)recvbuff + rank * sendSize;
 
-  ctranMapper* mapper = op->allgather.comm->ctranMapper;
+  ctranMapper* mapper = op->comm->ctranMapper;
   void *sendHdl, *recvHdl;
   size_t peers[nSteps];
   size_t dists[nSteps];
@@ -128,15 +129,18 @@ ncclResult_t ctranAllGatherRd(
   std::unique_ptr<struct collOp> op;
 
   op = std::unique_ptr<struct collOp>(new struct collOp);
-  op->func = impl;
-  op->ncclKernel = reinterpret_cast<void*>(ncclKernelAllGatherCtranRecDbl);
+  op->type = collOp::opType::ALLGATHER;
+  op->comm = comm;
+  op->stream = stream;
   op->allgather.sendbuff = sendbuff;
   op->allgather.recvbuff = recvbuff;
   op->allgather.sendcount = sendcount;
   op->allgather.datatype = datatype;
-  op->allgather.comm = comm;
 
-  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(op), stream), res, fail);
+  std::vector<std::unique_ptr<struct collOp>> opGroup;
+  opGroup.push_back(std::move(op));
+  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(opGroup), impl,
+        reinterpret_cast<void *>(ncclKernelAllGatherCtranRecDbl)), res, fail);
 
 fail:
   return res;
