@@ -129,7 +129,7 @@ ncclResult_t ctranAllGatherRd(
 
   op = std::unique_ptr<struct collOp>(new struct collOp);
   op->func = impl;
-  op->ncclKernel = reinterpret_cast<void*>(ncclKernelAllGatherCTRD);
+  op->ncclKernel = reinterpret_cast<void*>(ncclKernelAllGatherCtranRecDbl);
   op->allgather.sendbuff = sendbuff;
   op->allgather.recvbuff = recvbuff;
   op->allgather.sendcount = sendcount;

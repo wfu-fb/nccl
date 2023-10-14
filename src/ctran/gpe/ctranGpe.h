@@ -44,9 +44,9 @@ class ctranGpe {
     std::unique_ptr<impl> pimpl;
 };
 
-__global__ void ncclKernelAllGatherCTD(int *flag);
-__global__ void ncclKernelAllGatherCTR(int *flag);
-__global__ void ncclKernelAllGatherCTRD(int *flag);
+__global__ void ncclKernelAllGatherCtranDirect(int *flag);
+__global__ void ncclKernelAllGatherCtranRing(int *flag);
+__global__ void ncclKernelAllGatherCtranRecDbl(int *flag);
 __global__ void ncclKernelSend(int *flag);
 __global__ void ncclKernelRecv(int *flag);
 

@@ -8,15 +8,15 @@ static inline __device__ void ncclKernelStallStream(int *flag) {
   while (*flag_d != KERNEL_TERMINATE) {}
 }
 
-__global__ void ncclKernelAllGatherCTD(int *flag) {
+__global__ void ncclKernelAllGatherCtranDirect(int *flag) {
   ncclKernelStallStream(flag);
 }
 
-__global__ void ncclKernelAllGatherCTR(int *flag) {
+__global__ void ncclKernelAllGatherCtranRing(int *flag) {
   ncclKernelStallStream(flag);
 }
 
-__global__ void ncclKernelAllGatherCTRD(int *flag) {
+__global__ void ncclKernelAllGatherCtranRecDbl(int *flag) {
   ncclKernelStallStream(flag);
 }
 
