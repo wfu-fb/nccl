@@ -183,34 +183,44 @@ exit:
 }
 
 ncclResult_t ctranMapper::progress(void) {
+  ncclResult_t res = ncclSuccess;
+
   if (this->pimpl->ctranIb != nullptr) {
-    NCCLCHECK(this->pimpl->ctranIb->progress());
+    NCCLCHECKGOTO(this->pimpl->ctranIb->progress(), res, exit);
   }
   if (this->pimpl->ctranNvl != nullptr) {
-    NCCLCHECK(this->pimpl->ctranNvl->progress());
+    NCCLCHECKGOTO(this->pimpl->ctranNvl->progress(), res, exit);
   }
 
-  return ncclSuccess;
+exit:
+  return res;
 }
 
 ncclResult_t ctranMapper::getTmpBuf(void** addr, std::size_t len, void **hdl) {
-    this->tmpBufLock.lock();
-    *hdl = nullptr;
-    std::size_t bufLen;
-    NCCLCHECK(this->pimpl->memPool->getBuf(len, addr, hdl, &bufLen));
-    if (*hdl == nullptr) {
-      NCCLCHECK(this->regMem(*addr, bufLen, hdl));
-    }
-    this->tmpBufLock.unlock();
-    return ncclSuccess;
+  ncclResult_t res = ncclSuccess;
+
+  this->tmpBufLock.lock();
+  *hdl = nullptr;
+  std::size_t bufLen;
+  NCCLCHECKGOTO(this->pimpl->memPool->getBuf(len, addr, hdl, &bufLen), res, exit);
+  if (*hdl == nullptr) {
+    NCCLCHECKGOTO(this->regMem(*addr, bufLen, hdl), res, exit);
+  }
+
+exit:
+  this->tmpBufLock.unlock();
+  return res;
 }
 
 ncclResult_t ctranMapper::releaseTmpBuf(void* addr, void *hdl) {
-    this->tmpBufLock.lock();
-    NCCLCHECK(this->pimpl->memPool->release(addr, hdl));
-    this->tmpBufLock.unlock();
+  ncclResult_t res = ncclSuccess;
 
-    return ncclSuccess;
+  this->tmpBufLock.lock();
+  NCCLCHECKGOTO(this->pimpl->memPool->release(addr, hdl), res, exit);
+
+exit:
+  this->tmpBufLock.unlock();
+  return res;
 }
 
 ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperRequest **req) {
@@ -229,7 +239,7 @@ ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperR
   }
 
 exit:
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranMapper::irecvCtrl(void **buf, struct ctranMapperRemoteAccessKey *key, int rank,
@@ -246,7 +256,7 @@ ncclResult_t ctranMapper::irecvCtrl(void **buf, struct ctranMapperRemoteAccessKe
   }
 
 exit:
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranMapper::iput(const void *sbuf, void *dbuf, std::size_t len, int rank, void *shdl,
@@ -279,7 +289,7 @@ ncclResult_t ctranMapper::checkNotify(int rank, bool *notify) {
   }
 
 exit:
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranMapper::waitNotify(int rank) {
@@ -291,6 +301,6 @@ ncclResult_t ctranMapper::waitNotify(int rank) {
   }
 
 exit:
-  return ncclSuccess;
+  return res;
 }
 

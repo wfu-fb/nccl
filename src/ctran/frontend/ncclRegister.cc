@@ -8,20 +8,26 @@ NCCL_PARAM(LocalRegister, "LOCAL_REGISTER", 1);
 
 NCCL_API(ncclResult_t, ncclCommRegister, const ncclComm_t comm, void* buff, size_t size, void** handle);
 ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle) {
-  if (ncclParamLocalRegister()) {
-    NCCLCHECK(PtrCheck(comm, "ncclCommRegister", "comm"));
+  ncclResult_t res = ncclSuccess;
 
-    NCCLCHECK(comm->ctranMapper->regMem(buff, size, handle));
+  if (ncclParamLocalRegister()) {
+    NCCLCHECKGOTO(PtrCheck(comm, "ncclCommRegister", "comm"), res, exit);
+    NCCLCHECKGOTO(comm->ctranMapper->regMem(buff, size, handle), res, exit);
   }
-  return ncclSuccess;
+
+exit:
+  return res;
 }
 
 NCCL_API(ncclResult_t, ncclCommDeregister, const ncclComm_t comm, void* handle);
 ncclResult_t ncclCommDeregister(const ncclComm_t comm, void* handle) {
-  if (ncclParamLocalRegister()) {
-    NCCLCHECK(PtrCheck(comm, "ncclCommRegister", "comm"));
+  ncclResult_t res = ncclSuccess;
 
-    NCCLCHECK(comm->ctranMapper->deregMem(handle));
+  if (ncclParamLocalRegister()) {
+    NCCLCHECKGOTO(PtrCheck(comm, "ncclCommRegister", "comm"), res, exit);
+    NCCLCHECKGOTO(comm->ctranMapper->deregMem(handle), res, exit);
   }
-  return ncclSuccess;
+
+exit:
+  return res;
 }

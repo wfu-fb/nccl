@@ -16,7 +16,9 @@ void ctranIbRequest::complete() {
 }
 
 ncclResult_t ctranIbRequest::test(bool *isComplete) {
+  ncclResult_t res = ncclSuccess;
+
   *isComplete = (this->state == ctranIbRequest::COMPLETE);
 
-  return ncclSuccess;
+  return res;
 }

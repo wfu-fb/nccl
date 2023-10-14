@@ -169,10 +169,13 @@ exit:
 }
 
 ncclResult_t ctranIb::deregMem(void *hdl) {
-  struct ibv_mr *mr = reinterpret_cast<struct ibv_mr *>(hdl);
-  NCCLCHECK(wrap_ibv_dereg_mr(mr));
+  ncclResult_t res = ncclSuccess;
 
-  return ncclSuccess;
+  struct ibv_mr *mr = reinterpret_cast<struct ibv_mr *>(hdl);
+  NCCLCHECKGOTO(wrap_ibv_dereg_mr(mr), res, exit);
+
+exit:
+  return res;
 }
 
 ncclResult_t ctranIb::progress(void) {

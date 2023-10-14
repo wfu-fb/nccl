@@ -18,6 +18,8 @@ ctranRegCache::~ctranRegCache() {
 }
 
 ncclResult_t ctranRegCache::insert(const void *addr, std::size_t len, void *val, void **hdl) {
+  ncclResult_t res = ncclSuccess;
+
   struct regElem *e = new struct regElem();
 
   e->addr = reinterpret_cast<uintptr_t>(addr);
@@ -27,17 +29,21 @@ ncclResult_t ctranRegCache::insert(const void *addr, std::size_t len, void *val,
   this->pimpl->root.push_back(e);
   *hdl = reinterpret_cast<void *>(e);
 
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranRegCache::remove(void *hdl) {
+  ncclResult_t res = ncclSuccess;
+
   struct regElem *e = reinterpret_cast<struct regElem *>(hdl);
   this->pimpl->root.erase(std::remove(this->pimpl->root.begin(), this->pimpl->root.end(), e), this->pimpl->root.end());
 
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranRegCache::search(const void *addr, std::size_t len, void **hdl) {
+  ncclResult_t res = ncclSuccess;
+
   uintptr_t a = reinterpret_cast<uintptr_t>(addr);
   *hdl = nullptr;
 
@@ -51,14 +57,16 @@ ncclResult_t ctranRegCache::search(const void *addr, std::size_t len, void **hdl
     TRACE("CTRAN-REGCACHE: buffer %p, %lu bytes is not registered", addr, len);
   }
 
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranRegCache::lookup(void *hdl, void **val) {
+  ncclResult_t res = ncclSuccess;
+
   struct regElem *e = reinterpret_cast<struct regElem *>(hdl);
   *val = e->val;
 
-  return ncclSuccess;
+  return res;
 }
 
 std::vector<void *> ctranRegCache::flush() {

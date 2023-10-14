@@ -22,6 +22,8 @@ void ctranMapperMemPool::printSnapshot() {
 }
 
 ncclResult_t ctranMapperMemPool::init() {
+  ncclResult_t res = ncclSuccess;
+
   // create a pool
   this->pimpl->freePool.reserve(this->pimpl->numBlocks);
   this->pimpl->busyPool.reserve(this->pimpl->numBlocks);
@@ -38,10 +40,13 @@ ncclResult_t ctranMapperMemPool::init() {
       this->pimpl->numBlocks);
 
   this->printSnapshot();
-  return ncclSuccess;
+
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::releaseAll() {
+  ncclResult_t res = ncclSuccess;
+
   if (!this->pimpl->freePool.empty() || !this->pimpl->busyPool.empty()) {
     INFO(NCCL_INIT, "free memory pool!");
     this->printSnapshot();
@@ -62,7 +67,8 @@ ncclResult_t ctranMapperMemPool::releaseAll() {
     this->pimpl->freePool.clear();
     this->pimpl->numBlocks = 0;
   }
-  return ncclSuccess;
+
+  return res;
 }
 
 /* Get a large enough block from free list
@@ -75,6 +81,8 @@ ncclResult_t ctranMapperMemPool::releaseAll() {
  */
 ncclResult_t
 ctranMapperMemPool::getFreeBlk(std::size_t len, void** addr, void** hdl) {
+  ncclResult_t res = ncclSuccess;
+
   *hdl = nullptr;
   // search the free list to find a block that is large enough
   // TODO: more efficient search
@@ -99,7 +107,7 @@ ctranMapperMemPool::getFreeBlk(std::size_t len, void** addr, void** hdl) {
   }
   if (!found) {
     auto newLen = (len < kDefaultMinBlockSize) ? kDefaultMinBlockSize : len;
-    NCCLCHECK(this->alloc(addr, newLen));
+    NCCLCHECKGOTO(this->alloc(addr, newLen), res, exit);
     this->pimpl->busyPool.emplace(std::make_shared<memBlockInfo>(*addr, newLen, -1, nullptr));
     TRACE(
         "%s:%d: no free block available to satisify %lu bytes buffer, allocate a new one %p",
@@ -111,16 +119,22 @@ ctranMapperMemPool::getFreeBlk(std::size_t len, void** addr, void** hdl) {
     this->printSnapshot();
   }
 
-  return ncclSuccess;
+exit:
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::getBuf(std::size_t len, void** addr, void** hdl, std::size_t *bufLen) {
+  ncclResult_t res = ncclSuccess;
+
   this->getFreeBlk(len, addr, hdl);
   *bufLen = (len < kDefaultMinBlockSize) ? kDefaultMinBlockSize : len;
-  return ncclSuccess;
+
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::release(void* addr, void* hdl) {
+  ncclResult_t res = ncclSuccess;
+
   // TODO: more efficient search
   for (auto& blk : this->pimpl->busyPool) {
     if (blk->addr == addr) {
@@ -138,51 +152,67 @@ ncclResult_t ctranMapperMemPool::release(void* addr, void* hdl) {
     }
   }
 
-  return ncclSuccess;
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::alloc(void** addr, std::size_t len) {
-  CUDACHECK(cudaMalloc(addr, len));
-  return ncclSuccess;
+  ncclResult_t res = ncclSuccess;
+
+  CUDACHECKGOTO(cudaMalloc(addr, len), res, exit);
+
+exit:
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::free(void* addr) {
-  CUDACHECK(cudaFree(addr));
-  return ncclSuccess;
+  ncclResult_t res = ncclSuccess;
+
+  CUDACHECKGOTO(cudaFree(addr), res, exit);
+
+exit:
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::regMem(
     std::function<ncclResult_t(const void*, std::size_t, void**)> regMemFunc) {
+  ncclResult_t res = ncclSuccess;
+
   for (auto& blk : this->pimpl->freePool) {
     if (!blk->hdl) {
       void* hdl;
-      NCCLCHECK(regMemFunc(blk->addr, blk->len, &hdl));
+      NCCLCHECKGOTO(regMemFunc(blk->addr, blk->len, &hdl), res, exit);
       blk->hdl = hdl;
     }
   }
   for (auto& blk : this->pimpl->busyPool) {
     if (!blk->hdl) {
       void* hdl;
-      NCCLCHECK(regMemFunc(blk->addr, blk->len, &hdl));
+      NCCLCHECKGOTO(regMemFunc(blk->addr, blk->len, &hdl), res, exit);
       blk->hdl = hdl;
     }
   }
-  return ncclSuccess;
+
+exit:
+  return res;
 }
 
 ncclResult_t ctranMapperMemPool::deregMem(
     std::function<ncclResult_t(void*)> deRegMemFunc) {
+  ncclResult_t res = ncclSuccess;
+
   for (auto& blk : this->pimpl->freePool) {
     if (blk->hdl) {
       TRACE("deregister %p, hdl %p", blk->addr, blk->hdl);
-      NCCLCHECK(deRegMemFunc(blk->hdl));
+      NCCLCHECKGOTO(deRegMemFunc(blk->hdl), res, exit);
     }
   }
   for (auto& blk : this->pimpl->busyPool) {
     if (blk->hdl) {
       TRACE("deregister %p, hdl %p", blk->addr, blk->hdl);
-      NCCLCHECK(deRegMemFunc(blk->hdl));
+      NCCLCHECKGOTO(deRegMemFunc(blk->hdl), res, exit);
     }
   }
-  return ncclSuccess;
+
+exit:
+  return res;
 }

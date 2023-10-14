@@ -489,6 +489,8 @@ exit:
 }
 
 ncclResult_t ctranIb::impl::vc::checkNotify(bool *notify) {
+  ncclResult_t res = ncclSuccess;
+
   if (this->notifications) {
     *notify = true;
     this->notifications--;
@@ -496,5 +498,5 @@ ncclResult_t ctranIb::impl::vc::checkNotify(bool *notify) {
     *notify = false;
   }
 
-  return ncclSuccess;
+  return res;
 }
