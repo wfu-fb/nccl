@@ -17,7 +17,7 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   if (ctranBackendsStr) {
     s = ctranBackendsStr;
   } else {
-    s = "nvl,ib";
+    s = "ib";
   }
   std::string delim = ",";
 
