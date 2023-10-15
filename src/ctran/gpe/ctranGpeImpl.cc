@@ -48,17 +48,13 @@ void ctranGpe::impl::gpeThreadFn(ctranGpe::impl *pimpl, int cudaDev) {
   CUDACHECKIGNORE(cudaSetDevice(cudaDev));
 
   while (1) {
-    /* if we have no more commands left to process, wait for a signal */
-    if (pimpl->internalCmdQueue.empty()) {
-      std::unique_lock<std::mutex> lk(pimpl->m);
-      pimpl->c.wait(lk, [&] { return !pimpl->cmdQueue.empty(); } );
-      pimpl->internalCmdQueue.push(pimpl->cmdQueue.front());
-      pimpl->cmdQueue.pop();
-      pimpl->m.unlock();
-    }
+    std::unique_lock<std::mutex> lk(pimpl->m);
+    pimpl->c.wait(lk, [&] { return !pimpl->cmdQueue.empty(); } );
 
-    auto cmd = pimpl->internalCmdQueue.front();
-    pimpl->internalCmdQueue.pop();
+    auto cmd = pimpl->cmdQueue.front();
+    pimpl->cmdQueue.pop();
+    pimpl->m.unlock();
+
     if (cmd->type == ctranGpeCmd::typeEnum::TERMINATE) {
       goto exit;
     }

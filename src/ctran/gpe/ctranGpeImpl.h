@@ -36,7 +36,6 @@ class ctranGpe::impl {
 
     std::thread t;
     std::queue<ctranGpeCmd *> cmdQueue;
-    std::queue<ctranGpeCmd *> internalCmdQueue;
     std::mutex m;
     std::condition_variable c;
     int *kernelFlag;
