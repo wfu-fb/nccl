@@ -24,8 +24,8 @@ static ncclResult_t topoDetect(
 
   /* perf rank Matrix is like an adjacency matrix, but ranks links
    * based on performance.  Rank 0 means very fast connectivity. */
-  uint8_t perfRankMatrix[nGPUs][nGPUs];
-  uint8_t adjacencyMatrix[nGPUs][nGPUs];
+  std::vector<std::vector<uint8_t>> perfRankMatrix(nGPUs, std::vector<uint8_t>(nGPUs));
+  std::vector<std::vector<uint8_t>> adjacencyMatrix(nGPUs, std::vector<uint8_t>(nGPUs));
 
   for (int i = 0; i < nGPUs; i++) {
     for (int j = 0; j < nGPUs; j++) {
@@ -190,8 +190,8 @@ ddaPrivateMd::ddaPrivateMd(ddaThreadSharedMd *threadSharedMd, ncclComm *comm) {
   CUDACHECKIGNORE(cudaStreamSynchronize(s));
   CUDACHECKIGNORE(cudaStreamDestroy(s));
 
-  int cudaDevs[this->comm->nRanks];
-  CUDACHECKIGNORE(cudaMemcpy(cudaDevs, cudaDevPtr, this->comm->nRanks * sizeof(int), cudaMemcpyDefault));
+  std::vector<int> cudaDevs(this->comm->nRanks);
+  CUDACHECKIGNORE(cudaMemcpy(cudaDevs.data(), cudaDevPtr, this->comm->nRanks * sizeof(int), cudaMemcpyDefault));
 
   std::unordered_map<int, int> gpuToRank;
   for (int i = 0; i < this->comm->nRanks; i++) {
@@ -235,7 +235,7 @@ ddaPrivateMd::ddaPrivateMd(ddaThreadSharedMd *threadSharedMd, ncclComm *comm) {
 
   if (this->topoType == NCCL_DDA_TOPO_TYPE__HCM) {
     int idx = 0;
-    int topoRanks[this->comm->nRanks];
+    std::vector<int> topoRanks(this->comm->nRanks);
     for (int i = 0; i < 2; i++) {
       for (auto g : this->u.hcm.clique[i].gpus) {
         topoRanks[idx] = gpuToRank[g];
@@ -247,8 +247,8 @@ ddaPrivateMd::ddaPrivateMd(ddaThreadSharedMd *threadSharedMd, ncclComm *comm) {
     }
 
     CUDACHECKIGNORE(cudaMalloc(&this->commMdHost[this->comm->rank].topoRanks, this->comm->nRanks * sizeof(int)));
-    CUDACHECKIGNORE(cudaMemcpy(this->commMdHost[this->comm->rank].topoRanks, topoRanks, this->comm->nRanks * sizeof(int),
-                               cudaMemcpyDefault));
+    CUDACHECKIGNORE(cudaMemcpy(this->commMdHost[this->comm->rank].topoRanks, topoRanks.data(),
+          this->comm->nRanks * sizeof(int), cudaMemcpyDefault));
   } else {
     this->commMdHost[this->comm->rank].topoRanks = nullptr;
   }
