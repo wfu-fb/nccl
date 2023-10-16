@@ -21,6 +21,8 @@ LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
 							 collectives/all_reduce_dda.cc
 
+INCLUDES := -Iinclude
+INCLUDES += -Ialgorithms
 
 ##### lib files
 LIBNAME     := libnccl.so
@@ -123,8 +125,8 @@ $(PKGDIR)/%.pc : %.pc
 $(OBJDIR)/%.o : %.cc $(INCTARGETS)
 	@printf "Compiling  %-35s > %s\n" $< $@
 	mkdir -p `dirname $@`
-	$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) -Iinclude -c $< -o $@
-	@$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) -Iinclude -M $< > $(@:%.o=%.d.tmp)
+	$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	@$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) $(INCLUDES) -M $< > $(@:%.o=%.d.tmp)
 	@sed "0,/^.*:/s//$(subst /,\/,$@):/" $(@:%.o=%.d.tmp) > $(@:%.o=%.d)
 	@sed -e 's/.*://' -e 's/\\$$//' < $(@:%.o=%.d.tmp) | fmt -1 | \
                 sed -e 's/^ *//' -e 's/$$/:/' >> $(@:%.o=%.d)
