@@ -12,18 +12,14 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   int nRanks = op->comm->nRanks;
   ctranMapper *mapper = op->comm->ctranMapper;
   void *sendHdl, *recvHdl;
-  std::unique_ptr<void *[]> remoteRecvBuffs = std::unique_ptr<void *[]>(new void *[nRanks]);
-  std::unique_ptr<struct ctranMapperRemoteAccessKey[]> remoteAccessKeys =
-    std::unique_ptr<struct ctranMapperRemoteAccessKey[]>(new struct ctranMapperRemoteAccessKey[nRanks]);
-  std::unique_ptr<ctranMapperRequest *[]> irecvReq =
-    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nRanks]);
-  std::unique_ptr<ctranMapperRequest *[]> isendReq =
-    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nRanks]);
-  std::unique_ptr<ctranMapperRequest *[]> iputReq =
-    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nRanks]);
-  std::unique_ptr<bool[]> irecvComplete = std::unique_ptr<bool[]>(new bool[nRanks]);
-  std::unique_ptr<bool[]> isendComplete = std::unique_ptr<bool[]>(new bool[nRanks]);
-  std::unique_ptr<bool[]> iputComplete = std::unique_ptr<bool[]>(new bool[nRanks]);
+  std::vector<void *> remoteRecvBuffs(nRanks);
+  std::vector<struct ctranMapperRemoteAccessKey> remoteAccessKeys(nRanks);
+  std::vector<ctranMapperRequest *> irecvReq(nRanks);
+  std::vector<ctranMapperRequest *> isendReq(nRanks);
+  std::vector<ctranMapperRequest *> iputReq(nRanks);
+  std::vector<bool> irecvComplete(nRanks);
+  std::vector<bool> isendComplete(nRanks);
+  std::vector<bool> iputComplete(nRanks);
   bool localRegSend, localRegRecv;
 
   for (int i = 0; i < nRanks; i++) {
@@ -78,7 +74,9 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
         continue;
       }
 
-      NCCLCHECKGOTO(irecvReq[peer]->test(&irecvComplete[peer]), res, exit);
+      bool isComplete;
+      NCCLCHECKGOTO(irecvReq[peer]->test(&isComplete), res, exit);
+      irecvComplete[peer] = isComplete;
       if (irecvComplete[peer] == false) {
         pendingRecv = true;
         continue;

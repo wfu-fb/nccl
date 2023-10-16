@@ -18,17 +18,13 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
 
   ctranMapper* mapper = op->comm->ctranMapper;
   void *sendHdl, *recvHdl;
-  std::unique_ptr<size_t[]> peers = std::unique_ptr<size_t[]>(new size_t[nSteps]);
-  std::unique_ptr<size_t[]> dists = std::unique_ptr<size_t[]>(new size_t[nSteps]);
-  std::unique_ptr<void *[]> remoteRecvBuffs = std::unique_ptr<void *[]>(new void *[nSteps]);
-  std::unique_ptr<struct ctranMapperRemoteAccessKey[]> remoteAccessKeys =
-    std::unique_ptr<struct ctranMapperRemoteAccessKey[]>(new struct ctranMapperRemoteAccessKey[nSteps]);
-  std::unique_ptr<ctranMapperRequest *[]> irecvReq =
-    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nSteps]);
-  std::unique_ptr<ctranMapperRequest *[]> isendReq =
-    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nSteps]);
-  std::unique_ptr<ctranMapperRequest *[]> iputReq =
-    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nSteps]);
+  std::vector<size_t> peers(nSteps);
+  std::vector<size_t> dists(nSteps);
+  std::vector<void *> remoteRecvBuffs(nSteps);
+  std::vector<struct ctranMapperRemoteAccessKey> remoteAccessKeys(nSteps);
+  std::vector<ctranMapperRequest *> irecvReq(nSteps);
+  std::vector<ctranMapperRequest *> isendReq(nSteps);
+  std::vector<ctranMapperRequest *> iputReq(nSteps);
 
   ctranMapperRequest* copyReq;
   bool copyComplete = inPlace;

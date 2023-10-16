@@ -9,17 +9,8 @@ thread_local std::deque<struct collOp *> ctranOpGroup;
 static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   ncclResult_t res = ncclSuccess;
   std::vector<struct collOp *> sendOpGroup;
-  std::unique_ptr<void *[]> sendMemHdl;
-  std::unique_ptr<void *[]> remoteRecvBuff;
-  std::unique_ptr<struct ctranMapperRemoteAccessKey[]> remoteAccessKey;
-  std::unique_ptr<ctranMapperRequest *[]> sendCtrlReqs;
-  std::unique_ptr<ctranMapperRequest *[]> putReqs;
-  std::unique_ptr<bool[]> putIssued;
 
   std::vector<struct collOp *> recvOpGroup;
-  std::unique_ptr<void *[]> recvMemHdl;
-  std::unique_ptr<ctranMapperRequest *[]> recvCtrlReqs;
-  std::unique_ptr<int[]> recvPeerRanks;
 
   for (auto& op : opGroup) {
     if (op->type == collOp::opType::SEND) {
@@ -29,17 +20,16 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
     }
   }
 
-  sendMemHdl = std::unique_ptr<void *[]>(new void *[sendOpGroup.size()]);
-  remoteRecvBuff = std::unique_ptr<void *[]>(new void *[sendOpGroup.size()]);
-  remoteAccessKey = std::unique_ptr<struct ctranMapperRemoteAccessKey[]>
-    (new struct ctranMapperRemoteAccessKey[sendOpGroup.size()]);
-  sendCtrlReqs = std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[sendOpGroup.size()]);
-  putReqs = std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[sendOpGroup.size()]);
-  putIssued = std::unique_ptr<bool[]>(new bool[sendOpGroup.size()]);
+  std::vector<void *> sendMemHdl(sendOpGroup.size());
+  std::vector<void *> remoteRecvBuff(sendOpGroup.size());
+  std::vector<struct ctranMapperRemoteAccessKey> remoteAccessKey(sendOpGroup.size());
+  std::vector<ctranMapperRequest *> sendCtrlReqs(sendOpGroup.size());
+  std::vector<ctranMapperRequest *> putReqs(sendOpGroup.size());
+  std::vector<bool> putIssued(sendOpGroup.size());
 
-  recvMemHdl = std::unique_ptr<void *[]>(new void *[recvOpGroup.size()]);
-  recvCtrlReqs = std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[recvOpGroup.size()]);
-  recvPeerRanks = std::unique_ptr<int[]>(new int[recvOpGroup.size()]);
+  std::vector<void *> recvMemHdl(recvOpGroup.size());
+  std::vector<ctranMapperRequest *> recvCtrlReqs(recvOpGroup.size());
+  std::vector<int> recvPeerRanks(recvOpGroup.size());
 
   ncclComm_t comm = opGroup.front()->comm;
   ctranMapper *mapper = comm->ctranMapper;
