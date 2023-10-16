@@ -12,14 +12,18 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   int nRanks = op->comm->nRanks;
   ctranMapper *mapper = op->comm->ctranMapper;
   void *sendHdl, *recvHdl;
-  void *remoteRecvBuffs[nRanks];
-  struct ctranMapperRemoteAccessKey remoteAccessKeys[nRanks];
-  ctranMapperRequest *irecvReq[nRanks];
-  ctranMapperRequest *isendReq[nRanks];
-  ctranMapperRequest *iputReq[nRanks];
-  bool irecvComplete[nRanks];
-  bool isendComplete[nRanks];
-  bool iputComplete[nRanks];
+  std::unique_ptr<void *[]> remoteRecvBuffs = std::unique_ptr<void *[]>(new void *[nRanks]);
+  std::unique_ptr<struct ctranMapperRemoteAccessKey[]> remoteAccessKeys =
+    std::unique_ptr<struct ctranMapperRemoteAccessKey[]>(new struct ctranMapperRemoteAccessKey[nRanks]);
+  std::unique_ptr<ctranMapperRequest *[]> irecvReq =
+    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nRanks]);
+  std::unique_ptr<ctranMapperRequest *[]> isendReq =
+    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nRanks]);
+  std::unique_ptr<ctranMapperRequest *[]> iputReq =
+    std::unique_ptr<ctranMapperRequest *[]>(new ctranMapperRequest *[nRanks]);
+  std::unique_ptr<bool[]> irecvComplete = std::unique_ptr<bool[]>(new bool[nRanks]);
+  std::unique_ptr<bool[]> isendComplete = std::unique_ptr<bool[]>(new bool[nRanks]);
+  std::unique_ptr<bool[]> iputComplete = std::unique_ptr<bool[]>(new bool[nRanks]);
   bool localRegSend, localRegRecv;
 
   for (int i = 0; i < nRanks; i++) {
