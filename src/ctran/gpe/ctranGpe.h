@@ -14,6 +14,7 @@ struct collOp {
     ALLGATHER,
     SEND,
     RECV,
+    COPY,
   } type;
   cudaStream_t stream;
   ncclComm_t comm;
@@ -36,6 +37,11 @@ struct collOp {
     ncclDataType_t datatype;
     int peerRank;
   } recv;
+  struct {
+    void *dst;
+    const void *src;
+    size_t nbytes;
+  } copy;
 };
 
 class ctranGpe {
