@@ -6,7 +6,7 @@
 
 static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   ncclResult_t res = ncclSuccess;
-  struct collOp *op = opGroup.front().get();
+  struct collOp* op = opGroup.front().get();
   size_t sendSize =
       op->allgather.sendcount * ncclTypeSize(op->allgather.datatype);
   int rank = op->comm->rank;
@@ -20,14 +20,15 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   void *sendHdl, *recvHdl;
   std::vector<size_t> peers(nSteps);
   std::vector<size_t> dists(nSteps);
-  std::vector<void *> remoteRecvBuffs(nSteps);
+  std::vector<void*> remoteRecvBuffs(nSteps);
   std::vector<struct ctranMapperRemoteAccessKey> remoteAccessKeys(nSteps);
-  std::vector<ctranMapperRequest *> irecvReq(nSteps);
-  std::vector<ctranMapperRequest *> isendReq(nSteps);
-  std::vector<ctranMapperRequest *> iputReq(nSteps);
+  std::vector<ctranMapperRequest*> irecvReq(nSteps);
+  std::vector<ctranMapperRequest*> isendReq(nSteps);
+  std::vector<ctranMapperRequest*> iputReq(nSteps);
 
   ctranMapperRequest* copyReq;
   bool copyComplete = inPlace;
+  bool localRegSend{false}, localRegRecv{false};
 
   // Calculate distance and peer per step
   for (size_t i = 0; i < nSteps; i++) {
@@ -38,10 +39,22 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
 
   NCCLCHECKGOTO(
       mapper->searchRegHandle(sendbuff, sendSize, &sendHdl), res, exit);
+  if (sendHdl == nullptr) {
+    NCCLCHECKGOTO(
+        mapper->regMem(op->allgather.sendbuff, sendSize, &sendHdl), res, exit);
+    localRegSend = true;
+  }
   NCCLCHECKGOTO(
       mapper->searchRegHandle(recvbuff, nRanks * sendSize, &recvHdl),
       res,
       exit);
+  if (recvHdl == nullptr) {
+    NCCLCHECKGOTO(
+        mapper->regMem(op->allgather.recvbuff, nRanks * sendSize, &recvHdl),
+        res,
+        exit);
+    localRegRecv = true;
+  }
 
   // Exchange memory handles with relevant peerse
   for (size_t i = 0; i < nSteps; i++) {
@@ -105,12 +118,19 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
     NCCLCHECKGOTO(mapper->waitNotify(peer), res, exit);
   }
 
-  for (int i=0; i<nSteps; i++){
+  for (int i = 0; i < nSteps; i++) {
     NCCLCHECKGOTO(isendReq[i]->wait(), res, exit);
   }
 
   if (!copyComplete) {
     NCCLCHECKGOTO(copyReq->wait(), res, exit);
+  }
+
+  if (localRegSend == true) {
+    NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
+  }
+  if (localRegRecv == true) {
+    NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
   }
 
 exit:
@@ -138,8 +158,13 @@ ncclResult_t ctranAllGatherRd(
 
   std::vector<std::unique_ptr<struct collOp>> opGroup;
   opGroup.push_back(std::move(op));
-  NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(opGroup), impl,
-        reinterpret_cast<void *>(ncclKernelAllGatherCtranRecDbl)), res, fail);
+  NCCLCHECKGOTO(
+      comm->ctranGpe->submit(
+          std::move(opGroup),
+          impl,
+          reinterpret_cast<void*>(ncclKernelAllGatherCtranRecDbl)),
+      res,
+      fail);
 
 fail:
   return res;
