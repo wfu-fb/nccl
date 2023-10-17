@@ -23,12 +23,27 @@ ncclResult_t ctranGpe::impl::submit(ctranGpeCmd::typeEnum type,
   cmd->type = type;
 
   if (type == ctranGpeCmd::typeEnum::GRAPH_ENQUEUE) {
+    /* post copy to user stream */
+    if (opGroup.front()->type == collOp::opType::COPY) {
+      CUDACHECKGOTO(
+          cudaMemcpyAsync(
+              opGroup.front()->copy.dst,
+              opGroup.front()->copy.src,
+              opGroup.front()->copy.nbytes,
+              cudaMemcpyDefault,
+              opGroup.front()->stream),
+          res,
+          exit);
+      opGroup.erase(opGroup.begin());
+    }
+
+
     cudaStream_t stream = opGroup.front()->stream;
     cmd->coll.opGroup = std::move(opGroup);
     cmd->coll.func = func;
 
     /* Enqueue the kernel.  It will not start till all other
-     * operations on this stream have completed. */
+    * operations on this stream have completed. */
     dim3 grid = { 1, 1, 1 };
     dim3 blocks = { 1, 1, 1 };
     void *args[] = { &this->kernelFlag };

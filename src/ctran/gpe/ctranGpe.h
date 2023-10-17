@@ -44,6 +44,23 @@ struct collOp {
   } copy;
 };
 
+inline std::unique_ptr<struct collOp> createCpyOp(
+    void* dst,
+    const void* src,
+    std::size_t nbytes,
+    ncclComm_t comm,
+    cudaStream_t stream) {
+  auto copyOp = std::unique_ptr<struct collOp>(new struct collOp);
+  copyOp->type = collOp::opType::COPY;
+  copyOp->comm = comm;
+  copyOp->stream = stream;
+  copyOp->copy.src = src;
+  copyOp->copy.dst = dst;
+  copyOp->copy.nbytes = nbytes;
+
+  return copyOp;
+}
+
 class ctranGpe {
   public:
     ctranGpe(int cudaDev);

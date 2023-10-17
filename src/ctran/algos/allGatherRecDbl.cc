@@ -14,7 +14,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   int nSteps = log2i(nRanks);
   void* sendbuff = (void*)op->allgather.sendbuff;
   void* recvbuff = (void*)op->allgather.recvbuff;
-  bool inPlace = (char*)sendbuff == (char*)recvbuff + rank * sendSize;
 
   ctranMapper* mapper = op->comm->ctranMapper;
   void *sendHdl, *recvHdl;
@@ -26,8 +25,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   std::vector<ctranMapperRequest*> isendReq(nSteps);
   std::vector<ctranMapperRequest*> iputReq(nSteps);
 
-  ctranMapperRequest* copyReq;
-  bool copyComplete = inPlace;
   bool localRegSend{false}, localRegRecv{false};
 
   // Calculate distance and peer per step
@@ -68,14 +65,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
 
     NCCLCHECKGOTO(
         mapper->isendCtrl(recvbuff, recvHdl, peer, &isendReq[i]), res, exit);
-  }
-
-  if (!inPlace) {
-    NCCLCHECKGOTO(
-        mapper->icopy(
-            (char*)recvbuff + rank * sendSize, sendbuff, sendSize, &copyReq),
-        res,
-        exit);
   }
 
   for (size_t i = 0; i < nSteps; i++) {
@@ -122,10 +111,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
     NCCLCHECKGOTO(isendReq[i]->wait(), res, exit);
   }
 
-  if (!copyComplete) {
-    NCCLCHECKGOTO(copyReq->wait(), res, exit);
-  }
-
   if (localRegSend == true) {
     NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
   }
@@ -145,7 +130,19 @@ ncclResult_t ctranAllGatherRd(
     ncclComm_t comm,
     cudaStream_t stream) {
   ncclResult_t res = ncclSuccess;
+  std::vector<std::unique_ptr<struct collOp>> opGroup;
   std::unique_ptr<struct collOp> op;
+
+  /* copy data for out-of-place allgather */
+  if ((uintptr_t)recvbuff + comm->rank * sendcount * ncclTypeSize(datatype) !=
+      (uintptr_t)sendbuff) {
+    opGroup.push_back(createCpyOp(
+        (void*)((uintptr_t)recvbuff + comm->rank * sendcount * ncclTypeSize(datatype)),
+        sendbuff,
+        sendcount * ncclTypeSize(datatype),
+        comm,
+        stream));
+  }
 
   op = std::unique_ptr<struct collOp>(new struct collOp);
   op->type = collOp::opType::ALLGATHER;
@@ -156,7 +153,6 @@ ncclResult_t ctranAllGatherRd(
   op->allgather.sendcount = sendcount;
   op->allgather.datatype = datatype;
 
-  std::vector<std::unique_ptr<struct collOp>> opGroup;
   opGroup.push_back(std::move(op));
   NCCLCHECKGOTO(
       comm->ctranGpe->submit(

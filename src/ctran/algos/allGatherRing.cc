@@ -18,7 +18,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   ctranMapperRequest *irecvReq;
   ctranMapperRequest *isendReq;
   ctranMapperRequest *iputReq;
-  ctranMapperRequest *icopyReq;
   bool iputComplete;
   int left = (rank + nRanks - 1) % nRanks;
   int right = (rank + 1) % nRanks;
@@ -41,9 +40,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
     localRegRecv = false;
   }
 
-  NCCLCHECKGOTO(mapper->icopy((void *) ((uintptr_t) op->allgather.recvbuff + rank * sendSize),
-        op->allgather.sendbuff, sendSize, &icopyReq), res, exit);
-
   NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuff, &remoteAccessKey, right, &irecvReq), res, exit);
   NCCLCHECKGOTO(mapper->isendCtrl(op->allgather.recvbuff, recvHdl, left, &isendReq), res, exit);
   NCCLCHECKGOTO(irecvReq->wait(), res, exit);
@@ -65,7 +61,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   }
 
   NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
-  NCCLCHECKGOTO(icopyReq->wait(), res, exit);
   NCCLCHECKGOTO(isendReq->wait(), res, exit);
 
   if (iputComplete == false) {
@@ -86,7 +81,19 @@ exit:
 ncclResult_t ctranAllGatherRing(const void* sendbuff, void* recvbuff,
 	size_t sendcount, ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream) {
   ncclResult_t res = ncclSuccess;
+  std::vector<std::unique_ptr<struct collOp>> opGroup;
   std::unique_ptr<struct collOp> op;
+
+  /* copy data for out-of-place allgather */
+  if ((uintptr_t)recvbuff + comm->rank * sendcount * ncclTypeSize(datatype) !=
+      (uintptr_t)sendbuff) {
+    opGroup.push_back(createCpyOp(
+        (void*)((uintptr_t)recvbuff + comm->rank * sendcount * ncclTypeSize(datatype)),
+        sendbuff,
+        sendcount * ncclTypeSize(datatype),
+        comm,
+        stream));
+  }
 
   op = std::unique_ptr<struct collOp>(new struct collOp);
   op->type = collOp::opType::ALLGATHER;
@@ -97,7 +104,6 @@ ncclResult_t ctranAllGatherRing(const void* sendbuff, void* recvbuff,
   op->allgather.sendcount = sendcount;
   op->allgather.datatype = datatype;
 
-  std::vector<std::unique_ptr<struct collOp>> opGroup;
   opGroup.push_back(std::move(op));
   NCCLCHECKGOTO(comm->ctranGpe->submit(std::move(opGroup), impl,
         reinterpret_cast<void *>(ncclKernelAllGatherCtranRing)), res, fail);
