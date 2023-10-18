@@ -19,7 +19,9 @@ LIBSRCFILES := init.cc init_nvtx.cc channel.cc bootstrap.cc transport.cc enqueue
 LIBSRCFILES += collectives/all_reduce_sparse_block.cc setinfo.cc
 LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
-							 collectives/all_reduce_dda.cc
+		collectives/all_reduce_dda.cc
+LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
+		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc
 
 INCLUDES := -Iinclude
 INCLUDES += -Ialgorithms
