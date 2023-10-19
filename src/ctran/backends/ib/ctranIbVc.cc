@@ -296,15 +296,7 @@ ncclResult_t ctranIb::impl::vc::postPutMsg(const void *sbuf, void *dbuf, std::si
     wr.wr.rdma.remote_addr = reinterpret_cast<uint64_t>(dbuf) + offset;
     wr.wr.rdma.rkey = rkey;
 
-    int ret;
-    do {
-      ret = this->dataQp->context->ops.post_send(this->dataQp, &wr, &badWr);
-    } while (ret == ENOMEM);
-    if (ret != IBV_SUCCESS) {
-      WARN("ibv_post_send() failed with error %d, '%s'\n", ret, strerror(ret));
-      res = ncclSystemError;
-      goto exit;
-    }
+    NCCLCHECKGOTO(wrap_ibv_post_send(this->dataQp, &wr, &badWr), res, exit);
 
     len -= toSend;
     offset += toSend;
