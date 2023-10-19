@@ -129,6 +129,7 @@ ctranIb::ctranIb(ncclComm *comm) {
   for (int r = 0; r < this->pimpl->nRanks; r++) {
     this->pimpl->vcList.push_back(new ctranIb::impl::vc(this->pimpl->context, this->pimpl->pd,
           this->pimpl->cq, this->pimpl->port, r));
+    this->pimpl->numUnsignaledPuts.push_back(0);
   }
 }
 
@@ -313,7 +314,15 @@ ncclResult_t ctranIb::iput(const void *sbuf, void *dbuf, std::size_t len, int pe
   if (req != nullptr) {
     *req = new ctranIbRequest();
     r = *req;
+    this->pimpl->numUnsignaledPuts[peerRank] = 0;
+  } else {
+    this->pimpl->numUnsignaledPuts[peerRank]++;
+    if (this->pimpl->numUnsignaledPuts[peerRank] == MAX_SEND_WR) {
+      r = &this->pimpl->fakeReq;
+      this->pimpl->numUnsignaledPuts[peerRank] = 0;
+    }
   }
+
   NCCLCHECKGOTO(this->pimpl->vcList[peerRank]->iput(sbuf, dbuf, len, shdl, remoteAccessKey, notify, r),
       res, exit);
 

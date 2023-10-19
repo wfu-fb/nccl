@@ -13,6 +13,8 @@
 #define BOOTSTRAP_CMD_SETUP  (0)
 #define BOOTSTRAP_CMD_TERMINATE  (1)
 
+#define MAX_SEND_WR      (256)
+
 struct pendingOp {
   enum pendingOpType {
     ISEND_CTRL,
@@ -57,6 +59,8 @@ public:
   /* individual VCs for each peer */
   class vc;
   std::vector<class vc *> vcList;
+  std::vector<uint32_t> numUnsignaledPuts;
+  ctranIbRequest fakeReq;
   std::unordered_map<uint32_t, int> qpToRank;
   std::mutex m;
 

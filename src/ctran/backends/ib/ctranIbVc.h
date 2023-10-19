@@ -11,7 +11,6 @@
 #include "ctranIbBase.h"
 
 #define MAX_CONTROL_MSGS (128)
-#define MAX_SEND_WR      (256)
 
 class ctranIb::impl::vc {
   public:
