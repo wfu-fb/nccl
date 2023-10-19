@@ -1331,6 +1331,10 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   int* parentRanks = NULL;
   int cudaArch;
 
+  auto timerBegin = std::chrono::steady_clock::now();
+  double timerDeltaMs;
+  INFO(NCCL_INIT,"comm %p rank %d commId 0x%llx - Init START before bootstrap", comm, comm->rank, (unsigned long long)hashUniqueId(job->commId));
+
   CUDACHECKGOTO(cudaSetDevice(cudaDev), res, fail);
   CUDACHECKGOTO(cudaDeviceGetAttribute(&archMajor, cudaDevAttrComputeCapabilityMajor, cudaDev), res, fail);
   CUDACHECKGOTO(cudaDeviceGetAttribute(&archMinor, cudaDevAttrComputeCapabilityMinor, cudaDev), res, fail);
@@ -1360,6 +1364,9 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   comm->cudaArch = cudaArch;
   comm->commHash = getHash(job->commId.internal, NCCL_UNIQUE_ID_BYTES);
 
+  timerDeltaMs = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - timerBegin).count() * 1000;
+  INFO(NCCL_INIT,"comm %p rank %d commId 0x%llx - Init bootstrap COMPLETE in %.2f ms", comm, comm->rank, (unsigned long long)hashUniqueId(job->commId), timerDeltaMs);
+  timerBegin = std::chrono::steady_clock::now();
   INFO(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx - Init START", comm, comm->rank, comm->nRanks, comm->cudaDev, comm->nvmlDev, comm->busId, (unsigned long long)hashUniqueId(job->commId));
 
   NCCLCHECKGOTO(initTransportsRank(comm, job->parent), res, fail);
@@ -1385,7 +1392,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
                 comm, comm->nRanks, (unsigned long long)hashUniqueId(job->commId), comm->rank, comm->cudaDev);
   }
 
-  INFO(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx - Init COMPLETE", comm, comm->rank, comm->nRanks, comm->cudaDev, comm->nvmlDev, comm->busId, (unsigned long long)hashUniqueId(job->commId));
+  timerDeltaMs = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - timerBegin).count() * 1000;
+  INFO(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx - Init COMPLETE in %.2f ms", comm, comm->rank, comm->nRanks, comm->cudaDev, comm->nvmlDev, comm->busId, (unsigned long long)hashUniqueId(job->commId), timerDeltaMs);
 
   comm->ctranMapper = new ctranMapper(comm);
   comm->ctranGpe = new ctranGpe(comm->cudaDev);
