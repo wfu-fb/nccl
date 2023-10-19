@@ -18,7 +18,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   ctranMapperRequest *irecvReq;
   ctranMapperRequest *isendReq;
   ctranMapperRequest *iputReq;
-  bool iputComplete;
   int left = (rank + nRanks - 1) % nRanks;
   int right = (rank + 1) % nRanks;
 
@@ -48,7 +47,6 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
         (void *) ((uintptr_t) remoteRecvBuff + rank * sendSize), sendSize, right,
         sendHdl, remoteAccessKey, true, (nRanks > 2) ? nullptr : &iputReq), res, exit);
 
-  iputComplete = true;
   for (int i = 0; i < nRanks - 2; i++) {
     int blockId = (rank - i - 1 + nRanks) % nRanks;
 
@@ -57,15 +55,12 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
           (void *) ((uintptr_t) op->allgather.recvbuff + blockId * sendSize),
           (void *) ((uintptr_t) remoteRecvBuff + blockId * sendSize), sendSize, right,
           recvHdl, remoteAccessKey, true, (i < nRanks - 3) ? nullptr : &iputReq), res, exit);
-    iputComplete = false;
   }
 
   NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
   NCCLCHECKGOTO(isendReq->wait(), res, exit);
 
-  if (iputComplete == false) {
-    NCCLCHECKGOTO(iputReq->wait(), res, exit);
-  }
+  NCCLCHECKGOTO(iputReq->wait(), res, exit);
 
   if (localRegSend == true) {
     NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
