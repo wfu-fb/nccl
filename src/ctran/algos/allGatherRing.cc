@@ -46,7 +46,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
 
   NCCLCHECKGOTO(mapper->iput(op->allgather.sendbuff,
         (void *) ((uintptr_t) remoteRecvBuff + rank * sendSize), sendSize, right,
-        sendHdl, remoteAccessKey, true, nullptr), res, exit);
+        sendHdl, remoteAccessKey, true, (nRanks > 2) ? nullptr : &iputReq), res, exit);
 
   iputComplete = true;
   for (int i = 0; i < nRanks - 2; i++) {
