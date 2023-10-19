@@ -231,7 +231,7 @@ ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperR
     NCCLCHECKGOTO(this->pimpl->regCache->lookup(hdl, (void **) &regElem), res, exit);
 
     if (req == nullptr) {
-      return this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, nullptr);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, nullptr), res, exit);
     } else {
       *req = new ctranMapperRequest(this);
       NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, &((*req)->ibReq)), res, exit);
@@ -248,7 +248,7 @@ ncclResult_t ctranMapper::irecvCtrl(void **buf, struct ctranMapperRemoteAccessKe
 
   if (this->pimpl->ctranIb != nullptr) {
     if (req == nullptr) {
-      return this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, nullptr);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, nullptr), res, exit);
     } else {
       *req = new ctranMapperRequest(this);
       NCCLCHECKGOTO(this->pimpl->ctranIb->irecvCtrl(buf, &key->ibKey, rank, &((*req)->ibReq)), res, exit);
