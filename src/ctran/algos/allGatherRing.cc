@@ -14,6 +14,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   bool localRegSend, localRegRecv;
   void *remoteRecvBuff;
   struct ctranMapperRemoteAccessKey remoteAccessKey;
+  ctranMapperTimestamp timestamp("ctranAllGatherRing");
 
   ctranMapperRequest *irecvReq;
   ctranMapperRequest *isendReq;
@@ -42,10 +43,12 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuff, &remoteAccessKey, right, &irecvReq), res, exit);
   NCCLCHECKGOTO(mapper->isendCtrl(op->allgather.recvbuff, recvHdl, left, &isendReq), res, exit);
   NCCLCHECKGOTO(irecvReq->wait(), res, exit);
+  timestamp.recvCtrl.push_back(ctranMapperTimestampPoint(right));
 
   NCCLCHECKGOTO(mapper->iput(op->allgather.sendbuff,
         (void *) ((uintptr_t) remoteRecvBuff + rank * sendSize), sendSize, right,
         sendHdl, remoteAccessKey, true, (nRanks > 2) ? nullptr : &iputReq), res, exit);
+  timestamp.putIssued.push_back(ctranMapperTimestampPoint(right));
 
   for (int i = 0; i < nRanks - 2; i++) {
     int blockId = (rank - i - 1 + nRanks) % nRanks;
@@ -55,12 +58,14 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
           (void *) ((uintptr_t) op->allgather.recvbuff + blockId * sendSize),
           (void *) ((uintptr_t) remoteRecvBuff + blockId * sendSize), sendSize, right,
           recvHdl, remoteAccessKey, true, (i < nRanks - 3) ? nullptr : &iputReq), res, exit);
+    timestamp.putIssued.push_back(ctranMapperTimestampPoint(right));
   }
 
   NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
   NCCLCHECKGOTO(isendReq->wait(), res, exit);
 
   NCCLCHECKGOTO(iputReq->wait(), res, exit);
+  timestamp.putComplete.push_back(ctranMapperTimestampPoint(right));
 
   if (localRegSend == true) {
     NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
@@ -68,6 +73,8 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   if (localRegRecv == true) {
     NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
   }
+
+  mapper->timestamps.push_back(timestamp);
 
 exit:
   return res;

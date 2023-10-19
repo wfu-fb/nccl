@@ -24,6 +24,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   std::vector<ctranMapperRequest*> irecvReq(nSteps);
   std::vector<ctranMapperRequest*> isendReq(nSteps);
   std::vector<ctranMapperRequest*> iputReq(nSteps);
+  ctranMapperTimestamp timestamp("ctranAllGatherRecDbl");
 
   bool localRegSend{false}, localRegRecv{false};
 
@@ -72,6 +73,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
 
     // Block until we have handle for this peer
     NCCLCHECKGOTO(irecvReq[i]->wait(), res, exit);
+    timestamp.recvCtrl.push_back(ctranMapperTimestampPoint(peer));
 
     for (size_t j = 0; j < (1 << i); j++) {
       size_t putOffset = j * (nRanks / (1 << i)) + rank % (nRanks / (1 << i));
@@ -101,9 +103,11 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
               putReqPtr),
           res,
           exit);
+      timestamp.putIssued.push_back(ctranMapperTimestampPoint(peer));
     }
     // Wait for signal from receives
     NCCLCHECKGOTO(iputReq[i]->wait(), res, exit);
+    timestamp.putComplete.push_back(ctranMapperTimestampPoint(peer));
     NCCLCHECKGOTO(mapper->waitNotify(peer), res, exit);
   }
 
@@ -117,6 +121,8 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   if (localRegRecv == true) {
     NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
   }
+
+  mapper->timestamps.push_back(timestamp);
 
 exit:
   return res;

@@ -6,6 +6,8 @@
 #include <mutex>
 #include <memory>
 #include <functional>
+#include <vector>
+#include <chrono>
 #include "nccl.h"
 #include "checks.h"
 #include "ctranIb.h"
@@ -58,6 +60,33 @@ private:
 
 struct ncclComm;
 
+class ctranMapperTimestampPoint {
+  public:
+    ctranMapperTimestampPoint(int peer) {
+      this->now = std::chrono::high_resolution_clock::now();
+      this->peer = peer;
+    }
+    ~ctranMapperTimestampPoint() = default;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> now;
+    int peer;
+};
+
+class ctranMapperTimestamp {
+  public:
+    ctranMapperTimestamp(const std::string algo) {
+      this->algo = algo;
+      this->start = std::chrono::high_resolution_clock::now();
+    }
+    ~ctranMapperTimestamp() = default;
+
+    std::vector<ctranMapperTimestampPoint> recvCtrl;
+    std::vector<ctranMapperTimestampPoint> putIssued;
+    std::vector<ctranMapperTimestampPoint> putComplete;
+    std::string algo;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+};
+
 class ctranMapper {
 public:
   ctranMapper(ncclComm *comm);
@@ -79,6 +108,7 @@ public:
 
   int rank;
   uint64_t commHash;
+  std::vector<ctranMapperTimestamp> timestamps;
 
 protected:
   ncclResult_t progress(void);

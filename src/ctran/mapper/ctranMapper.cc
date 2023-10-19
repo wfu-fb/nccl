@@ -5,6 +5,8 @@
 #include "ctranMapperImpl.h"
 #include "comm.h"
 
+NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
+
 ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl = std::unique_ptr<impl>(new impl());
 
@@ -86,6 +88,34 @@ ctranMapper::ctranMapper(ncclComm *comm) {
 }
 
 ctranMapper::~ctranMapper() {
+  /* flush timestamps */
+  if (ncclParamCtranProfiling() && !this->timestamps.empty()) {
+    std::cout << "[CTRAN-MAPPER] Communication Profiling:" << std::endl;
+    for (auto& ts : this->timestamps) {
+      std::cout << "    collective=" << ts.algo << std::endl;
+      std::cout << "    startTime="
+        << std::chrono::duration_cast<std::chrono::nanoseconds>(ts.start.time_since_epoch()).count()
+        << std::endl;
+      for (auto& tsp : ts.recvCtrl) {
+        std::cout << "        recvCtrl[" << tsp.peer << "]="
+          << std::chrono::duration_cast<std::chrono::nanoseconds>(tsp.now.time_since_epoch()).count()
+          << std::endl;
+      }
+      for (auto& tsp : ts.putIssued) {
+        std::cout << "        putIssued[" << tsp.peer << "]="
+          << std::chrono::duration_cast<std::chrono::nanoseconds>(tsp.now.time_since_epoch()).count()
+          << std::endl;
+      }
+      for (auto& tsp : ts.putComplete) {
+        std::cout << "        putComplete[" << tsp.peer << "]="
+          << std::chrono::duration_cast<std::chrono::nanoseconds>(tsp.now.time_since_epoch()).count()
+          << std::endl;
+      }
+    }
+    std::cout << std::flush;
+  }
+
+
   if (this->pimpl->memPool != nullptr) {
     this->pimpl->memPool->deregMem(
       [&](void* hdl) -> ncclResult_t {

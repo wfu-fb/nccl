@@ -30,6 +30,7 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
   std::vector<void *> recvMemHdl(recvOpGroup.size());
   std::vector<ctranMapperRequest *> recvCtrlReqs(recvOpGroup.size());
   std::vector<int> recvPeerRanks(recvOpGroup.size());
+  ctranMapperTimestamp timestamp("ctranSendRecv");
 
   ncclComm_t comm = opGroup.front()->comm;
   ctranMapper *mapper = comm->ctranMapper;
@@ -84,8 +85,10 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
 
         NCCLCHECKGOTO(sendCtrlReqs[i]->test(&isComplete), res, exit);
         if (isComplete) {
+          timestamp.recvCtrl.push_back(ctranMapperTimestampPoint(op->send.peerRank));
           NCCLCHECKGOTO(mapper->iput(op->send.sendbuff, remoteRecvBuff[i], sendSize, op->send.peerRank,
                 sendMemHdl[i], remoteAccessKey[i], true, &putReqs[i]), res, exit);
+          timestamp.putIssued.push_back(ctranMapperTimestampPoint(op->send.peerRank));
           putIssued[i] = true;
         } else {
           pendingOps = true;
@@ -101,6 +104,7 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
   /* wait for all PUT messages to complete */
   for (auto i = 0; i < sendOpGroup.size(); i++) {
     NCCLCHECKGOTO(putReqs[i]->wait(), res, exit);
+    timestamp.putComplete.push_back(ctranMapperTimestampPoint(sendOpGroup[i]->send.peerRank));
   }
 
   /* wait for all control messages and notifications to complete */
@@ -113,6 +117,8 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
   for (auto hdl : tmpRegHdls) {
     NCCLCHECKGOTO(mapper->deregMem(hdl), res, exit);
   }
+
+  mapper->timestamps.push_back(timestamp);
 
 exit:
   return res;
