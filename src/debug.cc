@@ -177,18 +177,18 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
 
   char buffer[1024];
   size_t len = 0;
+  auto delta = std::chrono::steady_clock::now() - ncclEpoch;
+  std::string timestamp = std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(delta).count());
   if (level == NCCL_LOG_WARN) {
-    len = snprintf(buffer, sizeof(buffer), "\n%s %s:%d:%d [%d] %s:%d NCCL WARN ",
-                   getTime().c_str(), hostname, pid, tid, cudaDev, filefunc, line);
+    len = snprintf(buffer, sizeof(buffer), "\n%s %s:%d:%d [%d] %s %s:%d NCCL WARN ",
+                   getTime().c_str(), hostname, pid, tid, cudaDev, timestamp.c_str(), filefunc, line);
   } else if (level == NCCL_LOG_INFO) {
-    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d [%d] NCCL INFO ", getTime().c_str(), hostname, pid, tid, cudaDev);
+    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d [%d] %s NCCL INFO ", getTime().c_str(), hostname, pid, tid, cudaDev, timestamp.c_str());
   } else if (level == NCCL_LOG_TRACE && flags == NCCL_CALL) {
-    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d NCCL CALL ", getTime().c_str(), hostname, pid, tid);
+    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d %s NCCL CALL ", getTime().c_str(), hostname, pid, tid, timestamp.c_str());
   } else if (level == NCCL_LOG_TRACE) {
-    auto delta = std::chrono::steady_clock::now() - ncclEpoch;
-    double timestamp = std::chrono::duration_cast<std::chrono::duration<double>>(delta).count()*1000;
-    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d [%d] %f %s:%d NCCL TRACE ",
-                   getTime().c_str(), hostname, pid, tid, cudaDev, timestamp, filefunc, line);
+    len = snprintf(buffer, sizeof(buffer), "%s %s:%d:%d [%d] %s %s:%d NCCL TRACE ",
+                   getTime().c_str(), hostname, pid, tid, cudaDev, timestamp.c_str(), filefunc, line);
   }
 
   if (len) {
