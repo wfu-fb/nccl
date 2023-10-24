@@ -69,7 +69,7 @@ ncclResult_t ctranRegCache::lookup(void *hdl, void **val) {
   return res;
 }
 
-std::vector<void *> ctranRegCache::flush() {
+std::vector<void *> ctranRegCache::getAllElems() {
   std::vector<void *> v;
 
   for (auto elem : this->pimpl->root) {

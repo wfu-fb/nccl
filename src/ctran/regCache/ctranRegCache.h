@@ -17,7 +17,7 @@ public:
   ncclResult_t remove(void *hdl);
   ncclResult_t search(const void *addr, std::size_t len, void **hdl);
   ncclResult_t lookup(void *hdl, void **val);
-  std::vector<void *> flush();
+  std::vector<void *> getAllElems();
 
 private:
   class impl;

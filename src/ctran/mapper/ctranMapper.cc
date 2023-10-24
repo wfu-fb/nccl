@@ -123,7 +123,7 @@ ctranMapper::~ctranMapper() {
       });
   }
 
-  std::vector<void *> v = this->pimpl->mapperRegElemList->flush();
+  std::vector<void *> v = this->pimpl->mapperRegElemList->getAllElems();
   if (!v.empty()) {
     WARN("CTRAN-Mapper: found %lu leaked registrations", v.size());
   }
