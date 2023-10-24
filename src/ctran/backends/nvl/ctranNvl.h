@@ -30,10 +30,10 @@ class ctranNvl {
 public:
   ctranNvl(ncclComm *comm);
   ~ctranNvl();
-  ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
-  ncclResult_t deregMem(const void *hdl);
-  ncclResult_t isend(const void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req);
-  ncclResult_t irecv(void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req);
+  ncclResult_t regMem(const void *buf, std::size_t len, void **nvlRegElem);
+  ncclResult_t deregMem(const void *nvlRegElem);
+  ncclResult_t isend(const void *buf, size_t len, int rank, const void *nvlRegElem, ctranNvlRequest **req);
+  ncclResult_t irecv(void *buf, size_t len, int rank, const void *nvlRegElem, ctranNvlRequest **req);
   ncclResult_t progress(void);
 
 private:

@@ -22,7 +22,7 @@ struct pendingOp {
   } type;
   struct {
     void *buf;
-    void *hdl;
+    void *ibRegElem;
     int peerRank;
     ctranIbRequest *req;
   } isendCtrl;

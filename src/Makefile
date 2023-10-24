@@ -21,7 +21,7 @@ LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
 							 collectives/all_reduce_dda.cc
 
-LIBSRCFILES += ctran/regCache/ctranRegCache.cc
+LIBSRCFILES += ctran/avlTree/ctranAvlTree.cc ctran/avlTree/ctranAvlTreeVector.cc
 LIBSRCFILES += ctran/backends/ib/ctranIb.cc ctran/backends/ib/ctranIbImpl.cc \
 							 ctran/backends/ib/ctranIbRequest.cc ctran/backends/ib/ctranIbVc.cc
 LIBSRCFILES += ctran/backends/nvl/ctranNvl.cc ctran/backends/nvl/ctranNvlRequest.cc
@@ -35,7 +35,7 @@ LIBSRCFILES += ctran/algos/allGatherDirect.cc ctran/algos/allGatherRing.cc \
 							 ctran/algos/allGatherRecDbl.cc
 
 INCLUDES := -Iinclude
-INCLUDES += -Ictran/regCache -Ictran/backends/ib -Ictran/backends/nvl \
+INCLUDES += -Ictran/avlTree -Ictran/backends/ib -Ictran/backends/nvl \
 						-Ictran/mapper -Ictran/graph -Ictran/gpe -Ictran/frontend \
 						-Ictran/algos
 
