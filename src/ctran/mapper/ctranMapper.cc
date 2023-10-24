@@ -10,8 +10,8 @@ NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
 ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl = std::unique_ptr<impl>(new impl());
 
-  /* regCache */
-  this->pimpl->regCache = new class ctranRegCache();
+  /* mapperRegElemList */
+  this->pimpl->mapperRegElemList = new class ctranRegCache();
 
   /* check user preference for backends */
   char *ctranBackendsStr = getenv("NCCL_CTRAN_BACKENDS");
@@ -123,7 +123,7 @@ ctranMapper::~ctranMapper() {
       });
   }
 
-  std::vector<void *> v = this->pimpl->regCache->flush();
+  std::vector<void *> v = this->pimpl->mapperRegElemList->flush();
   if (!v.empty()) {
     WARN("CTRAN-Mapper: found %lu leaked registrations", v.size());
   }
@@ -131,7 +131,7 @@ ctranMapper::~ctranMapper() {
     NCCLCHECKIGNORE(this->deregMem(hdl));
     WARN("CTRAN-Mapper: leak hdl %p", hdl);
   }
-  delete this->pimpl->regCache;
+  delete this->pimpl->mapperRegElemList;
 
   delete this->pimpl->memPool;
 
@@ -148,7 +148,7 @@ ctranMapper::~ctranMapper() {
 ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
   ncclResult_t res = ncclSuccess;
 
-  struct ctranMapperRegElem *regElem = new struct ctranMapperRegElem;
+  struct ctranMapperRegElem *mapperRegElem = new struct ctranMapperRegElem;
 
   cudaPointerAttributes attr;
   CUDACHECKGOTO(cudaPointerGetAttributes(&attr, buf), res, exit);
@@ -159,14 +159,14 @@ ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
   }
 
   if (this->pimpl->ctranIb != nullptr) {
-    NCCLCHECKGOTO(this->pimpl->ctranIb->regMem(buf, len, &regElem->ibHdl), res, exit);
+    NCCLCHECKGOTO(this->pimpl->ctranIb->regMem(buf, len, &mapperRegElem->ibRegElem), res, exit);
   }
 
   if (this->pimpl->ctranNvl != nullptr) {
-    NCCLCHECKGOTO(this->pimpl->ctranNvl->regMem(buf, len, &regElem->nvlHdl), res, exit);
+    NCCLCHECKGOTO(this->pimpl->ctranNvl->regMem(buf, len, &mapperRegElem->nvlRegElem), res, exit);
   }
 
-  NCCLCHECKGOTO(this->pimpl->regCache->insert(buf, len, reinterpret_cast<void *>(regElem), hdl), res, exit);
+  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->insert(buf, len, reinterpret_cast<void *>(mapperRegElem), hdl), res, exit);
 
 exit:
   return res;
@@ -175,19 +175,19 @@ exit:
 ncclResult_t ctranMapper::deregMem(void *hdl) {
   ncclResult_t res = ncclSuccess;
 
-  struct ctranMapperRegElem *regElem;
-  NCCLCHECKGOTO(this->pimpl->regCache->lookup(hdl, (void **) &regElem), res, exit);
+  struct ctranMapperRegElem *mapperRegElem;
+  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem), res, exit);
 
   if (this->pimpl->ctranIb != nullptr) {
-    NCCLCHECKGOTO(this->pimpl->ctranIb->deregMem(regElem->ibHdl), res, exit);
+    NCCLCHECKGOTO(this->pimpl->ctranIb->deregMem(mapperRegElem->ibRegElem), res, exit);
   }
 
   if (this->pimpl->ctranNvl != nullptr) {
-    NCCLCHECKGOTO(this->pimpl->ctranNvl->deregMem(regElem->nvlHdl), res, exit);
+    NCCLCHECKGOTO(this->pimpl->ctranNvl->deregMem(mapperRegElem->nvlRegElem), res, exit);
   }
 
-  NCCLCHECKGOTO(this->pimpl->regCache->remove(hdl), res, exit);
-  delete regElem;
+  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->remove(hdl), res, exit);
+  delete mapperRegElem;
 
 exit:
   return res;
@@ -196,7 +196,7 @@ exit:
 ncclResult_t ctranMapper::searchRegHandle(const void *buf, std::size_t len, void **hdl) {
   ncclResult_t res = ncclSuccess;
 
-  NCCLCHECKGOTO(this->pimpl->regCache->search(buf, len, hdl), res, exit);
+  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->search(buf, len, hdl), res, exit);
 
 exit:
   return res;
@@ -257,14 +257,14 @@ ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperR
   ncclResult_t res = ncclSuccess;
 
   if (this->pimpl->ctranIb != nullptr) {
-    struct ctranMapperRegElem *regElem;
-    NCCLCHECKGOTO(this->pimpl->regCache->lookup(hdl, (void **) &regElem), res, exit);
+    struct ctranMapperRegElem *mapperRegElem;
+    NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem), res, exit);
 
     if (req == nullptr) {
-      NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, nullptr), res, exit);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, mapperRegElem->ibRegElem, rank, nullptr), res, exit);
     } else {
       *req = new ctranMapperRequest(this);
-      NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, regElem->ibHdl, rank, &((*req)->ibReq)), res, exit);
+      NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, mapperRegElem->ibRegElem, rank, &((*req)->ibReq)), res, exit);
     }
   }
 
@@ -294,15 +294,15 @@ ncclResult_t ctranMapper::iput(const void *sbuf, void *dbuf, std::size_t len, in
   ncclResult_t res = ncclSuccess;
 
   if (this->pimpl->ctranIb != nullptr) {
-    struct ctranMapperRegElem *regElem;
-    NCCLCHECKGOTO(this->pimpl->regCache->lookup(shdl, (void **) &regElem), res, exit);
+    struct ctranMapperRegElem *mapperRegElem;
+    NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(shdl, (void **) &mapperRegElem), res, exit);
 
     if (req == nullptr) {
-      NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, regElem->ibHdl, remoteAccessKey.ibKey,
+      NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, mapperRegElem->ibRegElem, remoteAccessKey.ibKey,
             notify, nullptr), res, exit);
     } else {
       *req = new ctranMapperRequest(this);
-      NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, regElem->ibHdl, remoteAccessKey.ibKey,
+      NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, mapperRegElem->ibRegElem, remoteAccessKey.ibKey,
             notify, &((*req)->ibReq)), res, exit);
     }
   }

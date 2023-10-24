@@ -9,8 +9,8 @@
 #include "ctranRegCache.h"
 
 struct ctranMapperRegElem {
-  void *ibHdl;
-  void *nvlHdl;
+  void *ibRegElem;
+  void *nvlRegElem;
 };
 
 enum ctranMapperBackend {
@@ -24,7 +24,7 @@ public:
   impl() = default;
   ~impl() = default;
 
-  class ctranRegCache *regCache;
+  class ctranRegCache *mapperRegElemList;
   class ctranMapperMemPool *memPool;
 
   std::vector<enum ctranMapperBackend> rankBackendMap;
