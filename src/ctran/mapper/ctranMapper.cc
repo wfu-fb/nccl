@@ -1,6 +1,8 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <iostream>
+#include <fstream>
+#include <unistd.h>
 #include "ctranMapper.h"
 #include "ctranMapperImpl.h"
 #include "comm.h"
@@ -90,39 +92,125 @@ ctranMapper::ctranMapper(ncclComm *comm) {
 ctranMapper::~ctranMapper() {
   /* flush timestamps */
   if (ncclParamCtranProfiling() && !this->timestamps.empty()) {
-    std::cout << "[CTRAN-MAPPER] Communication Profiling:" << std::endl;
-    for (auto& ts : this->timestamps) {
-      std::cout << "    collective=" << ts.algo << std::endl;
-      std::cout << "    startTime="
-        << std::chrono::duration_cast<std::chrono::nanoseconds>(ts.start.time_since_epoch()).count()
-        << std::endl;
-      for (auto& tsp : ts.recvCtrl) {
-        std::cout << "        recvCtrl[" << tsp.peer << "]="
-          << std::chrono::duration_cast<std::chrono::nanoseconds>(tsp.now.time_since_epoch()).count()
-          << std::endl;
+    if (ncclParamCtranProfiling() == 1) {
+      std::cout << "[CTRAN-MAPPER] Communication Profiling:" << std::endl;
+      for (auto& ts : this->timestamps) {
+        std::cout << "    collective=" << ts.algo << std::endl;
+        std::cout << "    startTime="
+                  << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         ts.start.time_since_epoch())
+                         .count()
+                  << std::endl;
+        for (auto& tsp : ts.recvCtrl) {
+          std::cout << "        recvCtrl[" << tsp.peer << "]="
+                    << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                           tsp.now.time_since_epoch())
+                           .count()
+                    << std::endl;
+        }
+        for (auto& tsp : ts.putIssued) {
+          std::cout << "        putIssued[" << tsp.peer << "]="
+                    << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                           tsp.now.time_since_epoch())
+                           .count()
+                    << std::endl;
+        }
+        for (auto& tsp : ts.putComplete) {
+          std::cout << "        putComplete[" << tsp.peer << "]="
+                    << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                           tsp.now.time_since_epoch())
+                           .count()
+                    << std::endl;
+        }
       }
-      for (auto& tsp : ts.putIssued) {
-        std::cout << "        putIssued[" << tsp.peer << "]="
-          << std::chrono::duration_cast<std::chrono::nanoseconds>(tsp.now.time_since_epoch()).count()
-          << std::endl;
-      }
-      for (auto& tsp : ts.putComplete) {
-        std::cout << "        putComplete[" << tsp.peer << "]="
-          << std::chrono::duration_cast<std::chrono::nanoseconds>(tsp.now.time_since_epoch()).count()
-          << std::endl;
+      std::cout << std::flush;
+    } else if (ncclParamCtranProfiling() == 2) {
+      if (!getenv("NCCL_CTRAN_PROFILE_DIR")) {
+        INFO(NCCL_ALL, "Ctran trace filename is null\n");
+      } else {
+        auto pid = getpid();
+        std::string filename = std::string(getenv("NCCL_CTRAN_PROFILE_DIR")) +
+            std::string("/nccl_ctran_log.") + std::to_string(pid) +
+            std::string(".json");
+        INFO(NCCL_ALL, "Dumping ctran profile to %s\n", filename.c_str());
+        std::ofstream f(filename);
+        int id = 0;
+        f << "[" << std::endl;
+        for (auto& ts : this->timestamps) {
+          int collId = id;
+          f << "{\"name\": \"" << ts.algo << "\", "
+            << "\"cat\": \"COL\", "
+            << "\"id\": \"" << id++ << "\", "
+            << "\"ph\": \"b\", "
+            << "\"pid\": \"0\", "
+            << "\"ts\": \""
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   ts.start.time_since_epoch())
+                   .count()
+            << "\"}," << std::endl;
+          ctranMapperTimestampPoint last(0);
+          for (auto& tsp : ts.recvCtrl) {
+            f << "{\"name\": \"recvCtrl\", "
+              << "\"cat\": \"NET\", "
+              << "\"id\": \"" << id++ << "\", "
+              << "\"ph\": \"X\", "
+              << "\"pid\": \"" << tsp.peer << "\", "
+              << "\"ts\": \""
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     tsp.now.time_since_epoch())
+                     .count()
+              << "\", \"dur\": \"0\""
+              << "\"}," << std::endl;
+          }
+          for (auto& tsp : ts.putIssued) {
+            f << "{\"name\": \"put\", "
+              << "\"cat\": \"NET\", "
+              << "\"id\": \"" << id++ << "\", "
+              << "\"ph\": \"b\", "
+              << "\"pid\": \"" << tsp.peer << "\", "
+              << "\"ts\": \""
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     tsp.now.time_since_epoch())
+                     .count()
+              << "\"}," << std::endl;
+          }
+          id -= ts.putIssued.size();
+          for (auto& tsp : ts.putComplete) {
+            f << "{\"name\": \"put\", "
+              << "\"cat\": \"NET\", "
+              << "\"id\": \"" << id++ << "\", "
+              << "\"ph\": \"e\", "
+              << "\"pid\": \"" << tsp.peer << "\", "
+              << "\"ts\": \""
+              << std::chrono::duration_cast<std::chrono::milliseconds>(
+                     tsp.now.time_since_epoch())
+                     .count()
+              << "\"}," << std::endl;
+            last = tsp;
+          }
+          f << "{\"name\": \"" << ts.algo << "\", "
+            << "\"cat\": \"COL\", "
+            << "\"id\": \"" << collId << "\", "
+            << "\"ph\": \"e\", "
+            << "\"pid\": \"0\", "
+            << "\"ts\": \""
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   last.now.time_since_epoch())
+                   .count()
+            << "\"}," << std::endl;
+        }
+        f << "]" << std::endl;
+        f.close();
       }
     }
-    std::cout << std::flush;
   }
 
   if (this->pimpl->memPool != nullptr) {
     this->pimpl->memPool->deregMem(
-      [&](void* hdl) -> ncclResult_t {
-          return this->deregMem(hdl);
-      });
+        [&](void* hdl) -> ncclResult_t { return this->deregMem(hdl); });
   }
 
-  std::vector<void *> v = this->pimpl->mapperRegElemList->getAllElems();
+  std::vector<void*> v = this->pimpl->mapperRegElemList->getAllElems();
   if (!v.empty()) {
     WARN("CTRAN-Mapper: found %lu leaked registrations", v.size());
   }
@@ -325,4 +413,3 @@ ncclResult_t ctranMapper::waitNotify(int rank) {
 exit:
   return res;
 }
-
