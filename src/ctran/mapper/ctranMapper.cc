@@ -115,7 +115,6 @@ ctranMapper::~ctranMapper() {
     std::cout << std::flush;
   }
 
-
   if (this->pimpl->memPool != nullptr) {
     this->pimpl->memPool->deregMem(
       [&](void* hdl) -> ncclResult_t {
@@ -136,13 +135,6 @@ ctranMapper::~ctranMapper() {
   delete this->pimpl->memPool;
 
   CUDACHECKIGNORE(cudaStreamDestroy(this->s));
-
-  if (this->pimpl->ctranIb != nullptr) {
-    this->pimpl->ctranIb.reset();
-  }
-  if (this->pimpl->ctranNvl != nullptr) {
-    this->pimpl->ctranNvl.reset();
-  }
 }
 
 ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
