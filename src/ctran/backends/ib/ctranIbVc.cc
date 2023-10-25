@@ -18,20 +18,31 @@ uint64_t ncclParamIbSl();
 uint64_t ncclParamIbTimeout();
 uint64_t ncclParamIbRetryCnt();
 
+NCCL_PARAM(CtranIbMaxQps, "CTRAN_IB_MAX_QPS", 1);
+NCCL_PARAM(CtranIbQpScalingThreshold, "CTRAN_IB_QP_SCALING_THRESHOLD", 1024 * 1024);
+
+#define CTRAN_HARDCODED_MAX_QPS (128)
+
 struct busCard {
   enum ibv_mtu mtu;
   uint64_t spn;
   uint64_t iid;
   uint32_t controlQpn;
-  uint32_t dataQpn;
+  uint32_t dataQpn[CTRAN_HARDCODED_MAX_QPS];
   uint8_t port;
 };
 
 ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv_cq *cq,
     int port, int peerRank) {
+  if (ncclParamCtranIbMaxQps() > CTRAN_HARDCODED_MAX_QPS) {
+    WARN("CTRAN-IB: CTRAN_MAX_QPS set to more than the hardcoded max value (%d)", CTRAN_HARDCODED_MAX_QPS);
+  }
+
   this->peerRank = peerRank;
   this->controlQp = nullptr;
-  this->dataQp = nullptr;
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    this->dataQp.push_back(nullptr);
+  }
   this->context = context;
   this->pd = pd;
   this->cq = cq;
@@ -51,8 +62,16 @@ ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv
     this->sendCtrl.freeMsg.push_back(&this->sendCtrl.cmsg[i]);
   }
 
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    std::deque<ctranIbRequest *> q;
+    this->put.postedWr.push_back(q);
+  }
+
   this->isReady_ = false;
-  this->notifications = 0;
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    std::deque<uint64_t> q;
+    this->notifications.push_back(q);
+  }
 }
 
 ctranIb::impl::vc::~vc() {
@@ -63,7 +82,9 @@ ctranIb::impl::vc::~vc() {
     /* we don't need to clean up the posted WQEs; destroying the QP
      * will automatically clear them */
     NCCLCHECKIGNORE(wrap_ibv_destroy_qp(this->controlQp));
-    NCCLCHECKIGNORE(wrap_ibv_destroy_qp(this->dataQp));
+    for (auto qp : this->dataQp) {
+      NCCLCHECKIGNORE(wrap_ibv_destroy_qp(qp));
+    }
   }
 }
 
@@ -108,7 +129,9 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
   initAttr.cap.max_recv_sge = 1;
   initAttr.cap.max_inline_data = 0;
   NCCLCHECKGOTO(wrap_ibv_create_qp(&this->controlQp, this->pd, &initAttr), res, exit);
-  NCCLCHECKGOTO(wrap_ibv_create_qp(&this->dataQp, this->pd, &initAttr), res, exit);
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    NCCLCHECKGOTO(wrap_ibv_create_qp(&this->dataQp[i], this->pd, &initAttr), res, exit);
+  }
 
   /* set QP to INIT state */
   struct ibv_qp_attr qpAttr;
@@ -121,15 +144,20 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
     wrap_ibv_modify_qp(this->controlQp, &qpAttr,
                        IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS),
     res, exit);
-  NCCLCHECKGOTO(
-    wrap_ibv_modify_qp(this->dataQp, &qpAttr,
-                       IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS),
-    res, exit);
+
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    NCCLCHECKGOTO(
+        wrap_ibv_modify_qp(this->dataQp[i], &qpAttr,
+          IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS),
+        res, exit);
+  }
 
   /* create local business card */
   busCard->port = this->port;
   busCard->controlQpn = this->controlQp->qp_num;
-  busCard->dataQpn = this->dataQp->qp_num;
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    busCard->dataQpn[i] = this->dataQp[i]->qp_num;
+  }
   busCard->mtu = portAttr.active_mtu;
 
   union ibv_gid gid;
@@ -141,13 +169,16 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, uint32_t *dataQp) {
+ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, std::vector<uint32_t>& dataQp) {
   ncclResult_t res = ncclSuccess;
   struct ibv_qp_attr qpAttr;
   struct busCard *remoteBusCard = reinterpret_cast<struct busCard *>(busCard);
 
   *controlQp = this->controlQp->qp_num;
-  *dataQp = this->dataQp->qp_num;
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    dataQp.push_back(this->dataQp[i]->qp_num);
+    this->qpNumToIdx[this->dataQp[i]->qp_num] = i;
+  }
 
   /* set QP to RTR state */
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
@@ -173,11 +204,13 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, uint
                        IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
                        IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER), res, exit);
 
-  qpAttr.dest_qp_num = remoteBusCard->dataQpn;
-  NCCLCHECKGOTO(
-    wrap_ibv_modify_qp(this->dataQp, &qpAttr,
-                       IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
-                       IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER), res, exit);
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    qpAttr.dest_qp_num = remoteBusCard->dataQpn[i];
+    NCCLCHECKGOTO(
+        wrap_ibv_modify_qp(this->dataQp[i], &qpAttr,
+          IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
+          IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER), res, exit);
+  }
 
   /* set QP to RTS state */
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
@@ -191,17 +224,22 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, uint
     wrap_ibv_modify_qp(this->controlQp, &qpAttr,
                        IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
                        IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC), res, exit);
-  NCCLCHECKGOTO(
-    wrap_ibv_modify_qp(this->dataQp, &qpAttr,
-                       IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
-                       IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC), res, exit);
+
+  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+    NCCLCHECKGOTO(
+        wrap_ibv_modify_qp(this->dataQp[i], &qpAttr,
+          IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
+          IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC), res, exit);
+  }
 
   /* post control WQEs */
   for (int i = 0; i < MAX_CONTROL_MSGS; i++) {
     NCCLCHECKGOTO(this->postRecvCtrlMsg(&this->recvCtrl.cmsg[i]), res, exit);
     this->recvCtrl.postedMsg.push_back(&this->recvCtrl.cmsg[i]);
 
-    NCCLCHECKGOTO(this->postRecvNotifyMsg(), res, exit);
+    for (int j = 0; j < ncclParamCtranIbMaxQps(); j++) {
+      NCCLCHECKGOTO(this->postRecvNotifyMsg(j), res, exit);
+    }
   }
 
   this->setReady();
@@ -258,55 +296,67 @@ ncclResult_t ctranIb::impl::vc::postPutMsg(const void *sbuf, void *dbuf, std::si
     uint32_t lkey, uint32_t rkey, bool localNotify, bool notify) {
   ncclResult_t res = ncclSuccess;
 
+  int numQps = (len_ / ncclParamCtranIbQpScalingThreshold()) +
+    !!(len_ % ncclParamCtranIbQpScalingThreshold());
+  if (numQps > ncclParamCtranIbMaxQps()) {
+    numQps = ncclParamCtranIbMaxQps();
+  }
+
   uint64_t offset = 0;
-  uint64_t len = len_;
 
-  while (len > 0) {
-    uint64_t toSend = std::min(len, static_cast<uint64_t>(this->maxMsgSize));
-
-    struct ibv_sge sg;
-    memset(&sg, 0, sizeof(sg));
-    sg.addr = reinterpret_cast<uint64_t>(sbuf) + offset;
-    sg.length = toSend;
-    sg.lkey = lkey;
-
-    struct ibv_send_wr wr, *badWr;
-    memset(&wr, 0, sizeof(wr));
-    wr.wr_id = 0;
-    wr.next = nullptr;
-    wr.sg_list = &sg;
-    wr.num_sge = 1;
-
-    if (len > this->maxMsgSize) {
-      wr.opcode = IBV_WR_RDMA_WRITE;
-      wr.send_flags = 0;
-    } else {
-      if (notify == true) {
-        wr.opcode = IBV_WR_RDMA_WRITE_WITH_IMM;
-      } else {
-        wr.opcode = IBV_WR_RDMA_WRITE;
-      }
-
-      if (localNotify == true) {
-        wr.send_flags = IBV_SEND_SIGNALED;
-      } else {
-        wr.send_flags = 0;
-      }
+  for (int i = 0; i < numQps; i++) {
+    uint64_t len = len_ / numQps;
+    if (i == 0) {
+      len += (len_ % numQps);
     }
-    wr.wr.rdma.remote_addr = reinterpret_cast<uint64_t>(dbuf) + offset;
-    wr.wr.rdma.rkey = rkey;
 
-    NCCLCHECKGOTO(wrap_ibv_post_send(this->dataQp, &wr, &badWr), res, exit);
+    while (len > 0) {
+      uint64_t toSend = std::min(len, static_cast<uint64_t>(this->maxMsgSize));
 
-    len -= toSend;
-    offset += toSend;
+      struct ibv_sge sg;
+      memset(&sg, 0, sizeof(sg));
+      sg.addr = reinterpret_cast<uint64_t>(sbuf) + offset;
+      sg.length = toSend;
+      sg.lkey = lkey;
+
+      struct ibv_send_wr wr, *badWr;
+      memset(&wr, 0, sizeof(wr));
+      wr.wr_id = len_;
+      wr.next = nullptr;
+      wr.sg_list = &sg;
+      wr.num_sge = 1;
+
+      if (len > this->maxMsgSize) {
+        wr.opcode = IBV_WR_RDMA_WRITE;
+        wr.send_flags = 0;
+      } else {
+        if (notify == true) {
+          wr.opcode = IBV_WR_RDMA_WRITE_WITH_IMM;
+        } else {
+          wr.opcode = IBV_WR_RDMA_WRITE;
+        }
+
+        if (localNotify == true) {
+          wr.send_flags = IBV_SEND_SIGNALED;
+        } else {
+          wr.send_flags = 0;
+        }
+      }
+      wr.wr.rdma.remote_addr = reinterpret_cast<uint64_t>(dbuf) + offset;
+      wr.wr.rdma.rkey = rkey;
+
+      NCCLCHECKGOTO(wrap_ibv_post_send(this->dataQp[i], &wr, &badWr), res, exit);
+
+      len -= toSend;
+      offset += toSend;
+    }
   }
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::postRecvNotifyMsg() {
+ncclResult_t ctranIb::impl::vc::postRecvNotifyMsg(int idx) {
   ncclResult_t res = ncclSuccess;
 
   struct ibv_recv_wr wr, *badWr;
@@ -314,13 +364,14 @@ ncclResult_t ctranIb::impl::vc::postRecvNotifyMsg() {
   wr.wr_id = 0;
   wr.next = nullptr;
   wr.num_sge = 0;
-  NCCLCHECKGOTO(wrap_ibv_post_recv(this->dataQp, &wr, &badWr), res, exit);
+
+  NCCLCHECKGOTO(wrap_ibv_post_recv(this->dataQp[idx], &wr, &badWr), res, exit);
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, uint64_t wrId) {
+ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, int qpNum, uint64_t wrId) {
   ncclResult_t res = ncclSuccess;
 
   switch (opcode) {
@@ -381,16 +432,18 @@ ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, uint64_t w
 
     case IBV_WC_RDMA_WRITE:
       {
-        auto req = this->put.postedWr.front();
-        this->put.postedWr.pop_front();
+        int idx = this->qpNumToIdx[qpNum];
+        auto req = this->put.postedWr[idx].front();
+        this->put.postedWr[idx].pop_front();
         req->complete();
       }
       break;
 
     case IBV_WC_RECV_RDMA_WITH_IMM:
       {
-        this->notifications++;
-        NCCLCHECKGOTO(this->postRecvNotifyMsg(), res, exit);
+        int idx = this->qpNumToIdx[qpNum];
+        this->notifications[idx].push_back(wrId);
+        NCCLCHECKGOTO(this->postRecvNotifyMsg(idx), res, exit);
       }
       break;
 
@@ -468,8 +521,17 @@ ncclResult_t ctranIb::impl::vc::iput(const void *sbuf, void *dbuf, std::size_t l
 
   bool localNotify;
   if (req != nullptr) {
+    int numQps = (len / ncclParamCtranIbQpScalingThreshold()) +
+      !!(len % ncclParamCtranIbQpScalingThreshold());
+    if (numQps > ncclParamCtranIbMaxQps()) {
+      numQps = ncclParamCtranIbMaxQps();
+    }
+
     localNotify = true;
-    this->put.postedWr.push_back(req);
+    req->setRefCount(numQps);
+    for (int i = 0; i < numQps; i++) {
+      this->put.postedWr[i].push_back(req);
+    }
   } else {
     localNotify = false;
   }
@@ -483,11 +545,28 @@ exit:
 ncclResult_t ctranIb::impl::vc::checkNotify(bool *notify) {
   ncclResult_t res = ncclSuccess;
 
-  if (this->notifications) {
-    *notify = true;
-    this->notifications--;
-  } else {
+  if (this->notifications[0].empty()) {
     *notify = false;
+  } else {
+    uint64_t msgSz = this->notifications[0].front();
+    int numQps = (msgSz / ncclParamCtranIbQpScalingThreshold()) +
+      !!(msgSz % ncclParamCtranIbQpScalingThreshold());
+    if (numQps > ncclParamCtranIbMaxQps()) {
+      numQps = ncclParamCtranIbMaxQps();
+    }
+
+    *notify = true;
+    for (int i = 0; i < numQps; i++) {
+      if (this->notifications[i].empty()) {
+        *notify = false;
+        break;
+      }
+    }
+    if (*notify == true) {
+      for (int i = 0; i < numQps; i++) {
+        this->notifications[i].pop_front();
+      }
+    }
   }
 
   return res;

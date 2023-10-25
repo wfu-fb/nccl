@@ -17,6 +17,7 @@ public:
   ctranIbRequest();
   ~ctranIbRequest();
 
+  void setRefCount(int refCount);
   void complete();
   ncclResult_t test(bool *isComplete);
 
@@ -25,6 +26,7 @@ private:
     INCOMPLETE,
     COMPLETE,
   } state;
+  int refCount;
 };
 
 class ctranIb {

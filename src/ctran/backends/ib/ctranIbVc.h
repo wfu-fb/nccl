@@ -21,9 +21,9 @@ class ctranIb::impl::vc {
     bool isReady();
     std::size_t getBusCardSize();
     ncclResult_t getLocalBusCard(void *busCard);
-    ncclResult_t setupVc(void *busCard, uint32_t *controlQp, uint32_t *dataQp);
+    ncclResult_t setupVc(void *busCard, uint32_t *controlQp, std::vector<uint32_t> &dataQp);
     ncclResult_t progress();
-    ncclResult_t processCqe(enum ibv_wc_opcode opcode, uint64_t wrId);
+    ncclResult_t processCqe(enum ibv_wc_opcode opcode, int qpNum, uint64_t wrId);
     ncclResult_t isendCtrl(void *buf, void *ibRegElem, ctranIbRequest *req);
     ncclResult_t irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, ctranIbRequest *req);
     ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, void *ibRegElem,
@@ -38,10 +38,10 @@ class ctranIb::impl::vc {
     ncclResult_t postSendCtrlMsg(struct controlMsg *cmsg);
     ncclResult_t postPutMsg(const void *sbuf, void *dbuf, std::size_t len,
         uint32_t lkey, uint32_t rkey, bool localNotify, bool notify);
-    ncclResult_t postRecvNotifyMsg(void);
+    ncclResult_t postRecvNotifyMsg(int idx);
 
     struct ibv_qp *controlQp;
-    struct ibv_qp *dataQp;
+    std::vector<struct ibv_qp *> dataQp;
 
     struct {
       struct controlWr wr[MAX_CONTROL_MSGS];
@@ -61,7 +61,7 @@ class ctranIb::impl::vc {
       std::deque<struct controlWr *> enqueuedWr;
     } recvCtrl;
     struct {
-      std::deque<ctranIbRequest *> postedWr;
+      std::vector<std::deque<ctranIbRequest *>> postedWr;
     } put;
 
     bool isReady_;
@@ -71,7 +71,8 @@ class ctranIb::impl::vc {
     int port;
     uint32_t maxMsgSize;
     std::mutex m;
-    int notifications;
+    std::vector<std::deque<uint64_t>> notifications;
+    std::unordered_map<int,int> qpNumToIdx;
 };
 
 #endif

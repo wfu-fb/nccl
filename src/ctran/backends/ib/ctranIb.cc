@@ -207,7 +207,7 @@ ncclResult_t ctranIb::progress(void) {
       goto exit;
     }
 
-    NCCLCHECKGOTO(vc->processCqe(wc.opcode, wc.wr_id), res, exit);
+    NCCLCHECKGOTO(vc->processCqe(wc.opcode, wc.qp_num, wc.wr_id), res, exit);
   }
 
   /* we should have pendingOps only if the connection was not

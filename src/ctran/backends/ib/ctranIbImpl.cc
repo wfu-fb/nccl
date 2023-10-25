@@ -40,10 +40,13 @@ void ctranIb::impl::bootstrapAccept(ctranIb::impl *pimpl) {
     NCCLCHECKIGNORE(ncclSocketRecv(&sock, remoteBusCard, size));
     NCCLCHECKIGNORE(ncclSocketSend(&sock, localBusCard, size));
 
-    uint32_t controlQp, dataQp;
-    NCCLCHECKIGNORE(vc->setupVc(remoteBusCard, &controlQp, &dataQp));
+    uint32_t controlQp;
+    std::vector<uint32_t> dataQp;
+    NCCLCHECKIGNORE(vc->setupVc(remoteBusCard, &controlQp, dataQp));
     pimpl->qpToRank[controlQp] = peerRank;
-    pimpl->qpToRank[dataQp] = peerRank;
+    for (auto qpn : dataQp) {
+      pimpl->qpToRank[qpn] = peerRank;
+    }
 
     free(localBusCard);
     free(remoteBusCard);
@@ -62,6 +65,8 @@ void ctranIb::impl::bootstrapAccept(ctranIb::impl *pimpl) {
 ncclResult_t ctranIb::impl::bootstrapConnect(int peerRank, int cmd) {
   ncclResult_t res = ncclSuccess;
   auto vc = this->vcList[peerRank];
+  uint32_t controlQp;
+  std::vector<uint32_t> dataQp;
 
   this->m.lock();
 
@@ -86,10 +91,11 @@ ncclResult_t ctranIb::impl::bootstrapConnect(int peerRank, int cmd) {
   NCCLCHECKGOTO(ncclSocketSend(&sock, localBusCard, size), res, exit);
   NCCLCHECKGOTO(ncclSocketRecv(&sock, remoteBusCard, size), res, exit);
 
-  uint32_t controlQp, dataQp;
-  NCCLCHECKGOTO(vc->setupVc(remoteBusCard, &controlQp, &dataQp), res, exit);
+  NCCLCHECKGOTO(vc->setupVc(remoteBusCard, &controlQp, dataQp), res, exit);
   this->qpToRank[controlQp] = peerRank;
-  this->qpToRank[dataQp] = peerRank;
+  for (auto qpn : dataQp) {
+    this->qpToRank[qpn] = peerRank;
+  }
 
   free(localBusCard);
   free(remoteBusCard);

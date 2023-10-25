@@ -6,13 +6,21 @@
 
 ctranIbRequest::ctranIbRequest() {
   this->state = ctranIbRequest::INCOMPLETE;
+  this->refCount = 1;
 }
 
 ctranIbRequest::~ctranIbRequest() {
 }
 
+void ctranIbRequest::setRefCount(int refCount) {
+  this->refCount = refCount;
+}
+
 void ctranIbRequest::complete() {
-  this->state = ctranIbRequest::COMPLETE;
+  this->refCount--;
+  if (this->refCount == 0) {
+    this->state = ctranIbRequest::COMPLETE;
+  }
 }
 
 ncclResult_t ctranIbRequest::test(bool *isComplete) {
