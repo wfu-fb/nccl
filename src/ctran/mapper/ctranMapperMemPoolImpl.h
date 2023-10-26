@@ -7,7 +7,7 @@
 #include <memory>
 #include <unordered_set>
 #include "ctranMapper.h"
-#include "ctranAvlTree.h"
+#include "ctranRegCache.h"
 
 constexpr std::size_t kDefaultBlockSize = 1024 * 1024; // 2MB
 constexpr std::size_t kDefaultMinBlockSize = 4096; // 4KB

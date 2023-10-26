@@ -393,7 +393,7 @@ ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, int qpNum,
           this->sendCtrl.freeMsg.pop_front();
 
           cmsg->remoteAddr = reinterpret_cast<uint64_t>(enqueuedWr->enqueued.send.buf);
-          cmsg->rkey = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(enqueuedWr->enqueued.send.ibRegElem));
+          cmsg->rkey = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(enqueuedWr->enqueued.send.hdl));
           NCCLCHECKGOTO(this->postSendCtrlMsg(cmsg), res, exit);
 
           this->sendCtrl.postedMsg.push_back(cmsg);
@@ -457,13 +457,13 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::isendCtrl(void *buf, void *ibRegElem, ctranIbRequest *req) {
+ncclResult_t ctranIb::impl::vc::isendCtrl(void *buf, void *hdl, ctranIbRequest *req) {
   ncclResult_t res = ncclSuccess;
 
   if (this->sendCtrl.freeMsg.empty()) {
     auto enqueuedWr = new struct controlWr;
     enqueuedWr->enqueued.send.buf = buf;
-    enqueuedWr->enqueued.send.ibRegElem = ibRegElem;
+    enqueuedWr->enqueued.send.hdl = hdl;
     enqueuedWr->enqueued.send.req = req;
     this->sendCtrl.enqueuedWr.push_back(enqueuedWr);
   } else {
@@ -471,7 +471,7 @@ ncclResult_t ctranIb::impl::vc::isendCtrl(void *buf, void *ibRegElem, ctranIbReq
     this->sendCtrl.freeMsg.pop_front();
 
     cmsg->remoteAddr = reinterpret_cast<uint64_t>(buf);
-    cmsg->rkey = reinterpret_cast<struct ibv_mr *>(ibRegElem)->rkey;
+    cmsg->rkey = reinterpret_cast<struct ibv_mr *>(hdl)->rkey;
     NCCLCHECKGOTO(this->postSendCtrlMsg(cmsg), res, exit);
     this->sendCtrl.postedMsg.push_back(cmsg);
     this->sendCtrl.postedReq.push_back(req);
@@ -504,13 +504,13 @@ ncclResult_t ctranIb::impl::vc::irecvCtrl(void **buf, struct ctranIbRemoteAccess
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::iput(const void *sbuf, void *dbuf, std::size_t len, void *ibRegElem,
+ncclResult_t ctranIb::impl::vc::iput(const void *sbuf, void *dbuf, std::size_t len, void *shdl,
     struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest *req) {
   ncclResult_t res = ncclSuccess;
   struct ibv_mr *smr;
   uint32_t rkey;
 
-  smr = reinterpret_cast<struct ibv_mr *>(ibRegElem);
+  smr = reinterpret_cast<struct ibv_mr *>(shdl);
   if (smr == nullptr) {
     WARN("CTRAN-IB: memory registration not found for addr %p", sbuf);
     res = ncclSystemError;

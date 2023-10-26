@@ -13,7 +13,7 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl = std::unique_ptr<impl>(new impl());
 
   /* mapperRegElemList */
-  this->pimpl->mapperRegElemList = new class ctranAvlTree();
+  this->pimpl->mapperRegElemList = new class ctranRegCache();
 
   /* check user preference for backends */
   char *ctranBackendsStr = getenv("NCCL_CTRAN_BACKENDS");

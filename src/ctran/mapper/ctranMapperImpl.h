@@ -6,7 +6,7 @@
 #include "ctranIb.h"
 #include "ctranNvl.h"
 #include "ctranMapper.h"
-#include "ctranAvlTree.h"
+#include "ctranRegCache.h"
 
 struct ctranMapperRegElem {
   void *ibRegElem;
@@ -24,7 +24,7 @@ public:
   impl() = default;
   ~impl() = default;
 
-  class ctranAvlTree *mapperRegElemList;
+  class ctranRegCache *mapperRegElemList;
   class ctranMapperMemPool *memPool;
 
   std::vector<enum ctranMapperBackend> rankBackendMap;

@@ -1,17 +1,17 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#ifndef CTRAN_AVL_TREE_H_
-#define CTRAN_AVL_TREE_H_
+#ifndef CTRAN_REG_CACHE_H_
+#define CTRAN_REG_CACHE_H_
 
 #include <cstdint>
 #include <vector>
 #include <memory>
 #include "nccl.h"
 
-class ctranAvlTree {
+class ctranRegCache {
 public:
-  ctranAvlTree();
-  ~ctranAvlTree();
+  ctranRegCache();
+  ~ctranRegCache();
 
   ncclResult_t insert(const void *addr, std::size_t len, void *val, void **hdl);
   ncclResult_t remove(void *hdl);
@@ -20,8 +20,8 @@ public:
   std::vector<void *> getAllElems();
 
 private:
-  class TreeVector;
-  class TreeVector *root;
+  class impl;
+  std::unique_ptr<class impl> pimpl;
 };
 
 #endif
