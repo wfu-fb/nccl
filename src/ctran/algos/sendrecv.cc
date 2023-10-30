@@ -126,6 +126,8 @@ exit:
 
 ncclResult_t ctranSend(const void* sendbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream) {
+  LOG_SENDRECV_INFO("ctranSend", sendbuff, count, datatype, peer, comm, stream);
+
   ncclResult_t res = ncclSuccess;
   struct collOp *op;
 
@@ -145,6 +147,8 @@ ncclResult_t ctranSend(const void* sendbuff, size_t count, ncclDataType_t dataty
 
 ncclResult_t ctranRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream) {
+  LOG_SENDRECV_INFO("ctranRecv", recvbuff, count, datatype, peer, comm, stream);
+
   ncclResult_t res = ncclSuccess;
   struct collOp *op;
 

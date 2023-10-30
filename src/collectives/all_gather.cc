@@ -11,14 +11,6 @@
 NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 0);
 NCCL_PARAM(CtranEnableLocalIb, "CTRAN_ENABLE_LOCAL_IB", 0);
 
-#define LOG_COLL_INFO(algoStr, sendbuff, recvbuff, sendcount, datatype, comm, stream) do {  \
-    INFO(NCCL_COLL,                                                                         \
-        "%s: opCount %lx sendbuff %p recvbuff %p sendcount %zi datatype %d comm %lu [nranks=%d, localRanks=%d] stream=%p\n",  \
-        algoStr, comm->opCount, sendbuff, recvbuff, sendcount, datatype, comm->commHash, comm->nRanks, \
-        comm->localRanks, stream);                                       \
-    comm->opCount++;                                                                    \
-} while (0)
-
 NCCL_API(ncclResult_t, ncclAllGather, const void* sendbuff, void* recvbuff, size_t sendcount,
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
 ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcount,
