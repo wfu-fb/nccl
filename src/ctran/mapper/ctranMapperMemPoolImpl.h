@@ -11,7 +11,7 @@
 
 constexpr std::size_t kDefaultBlockSize = 1024 * 1024; // 2MB
 constexpr std::size_t kDefaultMinBlockSize = 4096; // 4KB
-constexpr int kDefaultNumBlocks = 8;
+constexpr int kDefaultNumBlocks = 0;
 
 // Struct containing info of a memory segment (i.e. one contiguous cudaMalloc).
 class memBlockInfo {
