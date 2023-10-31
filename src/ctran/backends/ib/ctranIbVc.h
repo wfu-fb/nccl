@@ -70,6 +70,7 @@ class ctranIb::impl::vc {
     struct ibv_cq *cq;
     int port;
     uint32_t maxMsgSize;
+    uint8_t linkLayer;
     std::mutex m;
     std::vector<std::deque<uint64_t>> notifications;
     std::unordered_map<int,int> qpNumToIdx;

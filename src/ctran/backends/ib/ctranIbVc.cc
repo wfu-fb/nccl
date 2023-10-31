@@ -25,11 +25,18 @@ NCCL_PARAM(CtranIbQpScalingThreshold, "CTRAN_IB_QP_SCALING_THRESHOLD", 1024 * 10
 
 struct busCard {
   enum ibv_mtu mtu;
-  uint64_t spn;
-  uint64_t iid;
   uint32_t controlQpn;
   uint32_t dataQpn[CTRAN_HARDCODED_MAX_QPS];
   uint8_t port;
+  union {
+    struct {
+      uint64_t spn;
+      uint64_t iid;
+    } eth;
+    struct {
+      uint16_t lid;
+    } ib;
+  } u;
 };
 
 ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv_cq *cq,
@@ -115,6 +122,7 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
   struct ibv_port_attr portAttr;
   NCCLCHECKIGNORE(wrap_ibv_query_port(this->context, this->port, &portAttr));
   this->maxMsgSize = portAttr.max_msg_sz;
+  this->linkLayer = portAttr.link_layer;
 
   /* create QP */
   struct ibv_qp_init_attr initAttr;
@@ -160,10 +168,14 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
   }
   busCard->mtu = portAttr.active_mtu;
 
-  union ibv_gid gid;
-  NCCLCHECKGOTO(wrap_ibv_query_gid(this->context, this->port, ncclParamIbGidIndex(), &gid), res, exit);
-  busCard->spn = gid.global.subnet_prefix;
-  busCard->iid = gid.global.interface_id;
+  if (this->linkLayer == IBV_LINK_LAYER_ETHERNET) {
+    union ibv_gid gid;
+    NCCLCHECKGOTO(wrap_ibv_query_gid(this->context, this->port, ncclParamIbGidIndex(), &gid), res, exit);
+    busCard->u.eth.spn = gid.global.subnet_prefix;
+    busCard->u.eth.iid = gid.global.interface_id;
+  } else {
+    busCard->u.ib.lid = portAttr.lid;
+  }
 
 exit:
   return res;
@@ -187,13 +199,19 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, std:
   qpAttr.rq_psn = 0;
   qpAttr.max_dest_rd_atomic = 1;
   qpAttr.min_rnr_timer = 12;
-  qpAttr.ah_attr.is_global = 1;
-  qpAttr.ah_attr.grh.dgid.global.subnet_prefix = remoteBusCard->spn;
-  qpAttr.ah_attr.grh.dgid.global.interface_id = remoteBusCard->iid;
-  qpAttr.ah_attr.grh.flow_label = 0;
-  qpAttr.ah_attr.grh.sgid_index = ncclParamIbGidIndex();
-  qpAttr.ah_attr.grh.hop_limit = 255;
-  qpAttr.ah_attr.grh.traffic_class = ncclParamIbTc();
+
+  if (this->linkLayer == IBV_LINK_LAYER_ETHERNET) {
+    qpAttr.ah_attr.is_global = 1;
+    qpAttr.ah_attr.grh.dgid.global.subnet_prefix = remoteBusCard->u.eth.spn;
+    qpAttr.ah_attr.grh.dgid.global.interface_id = remoteBusCard->u.eth.iid;
+    qpAttr.ah_attr.grh.flow_label = 0;
+    qpAttr.ah_attr.grh.sgid_index = ncclParamIbGidIndex();
+    qpAttr.ah_attr.grh.hop_limit = 255;
+    qpAttr.ah_attr.grh.traffic_class = ncclParamIbTc();
+  } else {
+    qpAttr.ah_attr.is_global = 0;
+    qpAttr.ah_attr.dlid = remoteBusCard->u.ib.lid;
+  }
   qpAttr.ah_attr.sl = ncclParamIbSl();
   qpAttr.ah_attr.src_path_bits = 0;
   qpAttr.ah_attr.port_num = remoteBusCard->port;
