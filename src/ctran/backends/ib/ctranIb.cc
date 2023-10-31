@@ -32,11 +32,12 @@ public:
   int port;
 };
 
-ctranIb::ctranIb(ncclComm *comm) {
-  this->pimpl = std::unique_ptr<impl>(new impl());
+ctranIbSingleton &ctranIbSingleton::getInstance(void) {
+  static ctranIbSingleton s;
+  return s;
+}
 
-  this->pimpl->rank = comm->rank;
-  this->pimpl->nRanks = comm->nRanks;
+ctranIbSingleton::ctranIbSingleton(void) {
   std::vector<roceHca *> hcas;
 
   char* userIfsEnv = getenv("NCCL_IB_HCA");
@@ -58,7 +59,6 @@ ctranIb::ctranIb(ncclComm *comm) {
 
   struct ibv_device **devs;
   std::vector<struct ibv_device *> devices;
-  std::vector<int> ports;
   int nDevs;
   NCCLCHECKIGNORE(wrap_ibv_get_device_list(&devs, &nDevs));
 
@@ -78,19 +78,47 @@ ctranIb::ctranIb(ncclComm *comm) {
 
     struct ibv_device *device = devs[i];
     devices.push_back(device);
-    ports.push_back(port);
+    this->ports.push_back(port);
   }
 
   if (devices.empty()) {
     throw std::bad_alloc();
   }
 
-  int devId = comm->cudaDev;
-  this->pimpl->port = ports[devId];
-  INFO(NCCL_INIT, "CTRAN-IB: using device %s, port %d", devices[devId]->name, this->pimpl->port);
+  for (auto i = 0; i < devices.size(); i++) {
+    struct ibv_context *context;
+    struct ibv_pd *pd;
+    NCCLCHECKIGNORE(wrap_ibv_open_device(&context, devices[i]));
+    NCCLCHECKIGNORE(wrap_ibv_alloc_pd(&pd, context));
 
-  NCCLCHECKIGNORE(wrap_ibv_open_device(&this->pimpl->context, devices[devId]));
-  NCCLCHECKIGNORE(wrap_ibv_alloc_pd(&this->pimpl->pd, this->pimpl->context));
+    this->contexts.push_back(context);
+    this->pds.push_back(pd);
+    this->devNames.push_back(devices[i]->name);
+  }
+}
+
+ctranIbSingleton::~ctranIbSingleton() {
+  for (auto pd : this->pds) {
+    NCCLCHECKIGNORE(wrap_ibv_dealloc_pd(pd));
+  }
+
+  for (auto context : this->contexts) {
+    NCCLCHECKIGNORE(wrap_ibv_close_device(context));
+  }
+}
+
+ctranIb::ctranIb(ncclComm *comm) {
+  this->pimpl = std::unique_ptr<impl>(new impl());
+
+  this->pimpl->rank = comm->rank;
+  this->pimpl->nRanks = comm->nRanks;
+
+  ctranIbSingleton& s = ctranIbSingleton::getInstance();
+
+  this->pimpl->context = s.contexts[comm->cudaDev];
+  this->pimpl->pd = s.pds[comm->cudaDev];
+  this->pimpl->port = s.ports[comm->cudaDev];
+  INFO(NCCL_INIT, "CTRAN-IB: using device %s, port %d", s.devNames[comm->cudaDev].c_str(), this->pimpl->port);
 
   struct ibv_device_attr devAttr;
   NCCLCHECKIGNORE(wrap_ibv_query_device(this->pimpl->context, &devAttr));
@@ -145,8 +173,6 @@ ctranIb::~ctranIb(void) {
   NCCLCHECKIGNORE(ncclSocketClose(&this->pimpl->listenSocket));
 
   NCCLCHECKIGNORE(wrap_ibv_destroy_cq(this->pimpl->cq));
-  NCCLCHECKIGNORE(wrap_ibv_dealloc_pd(this->pimpl->pd));
-  NCCLCHECKIGNORE(wrap_ibv_close_device(this->pimpl->context));
 }
 
 ncclResult_t ctranIb::regMem(const void *buf, std::size_t len, void **ibRegElem) {

@@ -34,6 +34,20 @@ struct pendingOp {
   } irecvCtrl;
 };
 
+class ctranIbSingleton {
+  public:
+    ctranIbSingleton(const ctranIbSingleton& obj) = delete;
+    static ctranIbSingleton& getInstance();
+    std::vector<int> ports;
+    std::vector<struct ibv_context *> contexts;
+    std::vector<struct ibv_pd *> pds;
+    std::vector<std::string> devNames;
+
+  private:
+    ctranIbSingleton();
+    ~ctranIbSingleton();
+};
+
 class ctranIb::impl {
 public:
   impl() = default;
