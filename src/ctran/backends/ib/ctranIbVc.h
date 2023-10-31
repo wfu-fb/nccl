@@ -23,7 +23,7 @@ class ctranIb::impl::vc {
     ncclResult_t getLocalBusCard(void *busCard);
     ncclResult_t setupVc(void *busCard, uint32_t *controlQp, std::vector<uint32_t> &dataQp);
     ncclResult_t progress();
-    ncclResult_t processCqe(enum ibv_wc_opcode opcode, int qpNum, uint64_t wrId);
+    ncclResult_t processCqe(enum ibv_wc_opcode opcode, int qpNum, uint32_t immData);
     ncclResult_t isendCtrl(void *buf, void *ibRegElem, ctranIbRequest *req);
     ncclResult_t irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, ctranIbRequest *req);
     ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, void *ibRegElem,

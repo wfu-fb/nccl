@@ -321,7 +321,7 @@ ncclResult_t ctranIb::impl::vc::postPutMsg(const void *sbuf, void *dbuf, std::si
 
       struct ibv_send_wr wr, *badWr;
       memset(&wr, 0, sizeof(wr));
-      wr.wr_id = len_;
+      wr.wr_id = 0;
       wr.next = nullptr;
       wr.sg_list = &sg;
       wr.num_sge = 1;
@@ -332,6 +332,7 @@ ncclResult_t ctranIb::impl::vc::postPutMsg(const void *sbuf, void *dbuf, std::si
       } else {
         if (notify == true) {
           wr.opcode = IBV_WR_RDMA_WRITE_WITH_IMM;
+          wr.imm_data = len_;
         } else {
           wr.opcode = IBV_WR_RDMA_WRITE;
         }
@@ -371,7 +372,7 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, int qpNum, uint64_t wrId) {
+ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, int qpNum, uint32_t immData) {
   ncclResult_t res = ncclSuccess;
 
   switch (opcode) {
@@ -442,7 +443,7 @@ ncclResult_t ctranIb::impl::vc::processCqe(enum ibv_wc_opcode opcode, int qpNum,
     case IBV_WC_RECV_RDMA_WITH_IMM:
       {
         int idx = this->qpNumToIdx[qpNum];
-        this->notifications[idx].push_back(wrId);
+        this->notifications[idx].push_back(immData);
         NCCLCHECKGOTO(this->postRecvNotifyMsg(idx), res, exit);
       }
       break;
