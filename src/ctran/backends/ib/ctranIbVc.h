@@ -26,7 +26,7 @@ class ctranIb::impl::vc {
     ncclResult_t processCqe(enum ibv_wc_opcode opcode, int qpNum, uint64_t wrId);
     ncclResult_t isendCtrl(void *buf, void *ibRegElem, ctranIbRequest *req);
     ncclResult_t irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, ctranIbRequest *req);
-    ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, void *shdl,
+    ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, void *ibRegElem,
         struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest *req);
     ncclResult_t checkNotify(bool *notify);
 

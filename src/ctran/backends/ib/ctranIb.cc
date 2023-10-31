@@ -149,7 +149,7 @@ ctranIb::~ctranIb(void) {
   NCCLCHECKIGNORE(wrap_ibv_close_device(this->pimpl->context));
 }
 
-ncclResult_t ctranIb::regMem(const void *buf, std::size_t len, void **hdl) {
+ncclResult_t ctranIb::regMem(const void *buf, std::size_t len, void **ibRegElem) {
   ncclResult_t res = ncclSuccess;
 
   int pageSize = getpagesize();
@@ -163,16 +163,16 @@ ncclResult_t ctranIb::regMem(const void *buf, std::size_t len, void **hdl) {
   NCCLCHECKGOTO(wrap_ibv_reg_mr(&mr, this->pimpl->pd, (void *) buf, len,
                                 IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
                                 IBV_ACCESS_REMOTE_READ), res, exit);
-  *hdl = reinterpret_cast<void *>(mr);
+  *ibRegElem = reinterpret_cast<void *>(mr);
 
 exit:
   return res;
 }
 
-ncclResult_t ctranIb::deregMem(void *hdl) {
+ncclResult_t ctranIb::deregMem(void *ibRegElem) {
   ncclResult_t res = ncclSuccess;
 
-  struct ibv_mr *mr = reinterpret_cast<struct ibv_mr *>(hdl);
+  struct ibv_mr *mr = reinterpret_cast<struct ibv_mr *>(ibRegElem);
   NCCLCHECKGOTO(wrap_ibv_dereg_mr(mr), res, exit);
 
 exit:
@@ -233,7 +233,7 @@ ncclResult_t ctranIb::progress(void) {
       auto vc = this->pimpl->vcList[rank];
       if (op->type == pendingOp::pendingOpType::ISEND_CTRL) {
         if (vc->isReady() == true) {
-          NCCLCHECKGOTO(vc->isendCtrl(op->isendCtrl.buf, op->isendCtrl.hdl, op->isendCtrl.req), res, exit);
+          NCCLCHECKGOTO(vc->isendCtrl(op->isendCtrl.buf, op->isendCtrl.ibRegElem, op->isendCtrl.req), res, exit);
           delete op;
         } else {
           this->pimpl->pendingOps.push_back(op);
@@ -255,7 +255,7 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::isendCtrl(void *buf, void *hdl, int peerRank, ctranIbRequest **req) {
+ncclResult_t ctranIb::isendCtrl(void *buf, void *ibRegElem, int peerRank, ctranIbRequest **req) {
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl->vcList[peerRank];
@@ -265,12 +265,12 @@ ncclResult_t ctranIb::isendCtrl(void *buf, void *hdl, int peerRank, ctranIbReque
 
   *req = new ctranIbRequest();
   if (vc->isReady() == true) {
-    NCCLCHECKGOTO(vc->isendCtrl(buf, hdl, *req), res, exit);
+    NCCLCHECKGOTO(vc->isendCtrl(buf, ibRegElem, *req), res, exit);
   } else {
     auto pendingOp = new struct pendingOp;
     pendingOp->type = pendingOp::pendingOpType::ISEND_CTRL;
     pendingOp->isendCtrl.buf = buf;
-    pendingOp->isendCtrl.hdl = hdl;
+    pendingOp->isendCtrl.ibRegElem = ibRegElem;
     pendingOp->isendCtrl.peerRank = peerRank;
     pendingOp->isendCtrl.req = *req;
     this->pimpl->pendingOps.push_back(pendingOp);
@@ -306,7 +306,7 @@ exit:
   return res;
 }
 
-ncclResult_t ctranIb::iput(const void *sbuf, void *dbuf, std::size_t len, int peerRank, void *shdl,
+ncclResult_t ctranIb::iput(const void *sbuf, void *dbuf, std::size_t len, int peerRank, void *ibRegElem,
     struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest **req) {
   ncclResult_t res = ncclSuccess;
   ctranIbRequest *r = nullptr;
@@ -323,7 +323,7 @@ ncclResult_t ctranIb::iput(const void *sbuf, void *dbuf, std::size_t len, int pe
     }
   }
 
-  NCCLCHECKGOTO(this->pimpl->vcList[peerRank]->iput(sbuf, dbuf, len, shdl, remoteAccessKey, notify, r),
+  NCCLCHECKGOTO(this->pimpl->vcList[peerRank]->iput(sbuf, dbuf, len, ibRegElem, remoteAccessKey, notify, r),
       res, exit);
 
 exit:

@@ -34,13 +34,13 @@ public:
   ctranIb(ncclComm *comm);
   ~ctranIb();
 
-  ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
-  ncclResult_t deregMem(void *hdl);
+  ncclResult_t regMem(const void *buf, std::size_t len, void **ibRegElem);
+  ncclResult_t deregMem(void *ibRegElem);
   ncclResult_t progress(void);
 
-  ncclResult_t isendCtrl(void *buf, void *hdl, int rank, ctranIbRequest **req);
+  ncclResult_t isendCtrl(void *buf, void *ibRegElem, int rank, ctranIbRequest **req);
   ncclResult_t irecvCtrl(void **buf, struct ctranIbRemoteAccessKey *key, int rank, ctranIbRequest **req);
-  ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, int rank, void *shdl,
+  ncclResult_t iput(const void *sbuf, void *dbuf, std::size_t len, int rank, void *ibRegElem,
       struct ctranIbRemoteAccessKey remoteAccessKey, bool notify, ctranIbRequest **req);
   ncclResult_t checkNotify(int rank, bool *notify);
 

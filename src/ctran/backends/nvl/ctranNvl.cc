@@ -13,16 +13,16 @@ ctranNvl::~ctranNvl() {
   CUDACHECKIGNORE(cudaStreamDestroy(this->pimpl->s));
 }
 
-ncclResult_t ctranNvl::regMem(const void *buf, std::size_t len, void **hdl) {
-  *hdl = nullptr;
+ncclResult_t ctranNvl::regMem(const void *buf, std::size_t len, void **nvlRegElem) {
+  *nvlRegElem = nullptr;
   return ncclSuccess;
 }
 
-ncclResult_t ctranNvl::deregMem(const void *hdl) {
+ncclResult_t ctranNvl::deregMem(const void *nvlRegElem) {
   return ncclSuccess;
 }
 
-ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req) {
+ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *nvlRegElem, ctranNvlRequest **req) {
   struct ctranNvlElem *elem = new struct ctranNvlElem;
   elem->type = ctranNvlElem::elemType::ISEND;
   elem->u.isend.buf = buf;
@@ -35,7 +35,7 @@ ncclResult_t ctranNvl::isend(const void *buf, size_t len, int rank, const void *
   return ncclSuccess;
 }
 
-ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *hdl, ctranNvlRequest **req) {
+ncclResult_t ctranNvl::irecv(void *buf, size_t len, int rank, const void *nvlRegElem, ctranNvlRequest **req) {
   struct ctranNvlElem *elem = new struct ctranNvlElem;
   elem->type = ctranNvlElem::elemType::IRECV;
   elem->u.irecv.buf = buf;

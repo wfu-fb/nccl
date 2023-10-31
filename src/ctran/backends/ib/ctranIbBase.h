@@ -16,7 +16,7 @@ struct controlWr {
   struct {
     struct {
       void *buf;
-      void *hdl;
+      void *ibRegElem;
       ctranIbRequest *req;
     } send;
     struct {
