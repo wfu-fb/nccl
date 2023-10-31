@@ -7,8 +7,8 @@
 
 #define LOG_COLL_INFO(algoStr, sendbuff, recvbuff, sendcount, datatype, comm, stream) do {  \
     INFO(NCCL_COLL,                                                                         \
-        "%s: opCount %lx sendbuff %p recvbuff %p sendcount %zi datatype %d comm %lu [nranks=%d, localRanks=%d] stream=%p\n",  \
-        algoStr, comm->opCount, sendbuff, recvbuff, sendcount, datatype, comm->commHash, comm->nRanks, \
+        "%s: opCount %lx sendbuff %p recvbuff %p sendcount %zi datatype %d comm %p commHash %lu [nranks=%d, localRanks=%d] stream=%p\n",  \
+        algoStr, comm->opCount, sendbuff, recvbuff, sendcount, datatype, comm, comm->commHash, comm->nRanks, \
         comm->localRanks, stream);                                       \
     comm->opCount++;                                                                    \
 } while (0)
