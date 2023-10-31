@@ -9,6 +9,8 @@
 #include "ctranAvlTree.h"
 
 struct ctranMapperRegElem {
+  const void *buf;
+  std::size_t len;
   void *ibRegElem;
   void *nvlRegElem;
 };
@@ -23,6 +25,8 @@ class ctranMapper::impl {
 public:
   impl() = default;
   ~impl() = default;
+
+  ncclResult_t regMem(struct ctranMapperRegElem *mapperRegElem);
 
   class ctranAvlTree *mapperRegElemList;
   class ctranMapperMemPool *memPool;

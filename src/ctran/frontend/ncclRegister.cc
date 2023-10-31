@@ -4,15 +4,17 @@
 #include "argcheck.h"
 #include "comm.h"
 
-NCCL_PARAM(LocalRegister, "LOCAL_REGISTER", 1);
+uint64_t ncclParamCtranRegister();
 
 NCCL_API(ncclResult_t, ncclCommRegister, const ncclComm_t comm, void* buff, size_t size, void** handle);
 ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle) {
   ncclResult_t res = ncclSuccess;
 
-  if (ncclParamLocalRegister()) {
+  if (ncclParamCtranRegister()) {
     NCCLCHECKGOTO(PtrCheck(comm, "ncclCommRegister", "comm"), res, exit);
     NCCLCHECKGOTO(comm->ctranMapper->regMem(buff, size, handle), res, exit);
+  } else {
+    *handle = nullptr;
   }
 
 exit:
@@ -23,7 +25,7 @@ NCCL_API(ncclResult_t, ncclCommDeregister, const ncclComm_t comm, void* handle);
 ncclResult_t ncclCommDeregister(const ncclComm_t comm, void* handle) {
   ncclResult_t res = ncclSuccess;
 
-  if (ncclParamLocalRegister()) {
+  if (ncclParamCtranRegister()) {
     NCCLCHECKGOTO(PtrCheck(comm, "ncclCommRegister", "comm"), res, exit);
     NCCLCHECKGOTO(comm->ctranMapper->deregMem(handle), res, exit);
   }
