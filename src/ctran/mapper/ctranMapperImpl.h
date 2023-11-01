@@ -37,6 +37,7 @@ public:
   std::unique_ptr<class ctranNvl> ctranNvl;
 
   uint32_t numRegistrations;
+  uint32_t numDynamicRegistrations;
 };
 
 #endif

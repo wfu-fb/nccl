@@ -9,6 +9,7 @@
 
 NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
 NCCL_PARAM(RegPrintCount, "REG_PRINT_COUNT", 100);
+NCCL_PARAM(DynamicRegPrintCount, "DYNAMIC_REG_PRINT_COUNT", 100);
 
 /*
  * CTRAN_REGISTER:
@@ -86,6 +87,7 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   }
 
   this->pimpl->numRegistrations = 0;
+  this->pimpl->numDynamicRegistrations = 0;
 
   CUDACHECKIGNORE(cudaStreamCreateWithFlags(&this->s, cudaStreamNonBlocking));
 
@@ -324,6 +326,11 @@ ncclResult_t ctranMapper::searchRegHandle(const void *buf, std::size_t len, void
     struct ctranMapperRegElem *mapperRegElem;
     NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(*hdl, (void **) &mapperRegElem), res, exit);
     NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, exit);
+  } else {
+    this->pimpl->numDynamicRegistrations++;
+    if (this->pimpl->numDynamicRegistrations % ncclParamDynamicRegPrintCount() == 0) {
+      INFO(NCCL_COLL, "CTRAN-MAPPER: Dynamically registered %u buffers", this->pimpl->numDynamicRegistrations);
+    }
   }
 
 exit:
