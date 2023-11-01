@@ -8,6 +8,7 @@
 #include "comm.h"
 
 NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
+NCCL_PARAM(RegPrintCount, "REG_PRINT_COUNT", 100);
 
 /*
  * CTRAN_REGISTER:
@@ -83,6 +84,8 @@ ctranMapper::ctranMapper(ncclComm *comm) {
       this->pimpl->rankBackendMap.push_back(ctranMapperBackend::UNSET);
     }
   }
+
+  this->pimpl->numRegistrations = 0;
 
   CUDACHECKIGNORE(cudaStreamCreateWithFlags(&this->s, cudaStreamNonBlocking));
 
@@ -231,15 +234,25 @@ ctranMapper::~ctranMapper() {
 
 ncclResult_t ctranMapper::impl::regMem(struct ctranMapperRegElem *mapperRegElem) {
   ncclResult_t res = ncclSuccess;
+  bool hasRegistered = false;
 
   if (this->ctranIb != nullptr && mapperRegElem->ibRegElem == nullptr) {
+    hasRegistered = true;
     NCCLCHECKGOTO(this->ctranIb->regMem(mapperRegElem->buf, mapperRegElem->len,
           &mapperRegElem->ibRegElem), res, exit);
   }
 
   if (this->ctranNvl != nullptr && mapperRegElem->nvlRegElem == nullptr) {
+    hasRegistered = true;
     NCCLCHECKGOTO(this->ctranNvl->regMem(mapperRegElem->buf, mapperRegElem->len,
           &mapperRegElem->nvlRegElem), res, exit);
+  }
+
+  if (hasRegistered == true) {
+    this->numRegistrations++;
+    if (this->numRegistrations % ncclParamRegPrintCount() == 0) {
+      INFO(NCCL_COLL, "CTRAN-MAPPER: Registered %u buffers", this->numRegistrations);
+    }
   }
 
 exit:
@@ -276,16 +289,23 @@ exit:
 
 ncclResult_t ctranMapper::deregMem(void *hdl) {
   ncclResult_t res = ncclSuccess;
+  bool hasDeregistered = false;
 
   struct ctranMapperRegElem *mapperRegElem;
   NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem), res, exit);
 
   if (this->pimpl->ctranIb != nullptr && mapperRegElem->ibRegElem != nullptr) {
+    hasDeregistered = true;
     NCCLCHECKGOTO(this->pimpl->ctranIb->deregMem(mapperRegElem->ibRegElem), res, exit);
   }
 
   if (this->pimpl->ctranNvl != nullptr && mapperRegElem->nvlRegElem != nullptr) {
+    hasDeregistered = true;
     NCCLCHECKGOTO(this->pimpl->ctranNvl->deregMem(mapperRegElem->nvlRegElem), res, exit);
+  }
+
+  if (hasDeregistered == true) {
+    this->pimpl->numRegistrations--;
   }
 
   NCCLCHECKGOTO(this->pimpl->mapperRegElemList->remove(hdl), res, exit);

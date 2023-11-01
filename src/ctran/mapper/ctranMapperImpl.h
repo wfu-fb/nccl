@@ -35,6 +35,8 @@ public:
   std::vector<enum ctranMapperBackend> backends;
   std::unique_ptr<class ctranIb> ctranIb;
   std::unique_ptr<class ctranNvl> ctranNvl;
+
+  uint32_t numRegistrations;
 };
 
 #endif
