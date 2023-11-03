@@ -22,23 +22,11 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   int left = (rank + nRanks - 1) % nRanks;
   int right = (rank + 1) % nRanks;
 
-  NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl),
+  NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl, &localRegSend),
       res, exit);
-  if (sendHdl == nullptr) {
-    NCCLCHECKGOTO(mapper->regMem(op->allgather.sendbuff, sendSize, &sendHdl), res, exit);
-    localRegSend = true;
-  } else {
-    localRegSend = false;
-  }
 
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.recvbuff,
-        nRanks * sendSize, &recvHdl), res, exit);
-  if (recvHdl == nullptr) {
-    NCCLCHECKGOTO(mapper->regMem(op->allgather.recvbuff, nRanks * sendSize, &recvHdl), res, exit);
-    localRegRecv = true;
-  } else {
-    localRegRecv = false;
-  }
+        nRanks * sendSize, &recvHdl, &localRegRecv), res, exit);
 
   NCCLCHECKGOTO(mapper->irecvCtrl(&remoteRecvBuff, &remoteAccessKey, right, &irecvReq), res, exit);
   NCCLCHECKGOTO(mapper->isendCtrl(op->allgather.recvbuff, recvHdl, left, &isendReq), res, exit);

@@ -41,11 +41,11 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
   for (auto i = 0; i < sendOpGroup.size(); i++) {
     auto op = sendOpGroup[i];
     size_t sendSize = op->send.count * ncclTypeSize(op->send.datatype);
+    bool localReg = false;
 
-    NCCLCHECKGOTO(mapper->searchRegHandle(op->send.sendbuff, sendSize, &sendMemHdl[i]),
+    NCCLCHECKGOTO(mapper->searchRegHandle(op->send.sendbuff, sendSize, &sendMemHdl[i], &localReg),
         res, exit);
-    if (sendMemHdl[i] == nullptr) {
-      NCCLCHECKGOTO(mapper->regMem(op->send.sendbuff, sendSize, &sendMemHdl[i]), res, exit);
+    if (localReg) {
       tmpRegHdls.push_back(sendMemHdl[i]);
     }
 
@@ -58,11 +58,11 @@ static ncclResult_t sendRecvImpl(std::vector<std::unique_ptr<struct collOp>> opG
   for (auto i = 0; i < recvOpGroup.size(); i++) {
     auto op = recvOpGroup[i];
     size_t recvSize = op->recv.count * ncclTypeSize(op->recv.datatype);
+    bool localReg = false;
 
-    NCCLCHECKGOTO(mapper->searchRegHandle(op->recv.recvbuff, recvSize, &recvMemHdl[i]),
+    NCCLCHECKGOTO(mapper->searchRegHandle(op->recv.recvbuff, recvSize, &recvMemHdl[i], &localReg),
         res, exit);
-    if (recvMemHdl[i] == nullptr) {
-      NCCLCHECKGOTO(mapper->regMem(op->recv.recvbuff, recvSize, &recvMemHdl[i]), res, exit);
+    if (localReg) {
       tmpRegHdls.push_back(recvMemHdl[i]);
     }
 

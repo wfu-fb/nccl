@@ -8,8 +8,6 @@
 #include "comm.h"
 
 NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
-NCCL_PARAM(RegPrintCount, "REG_PRINT_COUNT", 100);
-NCCL_PARAM(DynamicRegPrintCount, "DYNAMIC_REG_PRINT_COUNT", 100);
 
 enum {
   NO_REGISTRATION = 0,
@@ -93,7 +91,10 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   }
 
   this->pimpl->numRegistrations = 0;
-  this->pimpl->numDynamicRegistrations = 0;
+  this->pimpl->numCachedRegistrations = 0;
+  this->pimpl->totalNumDynamicRegistrations = 0;
+  this->pimpl->totalNumRegistrations = 0;
+  this->pimpl->totalNumCachedRegistrations = 0;
 
   CUDACHECKIGNORE(cudaStreamCreateWithFlags(&this->s, cudaStreamNonBlocking));
 
@@ -233,6 +234,16 @@ ctranMapper::~ctranMapper() {
   for (auto hdl : v) {
     NCCLCHECKIGNORE(this->deregMem(hdl));
   }
+
+  // We expect user to deregister all buffers before destroying the mapper
+  if (this->pimpl->numCachedRegistrations || this->pimpl->numRegistrations) {
+    WARN("CTRAN-MAPPER: some registered buffers are not deregistered by user: num cached registrations %u num registrations %u",
+         this->pimpl->numCachedRegistrations, this->pimpl->numRegistrations);
+  }
+
+  INFO(NCCL_INIT, "CTRAN-MAPPER: buffer registration status summary: total cached %u total registered %u total dynamically registered %u",
+      this->pimpl->totalNumCachedRegistrations, this->pimpl->totalNumRegistrations, this->pimpl->totalNumDynamicRegistrations);
+
   delete this->pimpl->mapperRegElemList;
 
   delete this->pimpl->memPool;
@@ -242,32 +253,53 @@ ctranMapper::~ctranMapper() {
 
 ncclResult_t ctranMapper::impl::regMem(struct ctranMapperRegElem *mapperRegElem) {
   ncclResult_t res = ncclSuccess;
-  bool hasRegistered = false;
 
-  if (this->ctranIb != nullptr && mapperRegElem->ibRegElem == nullptr) {
-    hasRegistered = true;
+  if (this->ctranIb != nullptr) {
+    assert(mapperRegElem->ibRegElem == nullptr);
     NCCLCHECKGOTO(this->ctranIb->regMem(mapperRegElem->buf, mapperRegElem->len,
           &mapperRegElem->ibRegElem), res, exit);
   }
 
-  if (this->ctranNvl != nullptr && mapperRegElem->nvlRegElem == nullptr) {
-    hasRegistered = true;
+  if (this->ctranNvl != nullptr) {
+    assert(mapperRegElem->nvlRegElem == nullptr);
     NCCLCHECKGOTO(this->ctranNvl->regMem(mapperRegElem->buf, mapperRegElem->len,
           &mapperRegElem->nvlRegElem), res, exit);
   }
 
-  if (hasRegistered == true) {
-    this->numRegistrations++;
-    if (this->numRegistrations % ncclParamRegPrintCount() == 0) {
-      INFO(NCCL_COLL, "CTRAN-MAPPER: Registered %u buffers", this->numRegistrations);
-    }
-  }
+  this->numRegistrations++;
+  this->totalNumRegistrations++;
+
+  mapperRegElem->state = ctranMapperRegElemState::REGISTERED;
+
+  INFO(NCCL_COLL, "CTRAN-MAPPER: register buffer %p len %ld (cached %u registered %u total cached %u total registered %u total dynamically registered %u)",
+      mapperRegElem->buf, mapperRegElem->len, this->numCachedRegistrations, this->numRegistrations,
+      this->totalNumCachedRegistrations, this->totalNumRegistrations, this->totalNumDynamicRegistrations);
 
 exit:
   return res;
 }
 
-ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
+ncclResult_t ctranMapper::impl::deregMem(struct ctranMapperRegElem *mapperRegElem) {
+  ncclResult_t res = ncclSuccess;
+
+  if (this->ctranIb != nullptr) {
+    NCCLCHECKGOTO(this->ctranIb->deregMem(mapperRegElem->ibRegElem), res, exit);
+  }
+
+  if (this->ctranNvl != nullptr) {
+    NCCLCHECKGOTO(this->ctranNvl->deregMem(mapperRegElem->nvlRegElem), res, exit);
+  }
+
+  this->numRegistrations--;
+  INFO(NCCL_COLL, "CTRAN-MAPPER: deregiter buffer %p len %ld (cached %u registered %u total cached %u total registered %u total dynamically registered %u)",
+      mapperRegElem->buf, mapperRegElem->len, this->numCachedRegistrations, this->numRegistrations,
+      this->totalNumCachedRegistrations, this->totalNumRegistrations, this->totalNumDynamicRegistrations);
+
+exit:
+  return res;
+}
+
+ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl, bool forceRegist) {
   ncclResult_t res = ncclSuccess;
   struct ctranMapperRegElem *mapperRegElem = nullptr;
 
@@ -284,11 +316,16 @@ ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
   mapperRegElem->len = len;
   mapperRegElem->ibRegElem = nullptr;
   mapperRegElem->nvlRegElem = nullptr;
+  mapperRegElem->state = ctranMapperRegElemState::CACHED;
 
   this->pimpl->mapperRegElemList->insert(buf, len, reinterpret_cast<void *>(mapperRegElem), hdl);
 
-  if (ncclParamCtranRegister() != LAZY_REGISTRATION) {
+  if (ncclParamCtranRegister() == EAGER_REGISTRATION || forceRegist) {
     NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, fail);
+  } else {
+    // In lazy registration
+    this->pimpl->numCachedRegistrations++;
+    this->pimpl->totalNumCachedRegistrations++;
   }
 
 exit:
@@ -303,27 +340,19 @@ fail:
 
 ncclResult_t ctranMapper::deregMem(void *hdl) {
   ncclResult_t res = ncclSuccess;
-  bool hasDeregistered = false;
 
   if (hdl == nullptr) {
     return ncclSuccess;
   }
 
-  struct ctranMapperRegElem *mapperRegElem;
+  struct ctranMapperRegElem *mapperRegElem = nullptr;
   this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem);
 
-  if (this->pimpl->ctranIb != nullptr && mapperRegElem->ibRegElem != nullptr) {
-    hasDeregistered = true;
-    NCCLCHECKGOTO(this->pimpl->ctranIb->deregMem(mapperRegElem->ibRegElem), res, exit);
-  }
-
-  if (this->pimpl->ctranNvl != nullptr && mapperRegElem->nvlRegElem != nullptr) {
-    hasDeregistered = true;
-    NCCLCHECKGOTO(this->pimpl->ctranNvl->deregMem(mapperRegElem->nvlRegElem), res, exit);
-  }
-
-  if (hasDeregistered == true) {
-    this->pimpl->numRegistrations--;
+  if(mapperRegElem->state == ctranMapperRegElemState::REGISTERED) {
+    NCCLCHECKGOTO(this->pimpl->deregMem(mapperRegElem), res, exit);
+  } else {
+    // Just remove cache if the buffer is never registered
+    this->pimpl->numCachedRegistrations--;
   }
 
 exit:
@@ -332,7 +361,7 @@ exit:
   return res;
 }
 
-ncclResult_t ctranMapper::searchRegHandle(const void *buf, std::size_t len, void **hdl) {
+ncclResult_t ctranMapper::searchRegHandle(const void *buf, std::size_t len, void **hdl, bool *dynamicRegist) {
   ncclResult_t res = ncclSuccess;
 
   this->pimpl->mapperRegElemList->search(buf, len, hdl);
@@ -340,12 +369,19 @@ ncclResult_t ctranMapper::searchRegHandle(const void *buf, std::size_t len, void
   if (*hdl != nullptr) {
     struct ctranMapperRegElem *mapperRegElem;
     this->pimpl->mapperRegElemList->lookup(*hdl, (void **) &mapperRegElem);
-    NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, exit);
-  } else {
-    this->pimpl->numDynamicRegistrations++;
-    if (this->pimpl->numDynamicRegistrations % ncclParamDynamicRegPrintCount() == 0) {
-      INFO(NCCL_COLL, "CTRAN-MAPPER: Dynamically registered %u buffers", this->pimpl->numDynamicRegistrations);
+
+    // User has registerd it but we delay it until now due to lazy registration
+    if (mapperRegElem->state == ctranMapperRegElemState::CACHED) {
+      this->pimpl->numCachedRegistrations--;
+      NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, exit);
     }
+    *dynamicRegist = false;
+  } else {
+    // Oops, the buffer is not registered by user. Thus, we have to register it on demand
+    this->pimpl->totalNumDynamicRegistrations++;
+    NCCLCHECKGOTO(this->regMem(buf, len, hdl, true /* force register */), res, exit);
+    // caller is responsible for deregisgration
+    *dynamicRegist = true;
   }
 
 exit:

@@ -29,23 +29,10 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
     iputComplete[i] = false;
   }
 
-  NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl),
+  NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.sendbuff, sendSize, &sendHdl, &localRegSend),
       res, exit);
-  if (sendHdl == nullptr) {
-    NCCLCHECKGOTO(mapper->regMem(op->allgather.sendbuff, sendSize, &sendHdl), res, exit);
-    localRegSend = true;
-  } else {
-    localRegSend = false;
-  }
-
   NCCLCHECKGOTO(mapper->searchRegHandle(op->allgather.recvbuff,
-        nRanks * sendSize, &recvHdl), res, exit);
-  if (recvHdl == nullptr) {
-    NCCLCHECKGOTO(mapper->regMem(op->allgather.recvbuff, nRanks * sendSize, &recvHdl), res, exit);
-    localRegRecv = true;
-  } else {
-    localRegRecv = false;
-  }
+        nRanks * sendSize, &recvHdl, &localRegRecv), res, exit);
 
   for (int p = 1; p < nRanks; p++) {
     int peer = (rank + p) % nRanks;

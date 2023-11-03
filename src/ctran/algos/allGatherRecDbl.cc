@@ -36,23 +36,11 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   }
 
   NCCLCHECKGOTO(
-      mapper->searchRegHandle(sendbuff, sendSize, &sendHdl), res, exit);
-  if (sendHdl == nullptr) {
-    NCCLCHECKGOTO(
-        mapper->regMem(op->allgather.sendbuff, sendSize, &sendHdl), res, exit);
-    localRegSend = true;
-  }
+      mapper->searchRegHandle(sendbuff, sendSize, &sendHdl, &localRegSend), res, exit);
   NCCLCHECKGOTO(
-      mapper->searchRegHandle(recvbuff, nRanks * sendSize, &recvHdl),
+      mapper->searchRegHandle(recvbuff, nRanks * sendSize, &recvHdl, &localRegRecv),
       res,
       exit);
-  if (recvHdl == nullptr) {
-    NCCLCHECKGOTO(
-        mapper->regMem(op->allgather.recvbuff, nRanks * sendSize, &recvHdl),
-        res,
-        exit);
-    localRegRecv = true;
-  }
 
   // Exchange memory handles with relevant peerse
   for (size_t i = 0; i < nSteps; i++) {

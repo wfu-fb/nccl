@@ -91,9 +91,9 @@ class ctranMapper {
 public:
   ctranMapper(ncclComm *comm);
   ~ctranMapper();
-  ncclResult_t regMem(const void *buf, std::size_t len, void **hdl);
+  ncclResult_t regMem(const void *buf, std::size_t len, void **hdl, bool forceRegist = false);
   ncclResult_t deregMem(void *hdl);
-  ncclResult_t searchRegHandle(const void *buf, std::size_t len, void **hdl);
+  ncclResult_t searchRegHandle(const void *buf, std::size_t len, void **hdl, bool *dynamicRegist);
   ncclResult_t icopy(void *dbuf, const void *sbuf, std::size_t len, ctranMapperRequest **req);
   ncclResult_t getTmpBuf(void** addr, std::size_t len, void **hdl);
   ncclResult_t releaseTmpBuf(void* addr, void *hdl);

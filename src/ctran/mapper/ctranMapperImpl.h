@@ -8,11 +8,17 @@
 #include "ctranMapper.h"
 #include "ctranAvlTree.h"
 
+enum ctranMapperRegElemState {
+  CACHED,
+  REGISTERED,
+};
+
 struct ctranMapperRegElem {
   const void *buf;
   std::size_t len;
   void *ibRegElem;
   void *nvlRegElem;
+  enum ctranMapperRegElemState state;
 };
 
 enum ctranMapperBackend {
@@ -27,6 +33,7 @@ public:
   ~impl() = default;
 
   ncclResult_t regMem(struct ctranMapperRegElem *mapperRegElem);
+  ncclResult_t deregMem(struct ctranMapperRegElem *mapperRegElem);
 
   class ctranAvlTree *mapperRegElemList;
   class ctranMapperMemPool *memPool;
@@ -36,8 +43,11 @@ public:
   std::unique_ptr<class ctranIb> ctranIb;
   std::unique_ptr<class ctranNvl> ctranNvl;
 
-  uint32_t numRegistrations;
-  uint32_t numDynamicRegistrations;
+  uint32_t numRegistrations; /* number of currently registered buffers */
+  uint32_t numCachedRegistrations; /* number of currently cached but not yet registered buffers in lazy registration; buffer still pre-registered by user. */
+  uint32_t totalNumDynamicRegistrations; /* total number of buffers at lifetime that were not pre-registered by user but temporarily in communication */
+  uint32_t totalNumRegistrations; /* total number of registered buffers at lifetime */
+  uint32_t totalNumCachedRegistrations; /* total number of cached buffers at lifetime */
 };
 
 #endif
