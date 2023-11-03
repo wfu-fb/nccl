@@ -269,7 +269,7 @@ exit:
 
 ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
   ncclResult_t res = ncclSuccess;
-  struct ctranMapperRegElem *mapperRegElem;
+  struct ctranMapperRegElem *mapperRegElem = nullptr;
 
   cudaPointerAttributes attr;
   CUDACHECKGOTO(cudaPointerGetAttributes(&attr, buf), res, exit);
@@ -285,22 +285,32 @@ ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
   mapperRegElem->ibRegElem = nullptr;
   mapperRegElem->nvlRegElem = nullptr;
 
-  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->insert(buf, len, reinterpret_cast<void *>(mapperRegElem), hdl), res, exit);
+  this->pimpl->mapperRegElemList->insert(buf, len, reinterpret_cast<void *>(mapperRegElem), hdl);
 
   if (ncclParamCtranRegister() != LAZY_REGISTRATION) {
-    NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, exit);
+    NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, fail);
   }
 
 exit:
   return res;
+fail:
+  if (*hdl) {
+    this->pimpl->mapperRegElemList->remove(*hdl);
+  }
+  delete mapperRegElem;
+  goto exit;
 }
 
 ncclResult_t ctranMapper::deregMem(void *hdl) {
   ncclResult_t res = ncclSuccess;
   bool hasDeregistered = false;
 
+  if (hdl == nullptr) {
+    return ncclSuccess;
+  }
+
   struct ctranMapperRegElem *mapperRegElem;
-  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem), res, exit);
+  this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem);
 
   if (this->pimpl->ctranIb != nullptr && mapperRegElem->ibRegElem != nullptr) {
     hasDeregistered = true;
@@ -316,21 +326,20 @@ ncclResult_t ctranMapper::deregMem(void *hdl) {
     this->pimpl->numRegistrations--;
   }
 
-  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->remove(hdl), res, exit);
-  delete mapperRegElem;
-
 exit:
+  this->pimpl->mapperRegElemList->remove(hdl);
+  delete mapperRegElem;
   return res;
 }
 
 ncclResult_t ctranMapper::searchRegHandle(const void *buf, std::size_t len, void **hdl) {
   ncclResult_t res = ncclSuccess;
 
-  NCCLCHECKGOTO(this->pimpl->mapperRegElemList->search(buf, len, hdl), res, exit);
+  this->pimpl->mapperRegElemList->search(buf, len, hdl);
 
   if (*hdl != nullptr) {
     struct ctranMapperRegElem *mapperRegElem;
-    NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(*hdl, (void **) &mapperRegElem), res, exit);
+    this->pimpl->mapperRegElemList->lookup(*hdl, (void **) &mapperRegElem);
     NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, exit);
   } else {
     this->pimpl->numDynamicRegistrations++;
@@ -399,7 +408,7 @@ ncclResult_t ctranMapper::isendCtrl(void *buf, void *hdl, int rank, ctranMapperR
 
   if (this->pimpl->ctranIb != nullptr) {
     struct ctranMapperRegElem *mapperRegElem;
-    NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem), res, exit);
+    this->pimpl->mapperRegElemList->lookup(hdl, (void **) &mapperRegElem);
 
     if (req == nullptr) {
       NCCLCHECKGOTO(this->pimpl->ctranIb->isendCtrl(buf, mapperRegElem->ibRegElem, rank, nullptr), res, exit);
@@ -436,7 +445,7 @@ ncclResult_t ctranMapper::iput(const void *sbuf, void *dbuf, std::size_t len, in
 
   if (this->pimpl->ctranIb != nullptr) {
     struct ctranMapperRegElem *mapperRegElem;
-    NCCLCHECKGOTO(this->pimpl->mapperRegElemList->lookup(shdl, (void **) &mapperRegElem), res, exit);
+    this->pimpl->mapperRegElemList->lookup(shdl, (void **) &mapperRegElem);
 
     if (req == nullptr) {
       NCCLCHECKGOTO(this->pimpl->ctranIb->iput(sbuf, dbuf, len, rank, mapperRegElem->ibRegElem, remoteAccessKey.ibKey,

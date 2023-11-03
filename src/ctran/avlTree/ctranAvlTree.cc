@@ -18,7 +18,7 @@ ctranAvlTree::~ctranAvlTree() {
   }
 }
 
-ncclResult_t ctranAvlTree::insert(const void *addr_, std::size_t len, void *val, void **hdl) {
+void ctranAvlTree::insert(const void *addr_, std::size_t len, void *val, void **hdl) {
   uintptr_t addr = reinterpret_cast<uintptr_t>(addr_);
 
   if (this->root == nullptr) {
@@ -32,12 +32,9 @@ ncclResult_t ctranAvlTree::insert(const void *addr_, std::size_t len, void *val,
       *hdl = e;
     }
   }
-
-  return ncclSuccess;
 }
 
-ncclResult_t ctranAvlTree::remove(void *hdl) {
-  ncclResult_t res = ncclSuccess;
+void ctranAvlTree::remove(void *hdl) {
   ctranAvlTree::TreeElem *e = reinterpret_cast<ctranAvlTree::TreeElem *>(hdl);
 
   auto it = std::find(this->list.begin(), this->list.end(), e);
@@ -75,18 +72,16 @@ ncclResult_t ctranAvlTree::remove(void *hdl) {
 
 exit:
   delete e;
-  return res;
 }
 
-ncclResult_t ctranAvlTree::search(const void *addr_, std::size_t len, void **hdl) {
-  ncclResult_t res = ncclSuccess;
+void ctranAvlTree::search(const void *addr_, std::size_t len, void **hdl) {
   uintptr_t addr = reinterpret_cast<uintptr_t>(const_cast<void *>(addr_));
   ctranAvlTree::TreeElem *r;
 
   for (auto e : this->list) {
     if (e->addr <= addr && e->addr + e->len >= addr + len) {
       *hdl = e;
-      goto exit;
+      return;
     }
   }
 
@@ -106,15 +101,10 @@ ncclResult_t ctranAvlTree::search(const void *addr_, std::size_t len, void **hdl
       break;
     }
   }
-
-exit:
-  return res;
 }
 
-ncclResult_t ctranAvlTree::lookup(void *hdl, void **val) {
+void ctranAvlTree::lookup(void *hdl, void **val) {
   *val = reinterpret_cast<ctranAvlTree::TreeElem *>(hdl)->val;
-
-  return ncclSuccess;
 }
 
 std::vector<void *> ctranAvlTree::getAllElems() {

@@ -6,17 +6,16 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
-#include "nccl.h"
 
 class ctranAvlTree {
 public:
   ctranAvlTree();
   ~ctranAvlTree();
 
-  ncclResult_t insert(const void *addr, std::size_t len, void *val, void **hdl);
-  ncclResult_t remove(void *hdl);
-  ncclResult_t search(const void *addr, std::size_t len, void **hdl);
-  ncclResult_t lookup(void *hdl, void **val);
+  void insert(const void *addr, std::size_t len, void *val, void **hdl);
+  void remove(void *hdl);
+  void search(const void *addr, std::size_t len, void **hdl);
+  void lookup(void *hdl, void **val);
   std::vector<void *> getAllElems();
 
 private:
