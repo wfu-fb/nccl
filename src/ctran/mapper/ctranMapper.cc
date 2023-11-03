@@ -11,13 +11,19 @@ NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
 NCCL_PARAM(RegPrintCount, "REG_PRINT_COUNT", 100);
 NCCL_PARAM(DynamicRegPrintCount, "DYNAMIC_REG_PRINT_COUNT", 100);
 
+enum {
+  NO_REGISTRATION = 0,
+  EAGER_REGISTRATION = 1,
+  LAZY_REGISTRATION = 2,
+};
+
 /*
  * CTRAN_REGISTER:
  *   0: No registration
  *   1: Eager registration
  *   2: Lazy registration
  */
-NCCL_PARAM(CtranRegister, "CTRAN_REGISTER", 2);
+NCCL_PARAM(CtranRegister, "CTRAN_REGISTER", LAZY_REGISTRATION);
 
 ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl = std::unique_ptr<impl>(new impl());
@@ -281,7 +287,7 @@ ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl) {
 
   NCCLCHECKGOTO(this->pimpl->mapperRegElemList->insert(buf, len, reinterpret_cast<void *>(mapperRegElem), hdl), res, exit);
 
-  if (ncclParamCtranRegister() != 2) {
+  if (ncclParamCtranRegister() != LAZY_REGISTRATION) {
     NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, exit);
   }
 
