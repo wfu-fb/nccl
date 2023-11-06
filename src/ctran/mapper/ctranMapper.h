@@ -87,6 +87,23 @@ class ctranMapperTimestamp {
     std::chrono::time_point<std::chrono::high_resolution_clock> start;
 };
 
+class ctranMapperTimer {
+ public:
+  ctranMapperTimer() {
+    this->start_ = std::chrono::high_resolution_clock::now();
+  }
+  ~ctranMapperTimer() = default;
+  double durationMs() {
+    auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               end - this->start_)
+        .count();
+  }
+
+ private:
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_;
+};
+
 class ctranMapper {
 public:
   ctranMapper(ncclComm *comm);
@@ -105,6 +122,7 @@ public:
       struct ctranMapperRemoteAccessKey remoteAccessKey, bool notify, ctranMapperRequest **req);
   ncclResult_t checkNotify(int rank, bool *notify);
   ncclResult_t waitNotify(int rank);
+  void reportRegSnapshot();
 
   int rank;
   uint64_t commHash;
