@@ -6,10 +6,24 @@
 #include <unistd.h>
 #include "nccl.h"
 #include "checks.h"
+#include "nccl_cvars.h"
 #include "ctranIbBase.h"
 #include "ctranIb.h"
 #include "ctranIbImpl.h"
 #include "ctranIbVc.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_IB_HCA
+   type        : stringlist
+   default     :
+   description : |-
+     List of IB HCAs available for NCCL to use.
+     (this needs to be renamed to NCCL_CVAR_IB_HCA_LIST eventually)
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 class roceHca {
 public:
@@ -39,20 +53,8 @@ ctranIbSingleton &ctranIbSingleton::getInstance(void) {
 
 ctranIbSingleton::ctranIbSingleton(void) {
   std::vector<roceHca *> hcas;
-
-  char* userIfsEnv = getenv("NCCL_IB_HCA");
-  std::string s;
-  if (userIfsEnv) {
-    s = userIfsEnv;
-  }
-  std::string delim = ",";
-
-  while (auto pos = s.find(delim)) {
-    hcas.push_back(new roceHca(s.substr(0, pos)));
-    s.erase(0, pos + delim.length());
-    if (pos == std::string::npos) {
-      break;
-    }
+  for (auto hca : NCCL_IB_HCA) {
+    hcas.push_back(new roceHca(hca));
   }
 
   NCCLCHECKIGNORE(wrap_ibv_symbols());

@@ -79,11 +79,33 @@ int NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_HCM;
 
 bool NCCL_CVAR_DDA_FORCE_P2P_ACCESS;
 
+enum NCCL_CVAR_SENDRECV_ALGO NCCL_CVAR_SENDRECV_ALGO;
+
 int NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS;
 
 int NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
 int NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF;
+
+enum NCCL_CVAR_ALLGATHER_ALGO NCCL_CVAR_ALLGATHER_ALGO;
+
+bool NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB;
+
+std::set<std::string> NCCL_IB_HCA;
+
+int NCCL_CVAR_CTRAN_IB_MAX_QPS;
+
+int NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD;
+
+enum NCCL_CVAR_CTRAN_PROFILING NCCL_CVAR_CTRAN_PROFILING;
+
+std::string NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR;
+
+enum NCCL_CVAR_CTRAN_REGISTER NCCL_CVAR_CTRAN_REGISTER;
+
+std::set<enum NCCL_CVAR_CTRAN_BACKENDS> NCCL_CVAR_CTRAN_BACKENDS;
+
+int NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT;
 
 extern char **environ;
 
@@ -97,9 +119,20 @@ void ncclCvarInit() {
   env.insert("NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_NVS");
   env.insert("NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_HCM");
   env.insert("NCCL_CVAR_DDA_FORCE_P2P_ACCESS");
+  env.insert("NCCL_CVAR_SENDRECV_ALGO");
   env.insert("NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS");
   env.insert("NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE");
   env.insert("NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF");
+  env.insert("NCCL_CVAR_ALLGATHER_ALGO");
+  env.insert("NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB");
+  env.insert("NCCL_IB_HCA");
+  env.insert("NCCL_CVAR_CTRAN_IB_MAX_QPS");
+  env.insert("NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD");
+  env.insert("NCCL_CVAR_CTRAN_PROFILING");
+  env.insert("NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR");
+  env.insert("NCCL_CVAR_CTRAN_REGISTER");
+  env.insert("NCCL_CVAR_CTRAN_BACKENDS");
+  env.insert("NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
   env.insert("NCCL_COLLTRACE_LOCAL_SUBDIR");
@@ -166,10 +199,95 @@ void ncclCvarInit() {
 
   NCCL_CVAR_DDA_FORCE_P2P_ACCESS = env2bool("NCCL_CVAR_DDA_FORCE_P2P_ACCESS", "False");
 
+  if (getenv("NCCL_CVAR_SENDRECV_ALGO") == nullptr) {
+    NCCL_CVAR_SENDRECV_ALGO = NCCL_CVAR_SENDRECV_ALGO::orig;
+  } else {
+    std::string str(getenv("NCCL_CVAR_SENDRECV_ALGO"));
+    if (str == std::string("orig")) {
+      NCCL_CVAR_SENDRECV_ALGO = NCCL_CVAR_SENDRECV_ALGO::orig;
+    } else if (str == std::string("ctran")) {
+      NCCL_CVAR_SENDRECV_ALGO = NCCL_CVAR_SENDRECV_ALGO::ctran;
+    } else {
+      WARN("Unknown value %s for env NCCL_CVAR_SENDRECV_ALGO", str.c_str());
+    }
+  }
+
   NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS = env2int("NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS", "-1");
 
   NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE = env2int("NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE", "-1");
 
   NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF = env2int("NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF", "0");
+
+  if (getenv("NCCL_CVAR_ALLGATHER_ALGO") == nullptr) {
+    NCCL_CVAR_ALLGATHER_ALGO = NCCL_CVAR_ALLGATHER_ALGO::orig;
+  } else {
+    std::string str(getenv("NCCL_CVAR_ALLGATHER_ALGO"));
+    if (str == std::string("orig")) {
+      NCCL_CVAR_ALLGATHER_ALGO = NCCL_CVAR_ALLGATHER_ALGO::orig;
+    } else if (str == std::string("ctdirect")) {
+      NCCL_CVAR_ALLGATHER_ALGO = NCCL_CVAR_ALLGATHER_ALGO::ctdirect;
+    } else if (str == std::string("ctring")) {
+      NCCL_CVAR_ALLGATHER_ALGO = NCCL_CVAR_ALLGATHER_ALGO::ctring;
+    } else if (str == std::string("ctrd")) {
+      NCCL_CVAR_ALLGATHER_ALGO = NCCL_CVAR_ALLGATHER_ALGO::ctrd;
+    } else {
+      WARN("Unknown value %s for env NCCL_CVAR_ALLGATHER_ALGO", str.c_str());
+    }
+  }
+
+  NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB = env2bool("NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB", "False");
+
+  NCCL_IB_HCA = env2strlist("NCCL_IB_HCA", nullptr);
+
+  NCCL_CVAR_CTRAN_IB_MAX_QPS = env2int("NCCL_CVAR_CTRAN_IB_MAX_QPS", "1");
+
+  NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD = env2int("NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD", "1048576");
+
+  if (getenv("NCCL_CVAR_CTRAN_PROFILING") == nullptr) {
+    NCCL_CVAR_CTRAN_PROFILING = NCCL_CVAR_CTRAN_PROFILING::none;
+  } else {
+    std::string str(getenv("NCCL_CVAR_CTRAN_PROFILING"));
+    if (str == std::string("none")) {
+      NCCL_CVAR_CTRAN_PROFILING = NCCL_CVAR_CTRAN_PROFILING::none;
+    } else if (str == std::string("stdout")) {
+      NCCL_CVAR_CTRAN_PROFILING = NCCL_CVAR_CTRAN_PROFILING::stdout;
+    } else if (str == std::string("kineto")) {
+      NCCL_CVAR_CTRAN_PROFILING = NCCL_CVAR_CTRAN_PROFILING::kineto;
+    } else {
+      WARN("Unknown value %s for env NCCL_CVAR_CTRAN_PROFILING", str.c_str());
+    }
+  }
+
+  NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR = env2str("NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR", "/tmp");
+
+  if (getenv("NCCL_CVAR_CTRAN_REGISTER") == nullptr) {
+    NCCL_CVAR_CTRAN_REGISTER = NCCL_CVAR_CTRAN_REGISTER::lazy;
+  } else {
+    std::string str(getenv("NCCL_CVAR_CTRAN_REGISTER"));
+    if (str == std::string("none")) {
+      NCCL_CVAR_CTRAN_REGISTER = NCCL_CVAR_CTRAN_REGISTER::none;
+    } else if (str == std::string("lazy")) {
+      NCCL_CVAR_CTRAN_REGISTER = NCCL_CVAR_CTRAN_REGISTER::lazy;
+    } else if (str == std::string("eager")) {
+      NCCL_CVAR_CTRAN_REGISTER = NCCL_CVAR_CTRAN_REGISTER::eager;
+    } else {
+      WARN("Unknown value %s for env NCCL_CVAR_CTRAN_REGISTER", str.c_str());
+    }
+  }
+
+  {
+    auto tokens = tokenizer("NCCL_CVAR_CTRAN_BACKENDS", "ib");
+    for (auto token : tokens) {
+      if (token == std::string("ib")) {
+        NCCL_CVAR_CTRAN_BACKENDS.insert(NCCL_CVAR_CTRAN_BACKENDS::ib);
+      } else if (token == std::string("nvl")) {
+        NCCL_CVAR_CTRAN_BACKENDS.insert(NCCL_CVAR_CTRAN_BACKENDS::nvl);
+      } else {
+        WARN("Unknown value %s for env NCCL_CVAR_CTRAN_BACKENDS", token.c_str());
+      }
+    }
+  }
+
+  NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT = env2int("NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", "0");
 
 }

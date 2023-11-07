@@ -18,10 +18,31 @@
    description : |-
      Message size up to which we use the direct algorithm for Allgather.
 
+ - name        : NCCL_CVAR_ALLGATHER_ALGO
+   type        : enum
+   default     : orig
+   choices     : orig, ctdirect, ctring, ctrd
+   description : |-
+     The algorithm to use for Allgather communication
+     orig - Copy-based ring algorithm
+     ctdirect - Ctran-based direct point-to-point algorithm
+     ctring - Ctran-based ring algorithm
+     ctrd - Ctran-based recursive-doubling algorithm
+
+ - name        : NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB
+   type        : bool
+   default     : false
+   description : |-
+     Disable using ctran/IB if there are multiple processes on the same node
+     that need to communicate with each other.  This is a temporary variable
+     that needs to be eventually deleted for two reasons.  First, we will
+     eventually add an NVLink backend, which can function within the same node.
+     Second, the disabling of loopback on our current RTSWs is a temporary
+     workaround for an ongoing SEV and should be reenabled within a few weeks
+     (few weeks from 11/6/2023).
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
-
-NCCL_PARAM(CtranEnableLocalIb, "CTRAN_ENABLE_LOCAL_IB", 0);
 
 NCCL_API(ncclResult_t, ncclAllGather, const void* sendbuff, void* recvbuff, size_t sendcount,
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
@@ -30,19 +51,17 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
   bool directSend = (comm->localRanks == 1) && (rankOffset <= NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF);
-  bool enableCtran = (ncclParamCtranEnableLocalIb() || comm->localRanks == 1) ? true : false;
-
-  ctranAlgo algo = ctranAlgoGet(ctranAlgoType::ALLGATHER);
+  bool enableCtran = (NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB || comm->localRanks == 1) ? true : false;
 
   // only use CTRAN for inter-node only allgather
   if (comm->ctranMapper != nullptr && enableCtran && nRanks > 1 && rankOffset > getpagesize()) {
-    if (algo == ctranAlgo::ALLGATHER_CTRAN_DIRECT) {
+    if (NCCL_CVAR_ALLGATHER_ALGO == NCCL_CVAR_ALLGATHER_ALGO::ctdirect) {
       LOG_COLL_INFO("ctranAllGatherDirect", sendbuff, recvbuff, sendcount, datatype, comm, stream);
       return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
-    } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RING) {
+    } else if (NCCL_CVAR_ALLGATHER_ALGO == NCCL_CVAR_ALLGATHER_ALGO::ctring) {
       LOG_COLL_INFO("ctranAllGatherRing", sendbuff, recvbuff, sendcount, datatype, comm, stream);
       return ctranAllGatherRing(sendbuff, recvbuff, sendcount, datatype, comm, stream);
-    } else if (algo == ctranAlgo::ALLGATHER_CTRAN_RD) {
+    } else if (NCCL_CVAR_ALLGATHER_ALGO == NCCL_CVAR_ALLGATHER_ALGO::ctrd) {
       LOG_COLL_INFO("ctranAllGatherRd", sendbuff, recvbuff, sendcount, datatype, comm, stream);
       return ctranAllGatherRd(sendbuff, recvbuff, sendcount, datatype, comm, stream);
     }

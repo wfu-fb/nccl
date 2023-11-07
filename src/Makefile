@@ -31,7 +31,6 @@ LIBSRCFILES += ctran/gpe/ctranGpe.cc ctran/gpe/ctranGpeImpl.cc
 LIBSRCFILES += ctran/frontend/ncclRegister.cc ctran/frontend/ncclCommSplitType.cc
 LIBSRCFILES += ctran/algos/allGatherDirect.cc ctran/algos/allGatherRing.cc \
 							 ctran/algos/sendrecv.cc \
-							 ctran/algos/ctranAlgos.cc \
 							 ctran/algos/allGatherRecDbl.cc
 
 INCLUDES := -Iinclude

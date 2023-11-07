@@ -30,11 +30,57 @@ extern int NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_HCM;
 
 extern bool NCCL_CVAR_DDA_FORCE_P2P_ACCESS;
 
+enum class NCCL_CVAR_SENDRECV_ALGO {
+  orig,
+  ctran,
+};
+extern enum NCCL_CVAR_SENDRECV_ALGO NCCL_CVAR_SENDRECV_ALGO;
+
 extern int NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS;
 
 extern int NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
 extern int NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF;
+
+enum class NCCL_CVAR_ALLGATHER_ALGO {
+  orig,
+  ctdirect,
+  ctring,
+  ctrd,
+};
+extern enum NCCL_CVAR_ALLGATHER_ALGO NCCL_CVAR_ALLGATHER_ALGO;
+
+extern bool NCCL_CVAR_CTRAN_ENABLE_LOCAL_IB;
+
+extern std::set<std::string> NCCL_IB_HCA;
+
+extern int NCCL_CVAR_CTRAN_IB_MAX_QPS;
+
+extern int NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD;
+
+enum class NCCL_CVAR_CTRAN_PROFILING {
+  none,
+  stdout,
+  kineto,
+};
+extern enum NCCL_CVAR_CTRAN_PROFILING NCCL_CVAR_CTRAN_PROFILING;
+
+extern std::string NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR;
+
+enum class NCCL_CVAR_CTRAN_REGISTER {
+  none,
+  lazy,
+  eager,
+};
+extern enum NCCL_CVAR_CTRAN_REGISTER NCCL_CVAR_CTRAN_REGISTER;
+
+enum class NCCL_CVAR_CTRAN_BACKENDS {
+  ib,
+  nvl,
+};
+extern std::set<enum NCCL_CVAR_CTRAN_BACKENDS> NCCL_CVAR_CTRAN_BACKENDS;
+
+extern int NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT;
 
 void ncclCvarInit();
 

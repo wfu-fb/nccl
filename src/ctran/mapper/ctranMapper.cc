@@ -7,18 +7,7 @@
 #include "ctranMapper.h"
 #include "ctranMapperImpl.h"
 #include "comm.h"
-
-NCCL_PARAM(CtranProfiling, "CTRAN_PROFILING", 0);
-// In additional to registration snapshot reported at communicator destroy time,
-// it allows snapshot to be reported whenever every N registrations called. Set to 0 to disable.
-// It helps understand the performance impact of registeration at different period of a long running job
-NCCL_PARAM(CtranRegisterReportSnapshotCount, "CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", 0);
-
-enum {
-  NO_REGISTRATION = 0,
-  EAGER_REGISTRATION = 1,
-  LAZY_REGISTRATION = 2,
-};
+#include "nccl_cvars.h"
 
 static std::vector<double> registerDurs;
 static std::vector<double> deregisterDurs;
@@ -27,12 +16,59 @@ static std::vector<double> lookupMissDurs;
 static std::unordered_map<uint64_t, ctranMapper*> allCommHashCtranMapperMap;
 
 /*
- * CTRAN_REGISTER:
- *   0: No registration
- *   1: Eager registration
- *   2: Lazy registration
- */
-NCCL_PARAM(CtranRegister, "CTRAN_REGISTER", LAZY_REGISTRATION);
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CVAR_CTRAN_PROFILING
+   type        : enum
+   default     : none
+   choices     : none, stdout, kineto
+   description : |-
+     Kind of ctran profiling needed.
+     none - No profiling
+     stdout - Dump profiling data to stdout
+     kineto - Dump profiling data to a kineto log
+        (for kineto profiling, see also NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR)
+
+ - name        : NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR
+   type        : string
+   default     : "/tmp"
+   description : |-
+     Directory to place Ctran kineto profiling logs.
+     (see also NCCL_CVAR_CTRAN_PROFILING)
+
+ - name        : NCCL_CVAR_CTRAN_REGISTER
+   type        : enum
+   default     : lazy
+   choices     : none, lazy, eager
+   description : |-
+     Kind of registration to use for ctran user buffers
+     none - No registration
+     lazy - Lazy registration (keep track of user-provided registration
+            buffers, but delay the actual registration till the buffer
+            is used for a communication operation)
+     eager - Eager registration (register buffers as soon as it is
+             provided by the user)
+
+ - name        : NCCL_CVAR_CTRAN_BACKENDS
+   type        : enumlist
+   default     : ib
+   choices     : ib, nvl
+   description : |-
+     Backends to enable for ctran
+     ib - RoCE/IB backend
+     nvl - NVLink backend
+
+ - name        : NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT
+   type        : int
+   default     : 0
+   description : |-
+     In additional to registration snapshot reported at communicator destroy
+     time, this variable allows a snapshot to be reported whenever once every
+     N registrations.  Set to 0 to disable.  It helps understand the performance
+     impact of registeration at different period of a long running job.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl = std::unique_ptr<impl>(new impl());
@@ -41,27 +77,11 @@ ctranMapper::ctranMapper(ncclComm *comm) {
   this->pimpl->mapperRegElemList = new class ctranAvlTree();
 
   /* check user preference for backends */
-  char *ctranBackendsStr = getenv("NCCL_CTRAN_BACKENDS");
-  std::string s;
-  if (ctranBackendsStr) {
-    s = ctranBackendsStr;
-  } else {
-    s = "ib";
-  }
-  std::string delim = ",";
-
-  while (auto pos = s.find(delim)) {
-    std::string b = s.substr(0, pos);
-    if (b == "nvl") {
-      this->pimpl->backends.push_back(ctranMapperBackend::NVL);
-    } else if (b == "ib") {
+  for (auto b : NCCL_CVAR_CTRAN_BACKENDS) {
+    if (b == NCCL_CVAR_CTRAN_BACKENDS::ib) {
       this->pimpl->backends.push_back(ctranMapperBackend::IB);
-    } else {
-      WARN("CTRAN-MAPPER: Unknown backend %s specified", b.c_str());
-    }
-    s.erase(0, pos + delim.length());
-    if (pos == std::string::npos) {
-      break;
+    } else if (b == NCCL_CVAR_CTRAN_BACKENDS::nvl) {
+      this->pimpl->backends.push_back(ctranMapperBackend::NVL);
     }
   }
 
@@ -192,8 +212,8 @@ void ctranMapper::reportRegSnapshot(void) {
 
 ctranMapper::~ctranMapper() {
   /* flush timestamps */
-  if (ncclParamCtranProfiling() && !this->timestamps.empty()) {
-    if (ncclParamCtranProfiling() == 1) {
+  if (!this->timestamps.empty()) {
+    if (NCCL_CVAR_CTRAN_PROFILING == NCCL_CVAR_CTRAN_PROFILING::stdout) {
       std::cout << "[CTRAN-MAPPER] Communication Profiling:" << std::endl;
       for (auto& ts : this->timestamps) {
         std::cout << "    collective=" << ts.algo << std::endl;
@@ -225,84 +245,80 @@ ctranMapper::~ctranMapper() {
         }
       }
       std::cout << std::flush;
-    } else if (ncclParamCtranProfiling() == 2) {
-      if (!getenv("NCCL_CTRAN_PROFILE_DIR")) {
-        INFO(NCCL_ALL, "Ctran trace filename is null\n");
-      } else {
-        auto pid = getpid();
-        std::string filename = std::string(getenv("NCCL_CTRAN_PROFILE_DIR")) +
-            std::string("/nccl_ctran_log.") + std::to_string(pid) +
-            std::string(".json");
-        INFO(NCCL_ALL, "Dumping ctran profile to %s\n", filename.c_str());
-        std::ofstream f(filename);
-        int id = 0;
-        f << "[" << std::endl;
-        for (auto& ts : this->timestamps) {
-          int collId = id;
-          f << "{\"name\": \"" << ts.algo << "\", "
-            << "\"cat\": \"COL\", "
+    } else if (NCCL_CVAR_CTRAN_PROFILING == NCCL_CVAR_CTRAN_PROFILING::kineto) {
+      auto pid = getpid();
+      std::string filename(NCCL_CVAR_CTRAN_KINETO_PROFILE_DIR +
+          std::string("/nccl_ctran_log.") + std::to_string(pid) +
+          std::string(".json"));
+      INFO(NCCL_ALL, "Dumping ctran profile to %s\n", filename.c_str());
+      std::ofstream f(filename);
+      int id = 0;
+      f << "[" << std::endl;
+      for (auto& ts : this->timestamps) {
+        int collId = id;
+        f << "{\"name\": \"" << ts.algo << "\", "
+          << "\"cat\": \"COL\", "
+          << "\"id\": \"" << id++ << "\", "
+          << "\"ph\": \"b\", "
+          << "\"pid\": \"0\", "
+          << "\"ts\": \""
+          << std::chrono::duration_cast<std::chrono::milliseconds>(
+              ts.start.time_since_epoch())
+          .count()
+          << "\"}," << std::endl;
+        ctranMapperTimestampPoint last(0);
+        for (auto& tsp : ts.recvCtrl) {
+          f << "{\"name\": \"recvCtrl\", "
+            << "\"cat\": \"NET\", "
             << "\"id\": \"" << id++ << "\", "
-            << "\"ph\": \"b\", "
-            << "\"pid\": \"0\", "
+            << "\"ph\": \"X\", "
+            << "\"pid\": \"" << tsp.peer << "\", "
             << "\"ts\": \""
             << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   ts.start.time_since_epoch())
-                   .count()
-            << "\"}," << std::endl;
-          ctranMapperTimestampPoint last(0);
-          for (auto& tsp : ts.recvCtrl) {
-            f << "{\"name\": \"recvCtrl\", "
-              << "\"cat\": \"NET\", "
-              << "\"id\": \"" << id++ << "\", "
-              << "\"ph\": \"X\", "
-              << "\"pid\": \"" << tsp.peer << "\", "
-              << "\"ts\": \""
-              << std::chrono::duration_cast<std::chrono::milliseconds>(
-                     tsp.now.time_since_epoch())
-                     .count()
-              << "\", \"dur\": \"0\""
-              << "\"}," << std::endl;
-          }
-          for (auto& tsp : ts.putIssued) {
-            f << "{\"name\": \"put\", "
-              << "\"cat\": \"NET\", "
-              << "\"id\": \"" << id++ << "\", "
-              << "\"ph\": \"b\", "
-              << "\"pid\": \"" << tsp.peer << "\", "
-              << "\"ts\": \""
-              << std::chrono::duration_cast<std::chrono::milliseconds>(
-                     tsp.now.time_since_epoch())
-                     .count()
-              << "\"}," << std::endl;
-          }
-          id -= ts.putIssued.size();
-          for (auto& tsp : ts.putComplete) {
-            f << "{\"name\": \"put\", "
-              << "\"cat\": \"NET\", "
-              << "\"id\": \"" << id++ << "\", "
-              << "\"ph\": \"e\", "
-              << "\"pid\": \"" << tsp.peer << "\", "
-              << "\"ts\": \""
-              << std::chrono::duration_cast<std::chrono::milliseconds>(
-                     tsp.now.time_since_epoch())
-                     .count()
-              << "\"}," << std::endl;
-            last = tsp;
-          }
-          f << "{\"name\": \"" << ts.algo << "\", "
-            << "\"cat\": \"COL\", "
-            << "\"id\": \"" << collId << "\", "
-            << "\"ph\": \"e\", "
-            << "\"pid\": \"0\", "
-            << "\"ts\": \""
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   last.now.time_since_epoch())
-                   .count()
+                tsp.now.time_since_epoch())
+            .count()
+            << "\", \"dur\": \"0\""
             << "\"}," << std::endl;
         }
-        f << "]" << std::endl;
-        f.close();
+        for (auto& tsp : ts.putIssued) {
+          f << "{\"name\": \"put\", "
+            << "\"cat\": \"NET\", "
+            << "\"id\": \"" << id++ << "\", "
+            << "\"ph\": \"b\", "
+            << "\"pid\": \"" << tsp.peer << "\", "
+            << "\"ts\": \""
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                tsp.now.time_since_epoch())
+            .count()
+            << "\"}," << std::endl;
+        }
+        id -= ts.putIssued.size();
+        for (auto& tsp : ts.putComplete) {
+          f << "{\"name\": \"put\", "
+            << "\"cat\": \"NET\", "
+            << "\"id\": \"" << id++ << "\", "
+            << "\"ph\": \"e\", "
+            << "\"pid\": \"" << tsp.peer << "\", "
+            << "\"ts\": \""
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                tsp.now.time_since_epoch())
+            .count()
+            << "\"}," << std::endl;
+          last = tsp;
+        }
+        f << "{\"name\": \"" << ts.algo << "\", "
+          << "\"cat\": \"COL\", "
+          << "\"id\": \"" << collId << "\", "
+          << "\"ph\": \"e\", "
+          << "\"pid\": \"0\", "
+          << "\"ts\": \""
+          << std::chrono::duration_cast<std::chrono::milliseconds>(
+              last.now.time_since_epoch())
+          .count()
+          << "\"}," << std::endl;
       }
+      f << "]" << std::endl;
+      f.close();
     }
   }
 
@@ -359,8 +375,8 @@ ncclResult_t ctranMapper::impl::regMem(struct ctranMapperRegElem *mapperRegElem)
       this->totalNumCachedRegistrations, this->totalNumRegistrations, this->totalNumDynamicRegistrations);
 
   // Allow snapshot report during long job running
-  if (ncclParamCtranRegisterReportSnapshotCount() > 0 &&
-      registerDurs.size() % ncclParamCtranRegisterReportSnapshotCount() == 0) {
+  if (NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT > 0 &&
+      registerDurs.size() % NCCL_CVAR_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT == 0) {
     reportGlobalRegSnapshot();
   }
 
@@ -412,7 +428,7 @@ ncclResult_t ctranMapper::regMem(const void *buf, std::size_t len, void **hdl, b
 
   this->pimpl->mapperRegElemList->insert(buf, len, reinterpret_cast<void *>(mapperRegElem), hdl);
 
-  if (ncclParamCtranRegister() == EAGER_REGISTRATION || forceRegist) {
+  if (NCCL_CVAR_CTRAN_REGISTER == NCCL_CVAR_CTRAN_REGISTER::eager || forceRegist) {
     NCCLCHECKGOTO(this->pimpl->regMem(mapperRegElem), res, fail);
   } else {
     // In lazy registration

@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "nccl.h"
 #include "checks.h"
+#include "nccl_cvars.h"
 #include "ctranIbBase.h"
 #include "ctranIb.h"
 #include "ctranIbImpl.h"
@@ -18,8 +19,29 @@ uint64_t ncclParamIbSl();
 uint64_t ncclParamIbTimeout();
 uint64_t ncclParamIbRetryCnt();
 
-NCCL_PARAM(CtranIbMaxQps, "CTRAN_IB_MAX_QPS", 1);
-NCCL_PARAM(CtranIbQpScalingThreshold, "CTRAN_IB_QP_SCALING_THRESHOLD", 1024 * 1024);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CVAR_CTRAN_IB_MAX_QPS
+   type        : int
+   default     : 1
+   description : |-
+     Maximum number of QPs to enable, so data can be split across
+     multiple QPs.  This allows the communication to take multiple routes
+     and is a poor-man's version of fully adaptive routing.
+
+ - name        : NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD
+   type        : int
+   default     : 1048576
+   description : |-
+     Threshold for QP scaling.  If T is the threshold, then for message sizes < T,
+     a single QP is used.  For [T,2T) message sizes, data is split across two QPs.
+     For [2T,3T) message sizes, data is split across three QPs, and so on.
+     Once we hit the maximum number of QPs (see NCCL_CVAR_CTRAN_IB_MAX_QPS), the
+     data is split across all available QPs.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 #define CTRAN_HARDCODED_MAX_QPS (128)
 
@@ -41,13 +63,13 @@ struct busCard {
 
 ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv_cq *cq,
     int port, int peerRank) {
-  if (ncclParamCtranIbMaxQps() > CTRAN_HARDCODED_MAX_QPS) {
+  if (NCCL_CVAR_CTRAN_IB_MAX_QPS > CTRAN_HARDCODED_MAX_QPS) {
     WARN("CTRAN-IB: CTRAN_MAX_QPS set to more than the hardcoded max value (%d)", CTRAN_HARDCODED_MAX_QPS);
   }
 
   this->peerRank = peerRank;
   this->controlQp = nullptr;
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     this->dataQp.push_back(nullptr);
   }
   this->context = context;
@@ -69,13 +91,13 @@ ctranIb::impl::vc::vc(struct ibv_context *context, struct ibv_pd *pd, struct ibv
     this->sendCtrl.freeMsg.push_back(&this->sendCtrl.cmsg[i]);
   }
 
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     std::deque<ctranIbRequest *> q;
     this->put.postedWr.push_back(q);
   }
 
   this->isReady_ = false;
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     std::deque<uint64_t> q;
     this->notifications.push_back(q);
   }
@@ -137,7 +159,7 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
   initAttr.cap.max_recv_sge = 1;
   initAttr.cap.max_inline_data = 0;
   NCCLCHECKGOTO(wrap_ibv_create_qp(&this->controlQp, this->pd, &initAttr), res, exit);
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     NCCLCHECKGOTO(wrap_ibv_create_qp(&this->dataQp[i], this->pd, &initAttr), res, exit);
   }
 
@@ -153,7 +175,7 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
                        IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS),
     res, exit);
 
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     NCCLCHECKGOTO(
         wrap_ibv_modify_qp(this->dataQp[i], &qpAttr,
           IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS),
@@ -163,7 +185,7 @@ ncclResult_t ctranIb::impl::vc::getLocalBusCard(void *localBusCard) {
   /* create local business card */
   busCard->port = this->port;
   busCard->controlQpn = this->controlQp->qp_num;
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     busCard->dataQpn[i] = this->dataQp[i]->qp_num;
   }
   busCard->mtu = portAttr.active_mtu;
@@ -187,7 +209,7 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, std:
   struct busCard *remoteBusCard = reinterpret_cast<struct busCard *>(busCard);
 
   *controlQp = this->controlQp->qp_num;
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     dataQp.push_back(this->dataQp[i]->qp_num);
     this->qpNumToIdx[this->dataQp[i]->qp_num] = i;
   }
@@ -222,7 +244,7 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, std:
                        IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
                        IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER), res, exit);
 
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     qpAttr.dest_qp_num = remoteBusCard->dataQpn[i];
     NCCLCHECKGOTO(
         wrap_ibv_modify_qp(this->dataQp[i], &qpAttr,
@@ -243,7 +265,7 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, std:
                        IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
                        IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC), res, exit);
 
-  for (int i = 0; i < ncclParamCtranIbMaxQps(); i++) {
+  for (int i = 0; i < NCCL_CVAR_CTRAN_IB_MAX_QPS; i++) {
     NCCLCHECKGOTO(
         wrap_ibv_modify_qp(this->dataQp[i], &qpAttr,
           IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
@@ -255,7 +277,7 @@ ncclResult_t ctranIb::impl::vc::setupVc(void *busCard, uint32_t *controlQp, std:
     NCCLCHECKGOTO(this->postRecvCtrlMsg(&this->recvCtrl.cmsg[i]), res, exit);
     this->recvCtrl.postedMsg.push_back(&this->recvCtrl.cmsg[i]);
 
-    for (int j = 0; j < ncclParamCtranIbMaxQps(); j++) {
+    for (int j = 0; j < NCCL_CVAR_CTRAN_IB_MAX_QPS; j++) {
       NCCLCHECKGOTO(this->postRecvNotifyMsg(j), res, exit);
     }
   }
@@ -314,10 +336,10 @@ ncclResult_t ctranIb::impl::vc::postPutMsg(const void *sbuf, void *dbuf, std::si
     uint32_t lkey, uint32_t rkey, bool localNotify, bool notify) {
   ncclResult_t res = ncclSuccess;
 
-  int numQps = (len_ / ncclParamCtranIbQpScalingThreshold()) +
-    !!(len_ % ncclParamCtranIbQpScalingThreshold());
-  if (numQps > ncclParamCtranIbMaxQps()) {
-    numQps = ncclParamCtranIbMaxQps();
+  int numQps = (len_ / NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD) +
+    !!(len_ % NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD);
+  if (numQps > NCCL_CVAR_CTRAN_IB_MAX_QPS) {
+    numQps = NCCL_CVAR_CTRAN_IB_MAX_QPS;
   }
 
   uint64_t offset = 0;
@@ -540,10 +562,10 @@ ncclResult_t ctranIb::impl::vc::iput(const void *sbuf, void *dbuf, std::size_t l
 
   bool localNotify;
   if (req != nullptr) {
-    int numQps = (len / ncclParamCtranIbQpScalingThreshold()) +
-      !!(len % ncclParamCtranIbQpScalingThreshold());
-    if (numQps > ncclParamCtranIbMaxQps()) {
-      numQps = ncclParamCtranIbMaxQps();
+    int numQps = (len / NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD) +
+      !!(len % NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD);
+    if (numQps > NCCL_CVAR_CTRAN_IB_MAX_QPS) {
+      numQps = NCCL_CVAR_CTRAN_IB_MAX_QPS;
     }
 
     localNotify = true;
@@ -568,10 +590,10 @@ ncclResult_t ctranIb::impl::vc::checkNotify(bool *notify) {
     *notify = false;
   } else {
     uint64_t msgSz = this->notifications[0].front();
-    int numQps = (msgSz / ncclParamCtranIbQpScalingThreshold()) +
-      !!(msgSz % ncclParamCtranIbQpScalingThreshold());
-    if (numQps > ncclParamCtranIbMaxQps()) {
-      numQps = ncclParamCtranIbMaxQps();
+    int numQps = (msgSz / NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD) +
+      !!(msgSz % NCCL_CVAR_CTRAN_IB_QP_SCALING_THRESHOLD);
+    if (numQps > NCCL_CVAR_CTRAN_IB_MAX_QPS) {
+      numQps = NCCL_CVAR_CTRAN_IB_MAX_QPS;
     }
 
     *notify = true;

@@ -49,8 +49,6 @@ typedef enum {
   SENDRECV_CTRAN,
 } ctranAlgo;
 
-ctranAlgo ctranAlgoGet(ctranAlgoType type);
-
 ncclResult_t ctranAllGatherDirect(const void* sendbuff, void* recvbuff,
     size_t sendcount, ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
 ncclResult_t ctranAllGatherRing(const void* sendbuff, void* recvbuff,
