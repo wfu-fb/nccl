@@ -1,0 +1,59 @@
+(c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+
+Automatically generated
+  by ./maint/extractcvars.py
+DO NOT EDIT!!!
+
+NCCL_CVAR_DDA_ALLREDUCE_LARGE_MESSAGE_HCM
+Description:
+    Enable DDA Allreduce for large messages on HCM platforms.
+Type: bool
+Default: False
+
+NCCL_CVAR_DDA_ALLREDUCE_TMPBUFF_SIZE
+Description:
+    DDA Allreduce temporary buffer size.
+Type: int
+Default: 33554432
+
+NCCL_CVAR_DDA_MAX_RANKS
+Description:
+    Message size at which DDA Allreduce switches to the tree algorithm.
+    Only applies to HCM-based systems.
+Type: int
+Default: 16
+
+NCCL_CVAR_ALLREDUCE_ALGO
+Description:
+    The algorithm to use for Allreduce communication
+    orig - Copy-based algorithm
+    dda - Direct Data Access algorithms
+Type: enum
+Default: orig
+
+NCCL_CVAR_DDA_ALLREDUCE_MAX_BLOCKS
+Description:
+    Number of CUDA blocks to use for DDA Allreduce.
+Type: int
+Default: 1
+
+NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_NVS
+Description:
+    Message size at which DDA Allreduce switches to the tree algorithm.
+    Only applies for NVSwitch-based systems.
+Type: int
+Default: 262144
+
+NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_HCM
+Description:
+    Message size at which DDA Allreduce switches to the tree algorithm.
+    Only applies for HCM-based systems.
+Type: int
+Default: 65536
+
+NCCL_CVAR_DDA_FORCE_P2P_ACCESS
+Description:
+    Force allow direct peer-to-peer access over NVLink, even for the
+    cases where there is no direct NVLink connectivity.
+Type: bool
+Default: False

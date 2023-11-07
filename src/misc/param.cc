@@ -6,6 +6,7 @@
 
 #include "param.h"
 #include "debug.h"
+#include "nccl_cvars.h"
 
 #include <algorithm>
 #include <errno.h>
@@ -57,6 +58,7 @@ void initEnv() {
   }
   sprintf(confFilePath, "/etc/nccl.conf");
   setEnvFile(confFilePath);
+  ncclCvarInit();
 }
 
 void ncclLoadParam(char const* env, int64_t deftVal, int64_t uninitialized, int64_t* cache) {
