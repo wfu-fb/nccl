@@ -7,15 +7,29 @@
 #include "argcheck.h"
 #include "enqueue.h"
 #include "nccl.h"
+#include "nccl_cvars.h"
 
-NCCL_PARAM(
-    AllreduceSparseBlockNumThreadBlocks,
-    "ALL_REDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS",
-    -1); // -1: auto
-NCCL_PARAM(
-    AllreduceSparseBlockThreadBlockSize,
-    "ALL_REDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE",
-    -1); // -1: auto
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS
+   type        : int
+   default     : -1
+   description : |-
+     Number of thread blocks to use for Allreduce_sparse_block.
+     Setting it to a negative number means that NCCL will automatically
+     pick a value.
+
+ - name        : NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE
+   type        : int
+   default     : -1
+   description : |-
+     Number of threads in each thread block to use for Allreduce_sparse_block.
+     Setting it to a negative number means that NCCL will automatically
+     pick a value.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static void* unpackSendBlocksKerns[ncclNumTypes] = {
     (void*)ncclKernel_AllReduceSparseBlock_Unpack<int8_t>,
@@ -56,10 +70,10 @@ static inline ncclResult_t unpackSendBlocks(
   // Allow user to customize if specified
   unsigned int num_blocks_x = unpackMinGridSize,
                num_threads_x = unpackBlockSize;
-  if (ncclParamAllreduceSparseBlockNumThreadBlocks() > 0)
-    num_blocks_x = ncclParamAllreduceSparseBlockNumThreadBlocks();
-  if (ncclParamAllreduceSparseBlockThreadBlockSize() > 0)
-    num_threads_x = ncclParamAllreduceSparseBlockThreadBlockSize();
+  if (NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS > 0)
+    num_blocks_x = NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS;
+  if (NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE > 0)
+    num_threads_x = NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
   INFO(
       NCCL_COLL,
