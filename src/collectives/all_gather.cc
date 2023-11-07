@@ -6,9 +6,21 @@
 
 #include "enqueue.h"
 #include "collectives.h"
+#include "nccl_cvars.h"
 #include "ctranAlgos.h"
 
-NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 0);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF
+   type        : int
+   default     : 0
+   description : |-
+     Message size up to which we use the direct algorithm for Allgather.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 NCCL_PARAM(CtranEnableLocalIb, "CTRAN_ENABLE_LOCAL_IB", 0);
 
 NCCL_API(ncclResult_t, ncclAllGather, const void* sendbuff, void* recvbuff, size_t sendcount,
@@ -17,7 +29,7 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream) {
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
-  bool directSend = (comm->localRanks == 1) && (rankOffset <= ncclParamAgDirectCutoff());
+  bool directSend = (comm->localRanks == 1) && (rankOffset <= NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF);
   bool enableCtran = (ncclParamCtranEnableLocalIb() || comm->localRanks == 1) ? true : false;
 
   ctranAlgo algo = ctranAlgoGet(ctranAlgoType::ALLGATHER);

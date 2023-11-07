@@ -73,3 +73,9 @@ Description:
     pick a value.
 Type: int
 Default: -1
+
+NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF
+Description:
+    Message size up to which we use the direct algorithm for Allgather.
+Type: int
+Default: 0
