@@ -11,12 +11,6 @@
 #include "ddaMemHandles.h"
 #include "ddaPrivateMd.h"
 
-int64_t ncclParamMaxDDARanks(void);
-int64_t ncclParamDDAAllreduceTmpbuffSize(void);
-int64_t ncclParamDDAAllreduceTreeThresholdNVS(void);
-int64_t ncclParamDDAAllreduceTreeThresholdHCM(void);
-int64_t ncclParamForceP2pAccess(void);
-
 typedef enum {
   NCCL_DDA_ALLREDUCE_ALGO_DEFAULT,
   NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC,

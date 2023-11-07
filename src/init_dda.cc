@@ -9,11 +9,41 @@
 #include "comm.h"
 #include "nccl.h"
 #include "graph/topo.h"
+#include "nccl_cvars.h"
 
-NCCL_PARAM(DDAAllreduceLargeMessageHCM, "DDA_ALLREDUCE_LARGE_MESSAGE_HCM", 0);
-NCCL_PARAM(DDAAllreduceTmpbuffSize, "DDA_ALLREDUCE_TMPBUFF_SIZE", 32 * 1024 * 1024);
-NCCL_PARAM(MaxDDARanks, "MAX_DDA_RANKS", 16);
-NCCL_PARAM(ForceP2pAccess, "FORCE_P2P_ACCESS", 0);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CVAR_DDA_ALLREDUCE_LARGE_MESSAGE_HCM
+   type        : bool
+   default     : false
+   description : |-
+     Enable DDA Allreduce for large messages on HCM platforms.
+
+ - name        : NCCL_CVAR_DDA_ALLREDUCE_TMPBUFF_SIZE
+   type        : int
+   default     : 33554432
+   description : |-
+     DDA Allreduce temporary buffer size.
+
+ - name        : NCCL_CVAR_DDA_MAX_RANKS
+   type        : int
+   default     : 16
+   description : |-
+     Message size at which DDA Allreduce switches to the tree algorithm.
+     Only applies to HCM-based systems.
+
+ - name        : NCCL_CVAR_ALLREDUCE_ALGO
+   type        : enum
+   default     : orig
+   choices     : orig, dda
+   description : |-
+     The algorithm to use for Allreduce communication
+     orig - Copy-based algorithm
+     dda - Direct Data Access algorithms
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static std::vector<ddaThreadSharedMd*> ddaThreadSharedMdList;
 static std::mutex ddaThreadSharedMdListMutex;
@@ -37,9 +67,8 @@ ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
                                         ncclComm* comm) {
   const auto bytes = count * typeSize(datatype);
   int numDDAThreads = 0;
-  const char* allreduceAlgoStr = getenv("NCCL_ALLREDUCE_ALGO");
 
-  if (allreduceAlgoStr == nullptr || strcmp(allreduceAlgoStr, "dda")) {
+  if (NCCL_CVAR_ALLREDUCE_ALGO == NCCL_CVAR_ALLREDUCE_ALGO::orig) {
     goto algo_default;
   }
 
@@ -54,7 +83,7 @@ ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
   if ((numDDAThreads != comm->nRanks) || /* collective must only contain dda ranks */
       (numDDAThreads & (numDDAThreads - 1)) || /* power of two ranks */
       (numDDAThreads == 1) || /* more than one rank */
-      (numDDAThreads > ncclParamMaxDDARanks()) || /* only small rank counts are supported */
+      (numDDAThreads > NCCL_CVAR_DDA_MAX_RANKS) || /* only small rank counts are supported */
       (op != ncclSum) || /* only sum is supported */
       ((uintptr_t)sendbuff % 16) || /* 16-byte alignment */
       ((uintptr_t)recvbuff % 16)) { /* 16-byte alignment */
@@ -62,29 +91,29 @@ ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
   }
 
   if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
-    if (bytes < ncclParamDDAAllreduceTreeThresholdNVS()) {
+    if (bytes < NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_NVS) {
       if ((bytes % 16) || /* allow for 16-byte loads */
           (sendbuff == recvbuff)) { /* in-place reduction */
         goto algo_ipc;
       }
-    } else { /* bytes >= ncclParamDDAAllreduceTreeThresholdNVS() */
+    } else { /* bytes >= NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_NVS */
       if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
         goto algo_ipc;
       }
     }
   } else { /* topoType == NCCL_DDA_TOPO_TYPE__HCM */
-    if (bytes < ncclParamDDAAllreduceTreeThresholdHCM()) {
+    if (bytes < NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_HCM) {
       if (bytes % 16) { /* allow for 16-byte loads */
         goto algo_ipc;
       }
-      if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+      if (bytes > NCCL_CVAR_DDA_ALLREDUCE_TMPBUFF_SIZE) { /* need tmpbuff */
         goto algo_ipc;
       }
-    } else if (ncclParamDDAAllreduceLargeMessageHCM()) {
+    } else if (NCCL_CVAR_DDA_ALLREDUCE_LARGE_MESSAGE_HCM) {
       if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
         goto algo_ipc;
       }
-      if (bytes > comm->nRanks * ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff */
+      if (bytes > comm->nRanks * NCCL_CVAR_DDA_ALLREDUCE_TMPBUFF_SIZE) { /* need tmpbuff */
         goto algo_ipc;
       }
     } else {
@@ -97,31 +126,31 @@ algo_ipc:
   if ((comm->nRanks != comm->localRanks) || /* all ranks must be local */
       (comm->nRanks & (comm->nRanks - 1)) || /* power of two ranks */
       (comm->nRanks == 1) || /* more than one rank */
-      (comm->nRanks > ncclParamMaxDDARanks()) || /* only small rank counts are supported */
+      (comm->nRanks > NCCL_CVAR_DDA_MAX_RANKS) || /* only small rank counts are supported */
       (op != ncclSum)) { /* only sum is supported */
     goto algo_default;
   }
 
   if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {
-    if (bytes < ncclParamDDAAllreduceTreeThresholdNVS()) {
+    if (bytes < NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_NVS) {
       if (bytes % 16) { /* allow for 16-byte loads */
         goto algo_default;
       }
-    } else { /* bytes >= ncclParamDDAAllreduceTreeThresholdNVS() */
+    } else { /* bytes >= NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_NVS */
       if (bytes % (16 * comm->nRanks)) { /* allow for 16-byte loads */
         goto algo_default;
       }
     }
 
-    if (bytes > ncclParamDDAAllreduceTmpbuffSize()) { /* need tmpbuff for IPC */
+    if (bytes > NCCL_CVAR_DDA_ALLREDUCE_TMPBUFF_SIZE) { /* need tmpbuff for IPC */
       goto algo_default;
     }
   } else { /* topoType == NCCL_DDA_TOPO_TYPE__HCM */
-    if (bytes < ncclParamDDAAllreduceTreeThresholdHCM()) {
+    if (bytes < NCCL_CVAR_DDA_ALLREDUCE_TREE_THRESHOLD_HCM) {
       if (bytes % 16) { /* allow for 16-byte loads */
         goto algo_default;
       }
-      if (bytes > ncclParamDDAAllreduceTmpbuffSize() / 2) { /* need tmpbuff */
+      if (bytes > NCCL_CVAR_DDA_ALLREDUCE_TMPBUFF_SIZE / 2) { /* need tmpbuff */
         goto algo_default;
       }
     } else {
