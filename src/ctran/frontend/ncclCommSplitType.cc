@@ -6,7 +6,6 @@
 
 NCCL_API(ncclResult_t, ncclCommSplitType, ncclComm_t comm, int type, int key, ncclComm_t *newcomm, ncclConfig_t *config);
 ncclResult_t ncclCommSplitType(ncclComm_t comm, int type, int key, ncclComm_t *newcomm, ncclConfig_t *config) {
-  ncclResult_t res = ncclSuccess;
   int color;
 
   if (type == NCCL_SPLIT_TYPE_UNDEFINED) {
