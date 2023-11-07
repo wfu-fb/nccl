@@ -6,8 +6,19 @@
 
 #include "enqueue.h"
 #include "collectives.h"
+#include "nccl_cvars.h"
 
-NCCL_PARAM(AgDirectCutoff, "AG_DIRECT_CUTOFF", 512 * 1024);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF
+   type        : int
+   default     : 524288
+   description : |-
+     Message size up to which we use the direct algorithm for Allgather.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 NCCL_API(ncclResult_t, ncclAllGather, const void* sendbuff, void* recvbuff, size_t sendcount,
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
@@ -15,7 +26,7 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream) {
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
-  bool directSend = (comm->localRanks == 1) && (rankOffset <= ncclParamAgDirectCutoff());
+  bool directSend = (comm->localRanks == 1) && (rankOffset <= NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF);
 
   if (directSend) {
     if (sendcount == 0) return ncclSuccess;
