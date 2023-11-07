@@ -57,3 +57,19 @@ Description:
     cases where there is no direct NVLink connectivity.
 Type: bool
 Default: False
+
+NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS
+Description:
+    Number of thread blocks to use for Allreduce_sparse_block.
+    Setting it to a negative number means that NCCL will automatically
+    pick a value.
+Type: int
+Default: -1
+
+NCCL_CVAR_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE
+Description:
+    Number of threads in each thread block to use for Allreduce_sparse_block.
+    Setting it to a negative number means that NCCL will automatically
+    pick a value.
+Type: int
+Default: -1
