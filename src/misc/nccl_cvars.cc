@@ -22,7 +22,7 @@ static std::set<std::string> tokenizer(const char *str_, const char *def_) {
   while (auto pos = str.find(",")) {
     std::string newstr = str.substr(0, pos);
     if (tokens.find(newstr) != tokens.end()) {
-      WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str_);
+      // WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str_);
     }
     tokens.insert(newstr);
     str.erase(0, pos + delim.length());
@@ -46,7 +46,7 @@ static bool env2bool(const char *str_, const char *def) {
   else if (str == "false") return false;
   else if (str == "1") return true;
   else if (str == "0") return false;
-  else WARN("Unrecognized value for env %s\n", str_);
+  // else WARN("Unrecognized value for env %s\n", str_);
   return true;
 }
 
@@ -134,7 +134,7 @@ void ncclCvarInit() {
       std::string str(*s);
       str = str.substr(0, str.find("="));
       if (env.find(str) == env.end()) {
-        WARN("Unknown env %s in the NCCL namespace\n", str.c_str());
+        // WARN("Unknown env %s in the NCCL namespace\n", str.c_str());
       }
     }
   }
@@ -154,7 +154,7 @@ void ncclCvarInit() {
     } else if (str == std::string("dda")) {
       NCCL_ALLREDUCE_ALGO = NCCL_ALLREDUCE_ALGO::dda;
     } else {
-      WARN("Unknown value %s for env NCCL_ALLREDUCE_ALGO", str.c_str());
+      // WARN("Unknown value %s for env NCCL_ALLREDUCE_ALGO", str.c_str());
     }
   }
 
