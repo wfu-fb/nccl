@@ -11,7 +11,7 @@
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
- - name        : NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF
+ - name        : NCCL_ALLGATHER_DIRECT_CUTOFF
    type        : int
    default     : 524288
    description : |-
@@ -26,7 +26,7 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream) {
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
-  bool directSend = (comm->localRanks == 1) && (rankOffset <= NCCL_CVAR_ALLGATHER_DIRECT_CUTOFF);
+  bool directSend = (comm->localRanks == 1) && (rankOffset <= NCCL_ALLGATHER_DIRECT_CUTOFF);
 
   if (directSend) {
     if (sendcount == 0) return ncclSuccess;
