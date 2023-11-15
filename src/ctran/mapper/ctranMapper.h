@@ -123,6 +123,7 @@ public:
   ncclResult_t checkNotify(int rank, bool *notify);
   ncclResult_t waitNotify(int rank);
   void reportRegSnapshot();
+  void reportProfling(bool flush = false);
 
   int rank;
   uint64_t commHash;

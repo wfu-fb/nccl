@@ -1,9 +1,10 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
-#include <map>
+#include <sstream>
 #include "ctranMapper.h"
 #include "ctranMapperImpl.h"
 #include "comm.h"
@@ -16,11 +17,12 @@
  - name        : NCCL_CTRAN_PROFILING
    type        : enum
    default     : none
-   choices     : none, stdout, kineto
+   choices     : none, stdout, info, kineto
    description : |-
      Kind of ctran profiling needed.
      none - No profiling
      stdout - Dump profiling data to stdout
+     info   - Dump profiling data to NCCL_DEBUG INFO
      kineto - Dump profiling data to a kineto log
         (for kineto profiling, see also NCCL_CTRAN_KINETO_PROFILE_DIR)
 
@@ -62,6 +64,12 @@
      allows a snapshot to be reported whenever once every N registrations. It helps
      understand the performance impact of registeration at different period of a
      long running job.
+
+ - name        : NCCL_CTRAN_PROFILING_REPORT_COUNT
+   type        : int
+   default     : 100
+   description : |-
+     Number of ops to report CTRAN profiling results periodically
 
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
@@ -230,45 +238,57 @@ void ctranMapper::reportRegSnapshot(void) {
       this->pimpl->totalNumRegLookupMiss);
 }
 
-ctranMapper::~ctranMapper() {
+void ctranMapper::reportProfling(bool flush) {
   /* flush timestamps */
-  if (!this->timestamps.empty()) {
-    if (NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::stdout) {
-      std::cout << "[CTRAN-MAPPER] Communication Profiling:" << std::endl;
+  if (!this->timestamps.empty() && ((this->timestamps.size() > NCCL_CTRAN_PROFILING_REPORT_COUNT || flush))) {
+    if (NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::stdout || NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::info) {
+      std::stringstream ss;
+      ss << "[CTRAN-MAPPER] Communication Profiling:" << std::endl;
       for (auto& ts : this->timestamps) {
-        std::cout << "    collective=" << ts.algo << std::endl;
-        std::cout << "    startTime="
-                  << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         ts.start.time_since_epoch())
-                         .count()
-                  << std::endl;
+        ss << "    collective=" << ts.algo << std::endl;
+        ss << "    startTime="
+           << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                  ts.start.time_since_epoch())
+                  .count()
+           << std::endl;
         for (auto& tsp : ts.recvCtrl) {
-          std::cout << "        recvCtrl[" << tsp.peer << "]="
-                    << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                           tsp.now.time_since_epoch())
-                           .count()
-                    << std::endl;
+          ss << "        recvCtrl[" << tsp.peer << "]="
+             << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    tsp.now.time_since_epoch())
+                    .count()
+             << std::endl;
         }
         for (auto& tsp : ts.putIssued) {
-          std::cout << "        putIssued[" << tsp.peer << "]="
-                    << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                           tsp.now.time_since_epoch())
-                           .count()
-                    << std::endl;
+          ss << "        putIssued[" << tsp.peer << "]="
+             << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    tsp.now.time_since_epoch())
+                    .count()
+             << std::endl;
         }
         for (auto& tsp : ts.putComplete) {
-          std::cout << "        putComplete[" << tsp.peer << "]="
-                    << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                           tsp.now.time_since_epoch())
-                           .count()
-                    << std::endl;
+          ss << "        putComplete[" << tsp.peer << "]="
+             << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    tsp.now.time_since_epoch())
+                    .count()
+             << std::endl;
+        }
+        if (NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::info) {
+          INFO(NCCL_INIT, "%s", ss.str().c_str());
+          ss.str("");
+          ss.clear();
         }
       }
-      std::cout << std::flush;
+      if (NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::stdout) {
+        std::cout << ss.str() << std::flush;
+      }
     } else if (NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::kineto) {
       auto pid = getpid();
+      static uint64_t reportCnt = 0;
       std::string filename(NCCL_CTRAN_KINETO_PROFILE_DIR +
           std::string("/nccl_ctran_log.") + std::to_string(pid) +
+          std::string(".rank") + std::to_string(this->rank) +
+          std::string(".comm") + std::to_string(this->commHash) +
+          std::string(".") + std::to_string(reportCnt++) +
           std::string(".json"));
       INFO(NCCL_ALL, "Dumping ctran profile to %s\n", filename.c_str());
       std::ofstream f(filename);
@@ -298,7 +318,7 @@ ctranMapper::~ctranMapper() {
                 tsp.now.time_since_epoch())
             .count()
             << "\", \"dur\": \"0\""
-            << "\"}," << std::endl;
+            << "}," << std::endl;
         }
         for (auto& tsp : ts.putIssued) {
           f << "{\"name\": \"put\", "
@@ -340,7 +360,13 @@ ctranMapper::~ctranMapper() {
       f << "]" << std::endl;
       f.close();
     }
+    this->timestamps.clear();
   }
+}
+
+ctranMapper::~ctranMapper() {
+
+  this->reportProfling(true);
 
   if (this->pimpl->memPool != nullptr) {
     this->pimpl->memPool->deregMem(

@@ -63,6 +63,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct collOp>> opGroup) {
   }
 
   mapper->timestamps.push_back(timestamp);
+  mapper->reportProfling();
 
 exit:
   return res;

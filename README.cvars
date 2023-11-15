@@ -147,6 +147,7 @@ Description:
     Kind of ctran profiling needed.
     none - No profiling
     stdout - Dump profiling data to stdout
+    info   - Dump profiling data to NCCL_DEBUG INFO
     kineto - Dump profiling data to a kineto log
        (for kineto profiling, see also NCCL_CTRAN_KINETO_PROFILE_DIR)
 Type: enum
@@ -188,3 +189,9 @@ Description:
     long running job.
 Type: int
 Default: -1
+
+NCCL_CTRAN_PROFILING_REPORT_COUNT
+Description:
+    Number of ops to report CTRAN profiling results periodically
+Type: int
+Default: 100

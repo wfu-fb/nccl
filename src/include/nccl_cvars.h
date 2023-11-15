@@ -63,6 +63,7 @@ extern int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;
 enum class NCCL_CTRAN_PROFILING {
   none,
   stdout,
+  info,
   kineto,
 };
 extern enum NCCL_CTRAN_PROFILING NCCL_CTRAN_PROFILING;
@@ -83,6 +84,8 @@ enum class NCCL_CTRAN_BACKENDS {
 extern std::set<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
 
 extern int NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT;
+
+extern int NCCL_CTRAN_PROFILING_REPORT_COUNT;
 
 void ncclCvarInit();
 

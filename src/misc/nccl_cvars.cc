@@ -109,6 +109,8 @@ std::set<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
 
 int NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT;
 
+int NCCL_CTRAN_PROFILING_REPORT_COUNT;
+
 extern char **environ;
 
 void ncclCvarInit() {
@@ -136,6 +138,7 @@ void ncclCvarInit() {
   env.insert("NCCL_CTRAN_REGISTER");
   env.insert("NCCL_CTRAN_BACKENDS");
   env.insert("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT");
+  env.insert("NCCL_CTRAN_PROFILING_REPORT_COUNT");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
   env.insert("NCCL_COLLTRACE_LOCAL_SUBDIR");
@@ -256,6 +259,8 @@ void ncclCvarInit() {
       NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::none;
     } else if (str == std::string("stdout")) {
       NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::stdout;
+    } else if (str == std::string("info")) {
+      NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::info;
     } else if (str == std::string("kineto")) {
       NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::kineto;
     } else {
@@ -294,5 +299,7 @@ void ncclCvarInit() {
   }
 
   NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT = env2int("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", "-1");
+
+  NCCL_CTRAN_PROFILING_REPORT_COUNT = env2int("NCCL_CTRAN_PROFILING_REPORT_COUNT", "100");
 
 }
