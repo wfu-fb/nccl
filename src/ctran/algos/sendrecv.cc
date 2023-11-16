@@ -125,6 +125,16 @@ exit:
   return res;
 }
 
+bool ctranSendRecvSupport(int peer, ncclComm_t comm) {
+  // TODO: conrrently support ctran sendrecv only when peer is at remote node.
+  // We will include intranode support when bringing in NVL backend.
+  if (comm->rankToNode[peer] == comm->node) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 ncclResult_t ctranSend(const void* sendbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream) {
   LOG_SENDRECV_INFO("ctranSend", sendbuff, count, datatype, peer, comm, stream);

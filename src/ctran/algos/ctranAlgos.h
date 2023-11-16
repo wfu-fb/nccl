@@ -56,6 +56,7 @@ ncclResult_t ctranAllGatherRing(const void* sendbuff, void* recvbuff,
 ncclResult_t ctranAllGatherRd(const void* sendbuff, void* recvbuff,
     size_t sendcount, ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
 
+bool ctranSendRecvSupport(int peer, ncclComm_t comm);
 ncclResult_t ctranSend(const void* sendbuff, size_t count, ncclDataType_t datatype, int peer,
     ncclComm_t comm, cudaStream_t stream);
 ncclResult_t ctranRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int peer,
