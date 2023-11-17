@@ -143,9 +143,14 @@ void ncclDebugInit() {
 }
 
 static std::string getTime(void) {
-  std::time_t now_c = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  auto now = std::chrono::system_clock::now();
+  std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+  auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                    now.time_since_epoch()) % 1000000;
+
   std::stringstream timeSs;
-  timeSs << std::put_time(std::localtime(&now_c), "%FT%T%z");
+  timeSs << std::put_time(std::localtime(&now_c), "%FT%T.") << std::setfill('0')
+         << std::setw(6) << now_us.count();
   return timeSs.str();
 }
 
