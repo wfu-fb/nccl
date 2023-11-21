@@ -36,6 +36,12 @@ extern int NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
 extern bool NCCL_DDA_FORCE_P2P_ACCESS;
 
+extern std::set<std::string> NCCL_IB_HCA;
+
+extern int NCCL_CTRAN_IB_MAX_QPS;
+
+extern int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;
+
 void ncclCvarInit();
 
 #endif  /* NCCL_CVARS_H_INCLUDED */

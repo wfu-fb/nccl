@@ -21,6 +21,8 @@ LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += misc/nccl_cvars.cc
 LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
 		collectives/all_reduce_dda.cc
+LIBSRCFILES += ctran/backends/ib/CtranIb.cc ctran/backends/ib/CtranIbImpl.cc \
+			   ctran/backends/ib/CtranIbRequest.cc ctran/backends/ib/CtranIbVc.cc
 LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
 		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc
 

@@ -79,3 +79,28 @@ Description:
     cases where there is no direct NVLink connectivity.
 Type: bool
 Default: False
+
+NCCL_IB_HCA
+Description:
+    List of IB HCAs available for NCCL to use.
+    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
+Type: stringlist
+Default: None
+
+NCCL_CTRAN_IB_MAX_QPS
+Description:
+    Maximum number of QPs to enable, so data can be split across
+    multiple QPs.  This allows the communication to take multiple routes
+    and is a poor-man's version of fully adaptive routing.
+Type: int
+Default: 1
+
+NCCL_CTRAN_IB_QP_SCALING_THRESHOLD
+Description:
+    Threshold for QP scaling.  If T is the threshold, then for message sizes < T,
+    a single QP is used.  For [T,2T) message sizes, data is split across two QPs.
+    For [2T,3T) message sizes, data is split across three QPs, and so on.
+    Once we hit the maximum number of QPs (see NCCL_CTRAN_IB_MAX_QPS), the
+    data is split across all available QPs.
+Type: int
+Default: 1048576
