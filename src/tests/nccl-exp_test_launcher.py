@@ -104,22 +104,10 @@ def remote_mpi_launcher(args: argparse.Namespace) -> None:
                 run_cmds.append(
                     f"suscp --reason 'copy NCCL-EXP test launcher binary' {par_path}/{executable} root@{host}:/tmp/"
                 )
-        # Default run
         # mpirun launching nccl-tests on remote node
         if master_addr != "localhost":
             run_cmds.append(
                 f"sush2 --reason 'Testing NCCL-EXP test' root@{master_addr} '/usr/local/fbcode/bin/mpirun {mpi_args} /tmp/{executable}'"
-            )
-        else:
-            run_cmds.append(
-                f"/usr/local/fbcode/bin/mpirun {mpi_args} {par_path}/{executable}"
-            )
-
-        # additional runs if sweep config is given
-        # mpirun launching nccl-tests on remote node
-        if master_addr != "localhost":
-            run_cmds.append(
-                f"sush2 --reason 'tesing NCCL-EXP test' root@{master_addr} '/usr/local/fbcode/bin/mpirun {mpi_args} /tmp/{executable}'"
             )
         else:
             run_cmds.append(
