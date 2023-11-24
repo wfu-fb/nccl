@@ -8,7 +8,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <stdlib.h>
-
+#include "param.h"
 #include "debug.h"
 #include "nccl_tuner.h"
 
@@ -26,7 +26,7 @@ ncclResult_t ncclLoadTunerPlugin(ncclTuner_t** tuner) {
   if (tunerPluginRefCount == -1) {
     tunerPluginRefCount = -2; // Default: no plugin, don't try again later
 
-    const char* name = getenv("NCCL_TUNER_PLUGIN");
+    const char* name = ncclGetEnv("NCCL_TUNER_PLUGIN");
     if (name) {
       INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", name);
       tunerPluginLib = dlopen(name, RTLD_LAZY | RTLD_LOCAL);

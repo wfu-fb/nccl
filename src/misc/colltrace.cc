@@ -33,7 +33,7 @@ void CollTrace::outputResults(){
   std::string fileName = std::to_string(rank_) + "_online.json";
 
   // If local env variable is set, then write profiling data to file
-  char* subDirEnv = getenv("NCCL_COLLTRACE_LOCAL_SUBDIR");
+  const char* subDirEnv = ncclGetEnv("NCCL_COLLTRACE_LOCAL_SUBDIR");
   if(subDirEnv){
     std::string localSubDir(subDirEnv);
     INFO(NCCL_ALL, "Rank %lu: Writing %lu online profiler data to local directory: %s", rank_, results_.size(), localSubDir.c_str());
