@@ -30,6 +30,7 @@ extern "C" {
 #include <stdint.h>
 
 #define NCCL_REGISTRATION_SUPPORTED
+#define NCCL_COMM_SPLIT_TYPE_SUPPORTED
 
 /* Opaque handle to communicator */
 typedef struct ncclComm* ncclComm_t;
