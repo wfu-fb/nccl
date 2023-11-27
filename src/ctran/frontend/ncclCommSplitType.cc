@@ -11,7 +11,7 @@ ncclResult_t ncclCommSplitType(ncclComm_t comm, int type, int key, ncclComm_t *n
   if (type == NCCL_SPLIT_TYPE_UNDEFINED) {
     color = NCCL_SPLIT_NOCOLOR;
   } else if (type == NCCL_SPLIT_TYPE_NODE) {
-    color = comm->rankToNode[comm->localRank];
+    color = comm->rankToNode[comm->rank];
   } else {
     if (newcomm) *newcomm = NULL;
     return ncclInvalidArgument;
