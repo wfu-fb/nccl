@@ -13,6 +13,20 @@
 #include "nccl_cvars.h"
 #include "debug.h"
 
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+    return !std::isspace(ch);
+  }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+  s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+    return !std::isspace(ch);
+  }).base(), s.end());
+}
+
 static std::set<std::string> tokenizer(const char *str_, const char *def_) {
   const char *def = def_ ? def_ : "";
   std::string str(getenv(str_) ? getenv(str_) : def);
@@ -21,10 +35,15 @@ static std::set<std::string> tokenizer(const char *str_, const char *def_) {
 
   while (auto pos = str.find(",")) {
     std::string newstr = str.substr(0, pos);
-    if (tokens.find(newstr) != tokens.end()) {
-      // WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str_);
+    ltrim(newstr);
+    rtrim(newstr);
+    // Skip empty string
+    if(!newstr.empty()) {
+      if (tokens.find(newstr) != tokens.end()) {
+        // WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str_);
+      }
+      tokens.insert(newstr);
     }
-    tokens.insert(newstr);
     str.erase(0, pos + delim.length());
     if (pos == std::string::npos) {
       break;
@@ -56,7 +75,10 @@ static int env2int(const char *str, const char *def) {
 
 static std::string env2str(const char *str, const char *def_) {
   const char *def = def_ ? def_ : "";
-  return getenv(str) ? std::string(getenv(str)) : std::string(def);
+  std::string str_s = getenv(str) ? std::string(getenv(str)) : std::string(def);
+  ltrim(str_s);
+  rtrim(str_s);
+  return str_s;
 }
 
 static std::set<std::string> env2strlist(const char *str, const char *def) {
@@ -114,20 +136,27 @@ void ncclCvarInit() {
   env.insert("NCCL_COLLTRACE_LOCAL_SUBDIR");
   env.insert("NCCL_COMM_ID");
   env.insert("NCCL_CUDA_PATH");
+  env.insert("NCCL_CROSS_NIC");
   env.insert("NCCL_DEBUG");
   env.insert("NCCL_DEBUG_FILE");
   env.insert("NCCL_DEBUG_SUBSYS");
   env.insert("NCCL_GRAPH_DUMP_FILE");
   env.insert("NCCL_GRAPH_FILE");
   env.insert("NCCL_HOSTID");
+  env.insert("NCCL_IB_DISABLE");
   env.insert("NCCL_IB_GID_INDEX");
   env.insert("NCCL_IB_TC");
+  env.insert("NCCL_IB_TIMEOUT");
+  env.insert("NCCL_IB_QPS_PER_CONNECTION");
   env.insert("NCCL_LAUNCH_MODE");
   env.insert("NCCL_NET");
   env.insert("NCCL_NET_PLUGIN");
+  env.insert("NCCL_NET_SHARED_COMMS");
   env.insert("NCCL_NSOCKS_PERTHREAD");
   env.insert("NCCL_PROTO");
   env.insert("NCCL_PROXY_PROFILE");
+  env.insert("NCCL_PXN_DISABLE");
+  env.insert("NCCL_P2P_LEVEL");
   env.insert("NCCL_SHM_DISABLE");
   env.insert("NCCL_SOCKET_FAMILY");
   env.insert("NCCL_SOCKET_IFNAME");
@@ -181,6 +210,7 @@ void ncclCvarInit() {
 
   NCCL_DDA_FORCE_P2P_ACCESS = env2bool("NCCL_DDA_FORCE_P2P_ACCESS", "False");
 
+  NCCL_IB_HCA.clear();
   NCCL_IB_HCA = env2strlist("NCCL_IB_HCA", nullptr);
 
   NCCL_CTRAN_IB_MAX_QPS = env2int("NCCL_CTRAN_IB_MAX_QPS", "1");

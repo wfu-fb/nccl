@@ -11,20 +11,27 @@ acceptedEnvs = [
         "NCCL_COLLTRACE_LOCAL_SUBDIR",
         "NCCL_COMM_ID",
         "NCCL_CUDA_PATH",
+        "NCCL_CROSS_NIC",
         "NCCL_DEBUG",
         "NCCL_DEBUG_FILE",
         "NCCL_DEBUG_SUBSYS",
         "NCCL_GRAPH_DUMP_FILE",
         "NCCL_GRAPH_FILE",
         "NCCL_HOSTID",
+        "NCCL_IB_DISABLE",
         "NCCL_IB_GID_INDEX",
         "NCCL_IB_TC",
+        "NCCL_IB_TIMEOUT",
+        "NCCL_IB_QPS_PER_CONNECTION",
         "NCCL_LAUNCH_MODE",
         "NCCL_NET",
         "NCCL_NET_PLUGIN",
+        "NCCL_NET_SHARED_COMMS",
         "NCCL_NSOCKS_PERTHREAD",
         "NCCL_PROTO",
         "NCCL_PROXY_PROFILE",
+        "NCCL_PXN_DISABLE",
+        "NCCL_P2P_LEVEL",
         "NCCL_SHM_DISABLE",
         "NCCL_SOCKET_FAMILY",
         "NCCL_SOCKET_IFNAME",
@@ -89,6 +96,20 @@ class basetype:
 
     @staticmethod
     def utilfns(file):
+        indent(file, "// trim from start (in place)")
+        indent(file, "static inline void ltrim(std::string &s) {")
+        indent(file, "s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {")
+        indent(file, "return !std::isspace(ch);")
+        indent(file, "}));")
+        indent(file, "}")
+        file.write("\n")
+        indent(file, "// trim from end (in place)")
+        indent(file, "static inline void rtrim(std::string &s) {")
+        indent(file, "s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {")
+        indent(file, "return !std::isspace(ch);")
+        indent(file, "}).base(), s.end());")
+        indent(file, "}")
+        file.write("\n")
         indent(file, "static std::set<std::string> tokenizer(const char *str_, const char *def_) {")
         indent(file, "const char *def = def_ ? def_ : \"\";")
         indent(file, "std::string str(getenv(str_) ? getenv(str_) : def);")
@@ -97,10 +118,15 @@ class basetype:
         file.write("\n")
         indent(file, "while (auto pos = str.find(\",\")) {")
         indent(file, "std::string newstr = str.substr(0, pos);")
+        indent(file, "ltrim(newstr);")
+        indent(file, "rtrim(newstr);")
+        indent(file, "// Skip empty string")
+        indent(file, "if(!newstr.empty()) {")
         indent(file, "if (tokens.find(newstr) != tokens.end()) {")
         indent(file, "// WARN(\"Duplicate token %s found in the value of %s\", newstr.c_str(), str_);")
         indent(file, "}")
         indent(file, "tokens.insert(newstr);")
+        indent(file, "}")
         indent(file, "str.erase(0, pos + delim.length());")
         indent(file, "if (pos == std::string::npos) {")
         indent(file, "break;")
@@ -176,7 +202,10 @@ class string(basetype):
     def utilfns(file):
         indent(file, "static std::string env2str(const char *str, const char *def_) {")
         indent(file, "const char *def = def_ ? def_ : \"\";")
-        indent(file, "return getenv(str) ? std::string(getenv(str)) : std::string(def);")
+        indent(file, "std::string str_s = getenv(str) ? std::string(getenv(str)) : std::string(def);")
+        indent(file, "ltrim(str_s);")
+        indent(file, "rtrim(str_s);")
+        indent(file, "return str_s;")
         indent(file, "}")
         file.write("\n")
 
@@ -215,6 +244,7 @@ class stringlist(basetype):
         file.write("\n")
 
     def readenv(self, file):
+        indent(file, "%s.clear();" % self.name)
         if (self.default != None):
             indent(file, "%s = env2strlist(\"%s\", \"%s\");" %
                 (self.name, self.name, self.default))
@@ -281,6 +311,7 @@ class enumlist(basetype):
 
     def readenv(self, file):
         indent(file, "{")
+        indent(file, "%s.clear();" % self.name)
         indent(file, "auto tokens = tokenizer(\"%s\", \"%s\");" % (self.name, self.default))
         choices = self.choices.replace(" ", "").split(",")
         indent(file, "for (auto token : tokens) {")
