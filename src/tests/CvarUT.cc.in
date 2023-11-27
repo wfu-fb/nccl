@@ -25,11 +25,9 @@ class CvarTest : public ::testing::Test {
 * Utility functions
 */
 template <typename T>
-void checkListValues(std::vector<T> vals, std::set<T> cvar) {
+void checkListValues(std::vector<T> vals, std::vector<T> cvar) {
   for (int i = 0; i < vals.size(); i++) {
-    auto it = cvar.begin();
-    advance(it, i);
-    EXPECT_EQ(*it, vals[i]);
+    EXPECT_EQ(cvar[i], vals[i]);
   }
 }
 

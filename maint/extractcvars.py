@@ -111,11 +111,11 @@ class basetype:
         indent(file, "}).base(), s.end());")
         indent(file, "}")
         file.write("\n")
-        indent(file, "static std::set<std::string> tokenizer(const char *str_, const char *def_) {")
+        indent(file, "static std::vector<std::string> tokenizer(const char *str_, const char *def_) {")
         indent(file, "const char *def = def_ ? def_ : \"\";")
         indent(file, "std::string str(getenv(str_) ? getenv(str_) : def);")
         indent(file, "std::string delim = \",\";")
-        indent(file, "std::set<std::string> tokens;")
+        indent(file, "std::vector<std::string> tokens;")
         file.write("\n")
         indent(file, "while (auto pos = str.find(\",\")) {")
         indent(file, "std::string newstr = str.substr(0, pos);")
@@ -123,10 +123,10 @@ class basetype:
         indent(file, "rtrim(newstr);")
         indent(file, "// Skip empty string")
         indent(file, "if(!newstr.empty()) {")
-        indent(file, "if (tokens.find(newstr) != tokens.end()) {")
+        indent(file, "if(std::find(tokens.begin(), tokens.end(), newstr) != tokens.end()) {")
         indent(file, "// WARN(\"Duplicate token %s found in the value of %s\", newstr.c_str(), str_);")
         indent(file, "}")
-        indent(file, "tokens.insert(newstr);")
+        indent(file, "tokens.push_back(newstr);")
         indent(file, "}")
         indent(file, "str.erase(0, pos + delim.length());")
         indent(file, "if (pos == std::string::npos) {")
@@ -287,17 +287,17 @@ class string(basetype):
 class stringlist(basetype):
     @staticmethod
     def utilfns(file):
-        indent(file, "static std::set<std::string> env2strlist(const char *str, const char *def) {")
+        indent(file, "static std::vector<std::string> env2strlist(const char *str, const char *def) {")
         indent(file, "return tokenizer(str, def);")
         indent(file, "}")
         file.write("\n")
 
     def externDecl(self, file):
-        indent(file, "extern std::set<std::string> %s;" % self.name)
+        indent(file, "extern std::vector<std::string> %s;" % self.name)
         file.write("\n")
 
     def storageDecl(self, file):
-        indent(file, "std::set<std::string> %s;" % self.name)
+        indent(file, "std::vector<std::string> %s;" % self.name)
         file.write("\n")
 
     def unitTest(self, file):
@@ -400,11 +400,11 @@ class enumlist(basetype):
         for c in choiceList:
             indent(file, "%s," % c)
         indent(file, "};")
-        indent(file, "extern std::set<enum %s> %s;" % (self.name, self.name))
+        indent(file, "extern std::vector<enum %s> %s;" % (self.name, self.name))
         file.write("\n")
 
     def storageDecl(self, file):
-        indent(file, "std::set<enum %s> %s;" % (self.name, self.name))
+        indent(file, "std::vector<enum %s> %s;" % (self.name, self.name))
         file.write("\n")
 
     def unitTest(self, file):
@@ -472,7 +472,7 @@ def populateCCFile(allcvars, filename):
     file.write("#include <iostream>\n")
     file.write("#include <algorithm>\n")
     file.write("#include <unordered_set>\n")
-    file.write("#include <set>\n")
+    file.write("#include <vector>\n")
     file.write("#include <cstring>\n")
     file.write("#include \"nccl_cvars.h\"\n")
     file.write("#include \"debug.h\"\n")
@@ -531,7 +531,7 @@ def populateHFile(allcvars, filename):
     file.write("#define NCCL_CVARS_H_INCLUDED\n")
     file.write("\n")
     file.write("#include <string>\n")
-    file.write("#include <set>\n")
+    file.write("#include <vector>\n")
     file.write("\n")
 
     for cvar in allcvars:

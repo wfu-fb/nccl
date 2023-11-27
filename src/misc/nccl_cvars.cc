@@ -8,7 +8,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
-#include <set>
+#include <vector>
 #include <cstring>
 #include "nccl_cvars.h"
 #include "debug.h"
@@ -27,11 +27,11 @@ static inline void rtrim(std::string &s) {
   }).base(), s.end());
 }
 
-static std::set<std::string> tokenizer(const char *str_, const char *def_) {
+static std::vector<std::string> tokenizer(const char *str_, const char *def_) {
   const char *def = def_ ? def_ : "";
   std::string str(getenv(str_) ? getenv(str_) : def);
   std::string delim = ",";
-  std::set<std::string> tokens;
+  std::vector<std::string> tokens;
 
   while (auto pos = str.find(",")) {
     std::string newstr = str.substr(0, pos);
@@ -39,10 +39,10 @@ static std::set<std::string> tokenizer(const char *str_, const char *def_) {
     rtrim(newstr);
     // Skip empty string
     if(!newstr.empty()) {
-      if (tokens.find(newstr) != tokens.end()) {
+      if(std::find(tokens.begin(), tokens.end(), newstr) != tokens.end()) {
         // WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str_);
       }
-      tokens.insert(newstr);
+      tokens.push_back(newstr);
     }
     str.erase(0, pos + delim.length());
     if (pos == std::string::npos) {
@@ -81,7 +81,7 @@ static std::string env2str(const char *str, const char *def_) {
   return str_s;
 }
 
-static std::set<std::string> env2strlist(const char *str, const char *def) {
+static std::vector<std::string> env2strlist(const char *str, const char *def) {
   return tokenizer(str, def);
 }
 
@@ -107,11 +107,11 @@ int NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
 bool NCCL_DDA_FORCE_P2P_ACCESS;
 
-std::set<std::string> NCCL_IB_HCA;
-
 int NCCL_CTRAN_IB_MAX_QPS;
 
 int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;
+
+std::vector<std::string> NCCL_IB_HCA;
 
 extern char **environ;
 
@@ -128,9 +128,9 @@ void ncclCvarInit() {
   env.insert("NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS");
   env.insert("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE");
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
-  env.insert("NCCL_IB_HCA");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
   env.insert("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD");
+  env.insert("NCCL_IB_HCA");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
   env.insert("NCCL_COLLTRACE_LOCAL_SUBDIR");
@@ -210,11 +210,11 @@ void ncclCvarInit() {
 
   NCCL_DDA_FORCE_P2P_ACCESS = env2bool("NCCL_DDA_FORCE_P2P_ACCESS", "False");
 
-  NCCL_IB_HCA.clear();
-  NCCL_IB_HCA = env2strlist("NCCL_IB_HCA", nullptr);
-
   NCCL_CTRAN_IB_MAX_QPS = env2int("NCCL_CTRAN_IB_MAX_QPS", "1");
 
   NCCL_CTRAN_IB_QP_SCALING_THRESHOLD = env2int("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", "1048576");
+
+  NCCL_IB_HCA.clear();
+  NCCL_IB_HCA = env2strlist("NCCL_IB_HCA", nullptr);
 
 }
