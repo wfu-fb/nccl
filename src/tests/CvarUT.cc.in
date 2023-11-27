@@ -1,0 +1,63 @@
+// (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+
+#include <gtest/gtest.h>
+#include <set>
+#include <vector>
+#include <nccl.h>
+#include <stdlib.h>
+#include "../include/nccl_cvars.h"
+
+class NCCLEnvironment : public ::testing::Environment {
+ public:
+  void SetUp() override {
+    // Turn off NCCL debug logging, allow user to turn on via command line
+    setenv("NCCL_DEBUG", "WARN", 0);
+  }
+  ~NCCLEnvironment() override {}
+};
+
+class CvarTest : public ::testing::Test {
+ public:
+  CvarTest() = default;
+};
+
+/**
+* Utility functions
+*/
+template <typename T>
+void checkListValues(std::vector<T> vals, std::set<T> cvar) {
+  for (int i = 0; i < vals.size(); i++) {
+    auto it = cvar.begin();
+    advance(it, i);
+    EXPECT_EQ(*it, vals[i]);
+  }
+}
+
+void testDefaultValue(const char* cvarName) {
+  unsetenv(cvarName);
+  ncclCvarInit();
+}
+
+void testIntValue(const char* cvarName, int val) {
+  std::ostringstream varOSS;
+  varOSS << val;
+  std::string varStr = varOSS.str();
+  setenv(cvarName, varStr.c_str(), 1);
+  ncclCvarInit();
+}
+
+/**
+* START of generated tests
+*/
+
+## NCCL_CVAR_TESTS_DECL ##
+
+/**
+* END of generated tests
+*/
+
+int main(int argc, char* argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::AddGlobalTestEnvironment(new NCCLEnvironment);
+  return RUN_ALL_TESTS();
+}
