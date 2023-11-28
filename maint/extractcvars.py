@@ -94,6 +94,10 @@ class basetype:
             self.choices = cvar['choices']
         else:
             self.choices = ""
+        if 'prefixes' in cvar:
+            self.prefixes = cvar['prefixes']
+        else:
+            self.prefixes = ""
 
     @staticmethod
     def utilfns(file):
@@ -266,6 +270,41 @@ class stringlist(basetype):
                 (self.name, self.name))
         file.write("\n")
 
+class prefixedStringlist(stringlist):
+    @staticmethod
+    def utilfns(file):
+        pass
+
+    def externDecl(self, file):
+        indent(file, "extern std::string %s_PREFIX;" % self.name)
+        super().externDecl(file)
+
+    def storageDecl(self, file):
+        indent(file, "std::string %s_PREFIX;" % self.name)
+        super().storageDecl(file)
+
+    def unitTest(self, file):
+        super().unitTest(file)
+
+        val = "val1,val2,val3"
+        for i, prefix in enumerate(["^", "=", ""]):
+            indent(file, "TEST_F(CvarTest, %s_prefix_%s) {" % (self.name, i))
+            indent(file, "setenv(\"%s\", \"%s%s\", 1);" % (self.name, prefix, val))
+            indent(file, "std::vector<std::string> vals{\"%s\"};" % (val.replace("," , "\",\"")))
+            indent(file, "ncclCvarInit();")
+            indent(file, "EXPECT_EQ(%s_PREFIX, \"%s\");" % (self.name, prefix))
+            indent(file, "checkListValues<std::string>(vals, %s);" % (self.name))
+            indent(file, "}")
+            file.write("\n")
+
+    def readenv(self, file):
+        trimedPrefixes = [v.strip() for v in self.prefixes.split(",")]
+        indent(file, "std::vector<std::string> %s_allPrefixes{\"%s\"};" % (self.name, ("\", \"").join(trimedPrefixes)))
+        indent(file, "%s.clear();" % self.name)
+        default = self.default if self.default else ""
+        indent(file, "std::tie(%s_PREFIX, %s) = env2prefixedStrlist(\"%s\", \"%s\", %s_allPrefixes);" %
+                (self.name, self.name, self.name, default, self.name))
+        file.write("\n")
 
 class enum(basetype):
     @staticmethod
@@ -533,6 +572,8 @@ def main():
             allcvars.append(enum(cvar))
         elif (cvar['type'] == "enumlist"):
             allcvars.append(enumlist(cvar))
+        elif (cvar['type'] == "prefixed_stringlist"):
+            allcvars.append(prefixedStringlist(cvar))
         else:
             print("UNKNOWN TYPE: %s" % cvar['type'])
             exit()

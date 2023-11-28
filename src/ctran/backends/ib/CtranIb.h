@@ -137,6 +137,10 @@ public:
  //   - notify: whether the remote peer has finished the outstanding iput.
  ncclResult_t checkNotify(int rank, bool* notify);
 
+ std::string getIbDevName();
+
+ int getIbDevPort();
+
 private:
   class Impl;
   std::unique_ptr<Impl> pimpl_;

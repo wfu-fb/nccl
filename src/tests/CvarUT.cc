@@ -403,6 +403,63 @@ TEST_F(CvarTest, NCCL_DDA_FORCE_P2P_ACCESS_value_n3) {
   EXPECT_FALSE(NCCL_DDA_FORCE_P2P_ACCESS);
 }
 
+TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
+  setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_valuelist_1) {
+  setenv("NCCL_IB_HCA", "val1:1,val2:2,val3:3", 1);
+  std::vector<std::string> vals{"val1:1","val2:2","val3:3"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_valuelist_2) {
+  setenv("NCCL_IB_HCA", "val", 1);
+  std::vector<std::string> vals{"val"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_valuelist_3) {
+  setenv("NCCL_IB_HCA", "val1, val_w_space  ", 1);
+  std::vector<std::string> vals{"val1","val_w_space"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_default_value) {
+  testDefaultValue("NCCL_IB_HCA");
+  EXPECT_EQ(NCCL_IB_HCA.size(), 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_prefix_0) {
+  setenv("NCCL_IB_HCA", "^val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_IB_HCA_PREFIX, "^");
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_prefix_1) {
+  setenv("NCCL_IB_HCA", "=val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_IB_HCA_PREFIX, "=");
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_prefix_2) {
+  setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_IB_HCA_PREFIX, "");
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_0) {
   testIntValue("NCCL_CTRAN_IB_MAX_QPS", -100);
   EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, -100);
@@ -461,39 +518,6 @@ TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_value_4) {
 TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_default_value) {
   testDefaultValue("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD");
   EXPECT_EQ(NCCL_CTRAN_IB_QP_SCALING_THRESHOLD, 1048576);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
-  setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
-  std::vector<std::string> vals{"val1","val2","val3"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_1) {
-  setenv("NCCL_IB_HCA", "val1:1,val2:2,val3:3", 1);
-  std::vector<std::string> vals{"val1:1","val2:2","val3:3"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_2) {
-  setenv("NCCL_IB_HCA", "val", 1);
-  std::vector<std::string> vals{"val"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_3) {
-  setenv("NCCL_IB_HCA", "val1, val_w_space  ", 1);
-  std::vector<std::string> vals{"val1","val_w_space"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_default_value) {
-  testDefaultValue("NCCL_IB_HCA");
-  EXPECT_EQ(NCCL_IB_HCA.size(), 0);
 }
 
 

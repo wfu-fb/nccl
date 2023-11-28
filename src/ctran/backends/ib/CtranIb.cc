@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <string>
 #include <vector>
 #include <thread>
 #include <unistd.h>
@@ -17,14 +18,24 @@
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
  - name        : NCCL_IB_HCA
-   type        : stringlist
+   type        : prefixed_stringlist
+   prefixes    : ^, =
    default     :
    description : |-
-     List of IB HCAs available for NCCL to use.
+     List of IB HCAs available for NCCL to use. The list is comma-separated;
+     port numbers can be specified using the : symbol. An optional prefix ^
+     indicates the list is an exclude list. A second optional prefix = indicates
+     that the tokens are exact names, otherwise by default NCCL would treat each
+     token as a prefix. Examples:
+     - mlx5 : Use all ports of all cards starting with mlx5
+     - =mlx5_0:1,mlx5_1:1 : Use ports 1 of cards mlx5_0 and mlx5_1.
+     - ^=mlx5_1,mlx5_4 : Do not use cards mlx5_1 and mlx5_4.
      (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
 
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
+
+#define CTRAN_IB_ANY_PORT -1
 
 class RoceHca {
 public:
@@ -35,16 +46,14 @@ public:
     auto pos = s.find(delim);
     if (pos == std::string::npos) {
       this->name = s;
-      this->port = 0;
     } else {
       this->name = s.substr(0, pos);
       s.erase(0, pos + delim.length());
       this->port = std::stoi(s);
     }
   }
-
   std::string name;
-  int port;
+  int port{CTRAN_IB_ANY_PORT};
 };
 
 CtranIbSingleton &CtranIbSingleton::getInstance(void) {
@@ -57,7 +66,7 @@ CtranIbSingleton::CtranIbSingleton(void) {
   // Avoid copy triggered by resize
   hcas.reserve(NCCL_IB_HCA.size());
 
-  for (auto hca : NCCL_IB_HCA) {
+  for (const auto& hca: NCCL_IB_HCA) {
     // Copy value to each vector element so it can be freed automatically
     hcas.push_back(RoceHca(hca));
   }
@@ -69,23 +78,53 @@ CtranIbSingleton::CtranIbSingleton(void) {
   int nDevs;
   NCCLCHECKIGNORE(wrap_ibv_get_device_list(&devs, &nDevs));
 
-  for (int i = 0; i < nDevs; i++) {
-    bool found = false;
-    int port;
-    for (auto d : hcas) {
-      if (!strcmp(d.name.c_str(), devs[i]->name)) {
-        found = true;
-        port = d.port;
-        break;
+  // Exact match: find each matching device from system returned list following
+  // the specified sequence
+  if (!NCCL_IB_HCA_PREFIX.compare("=")) {
+    for (const auto& d: hcas) {
+      for (int i = 0; i < nDevs; i++) {
+        std::string nameStr = devs[i]->name;
+        if (!nameStr.compare(d.name.c_str())) {
+          devices.push_back(devs[i]);
+          this->ports.push_back(d.port);
+          break;
+        }
       }
     }
-    if (!found) {
-      continue;
-    }
+  } else {
+    // For exclude search and prefix search, traverse system returned list and
+    // filter based on specified condition
+    for (int i = 0; i < nDevs; i++) {
+      bool found = false;
+      int port = CTRAN_IB_ANY_PORT;
+      std::string nameStr = devs[i]->name;
 
-    struct ibv_device *device = devs[i];
-    devices.push_back(device);
-    this->ports.push_back(port);
+      // Exclude: include only if it does not match with anyone in the excluding list
+      if (!NCCL_IB_HCA_PREFIX.compare("^")) {
+        bool exclude = false;
+        for (const auto& d: hcas) {
+          if (!nameStr.compare(d.name.c_str())) {
+            exclude = true;
+            break;
+          }
+        }
+        found = !exclude;
+
+        // Prefix match: include if match with anyone in the specified list
+      } else {
+        for (const auto& d: hcas) {
+          if (!nameStr.compare(0, d.name.length(), d.name)) {
+            found = true;
+            port = d.port;
+            break;
+          }
+        }
+      }
+      if (found) {
+        devices.push_back(devs[i]);
+        this->ports.push_back(port);
+      }
+    }
   }
 
   if (devices.empty()) {
@@ -124,11 +163,44 @@ CtranIb::CtranIb(ncclComm *comm) {
 
   this->pimpl_->context = s.contexts[comm->cudaDev];
   this->pimpl_->pd = s.pds[comm->cudaDev];
-  this->pimpl_->port = s.ports[comm->cudaDev];
-  INFO(NCCL_INIT, "CTRAN-IB: using device %s, port %d commHash %lu", s.devNames[comm->cudaDev].c_str(), this->pimpl_->port, comm->commHash);
 
   struct ibv_device_attr devAttr;
   NCCLCHECKIGNORE(wrap_ibv_query_device(this->pimpl_->context, &devAttr));
+
+  // Found available port for the given device
+  bool foundPort = false;
+  for (int port = 1; port <= devAttr.phys_port_cnt; port++) {
+    struct ibv_port_attr portAttr;
+    if (ncclSuccess !=
+        wrap_ibv_query_port(this->pimpl_->context, port, &portAttr)) {
+      // Allow to continue as long as we can find a usable port
+      WARN(
+          "CTRAN-IB : Unable to query port %d on device %s",
+          port,
+          s.devNames[comm->cudaDev].c_str());
+      continue;
+    }
+    if (portAttr.state != IBV_PORT_ACTIVE) {
+      continue;
+    }
+    if (portAttr.link_layer != IBV_LINK_LAYER_INFINIBAND &&
+        portAttr.link_layer != IBV_LINK_LAYER_ETHERNET) {
+      continue;
+    }
+    if (s.ports[comm->cudaDev] == CTRAN_IB_ANY_PORT ||
+        port == s.ports[comm->cudaDev]) {
+      this->pimpl_->port = port;
+      foundPort = true;
+      break;
+    }
+  }
+
+  if (foundPort) {
+    INFO(NCCL_INIT, "CTRAN-IB: using device %s, port %d commHash %lu", s.devNames[comm->cudaDev].c_str(), this->pimpl_->port, comm->commHash);
+  } else {
+    WARN("CTRAN-IB : No active port found on device %s. Disable IB backend.", s.devNames[comm->cudaDev].c_str());
+    throw std::bad_alloc();
+  }
 
   /* The max CQEs would not be enough for us in the worst case, where
    * we have a lot of VCs, and there is a lot of posted messages on
@@ -168,6 +240,14 @@ CtranIb::CtranIb(ncclComm *comm) {
   bootstrapAllGather(comm->bootstrap, this->pimpl_->allListenSocketAddrs, sizeof(ncclSocketAddress));
 
   this->pimpl_->listenThread = std::thread{CtranIb::Impl::bootstrapAccept, this->pimpl_.get()};
+}
+
+std::string CtranIb::getIbDevName() {
+  return std::string(this->pimpl_->context->device->name);
+}
+
+int CtranIb::getIbDevPort() {
+  return this->pimpl_->port;
 }
 
 CtranIb::~CtranIb(void) {

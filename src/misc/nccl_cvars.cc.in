@@ -38,9 +38,7 @@ static inline void rtrim(std::string &s) {
   }).base(), s.end());
 }
 
-static std::vector<std::string> tokenizer(const char *str_, const char *def_) {
-  const char *def = def_ ? def_ : "";
-  std::string str(getenv(str_) ? getenv(str_) : def);
+static std::vector<std::string> tokenizer(std::string str) {
   std::string delim = ",";
   std::vector<std::string> tokens;
 
@@ -92,8 +90,29 @@ static std::string env2str(const char *str, const char *def_) {
   return str_s;
 }
 
-static std::vector<std::string> env2strlist(const char *str, const char *def) {
-  return tokenizer(str, def);
+static std::vector<std::string> env2strlist(const char* str, const char* def_) {
+  const char* def = def_ ? def_ : "";
+  std::string str_s(getenv(str) ? getenv(str) : def);
+  return tokenizer(str_s);
+}
+
+std::tuple<std::string, std::vector<std::string>> env2prefixedStrlist(
+    const char* str,
+    const char* def_,
+    std::vector<std::string> prefixes) {
+  const char* def = def_ ? def_ : "";
+  std::string str_s(getenv(str) ? getenv(str) : def);
+
+  // search if any prefix is specified
+  for (auto prefix : prefixes) {
+    if (!str_s.compare(0, prefix.size(), prefix)) {
+      // if prefix is found, convert the remaining string to stringList
+      std::string slist_s = str_s.substr(prefix.size());
+      return std::make_tuple(prefix, tokenizer(slist_s));
+    }
+  }
+  // if no prefix is found, convert entire string to stringList
+  return std::make_tuple("", tokenizer(str_s));
 }
 
 ## NCCL_CVAR_STORAGE_DECL ##

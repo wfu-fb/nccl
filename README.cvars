@@ -80,6 +80,20 @@ Description:
 Type: bool
 Default: False
 
+NCCL_IB_HCA
+Description:
+    List of IB HCAs available for NCCL to use. The list is comma-separated;
+    port numbers can be specified using the : symbol. An optional prefix ^
+    indicates the list is an exclude list. A second optional prefix = indicates
+    that the tokens are exact names, otherwise by default NCCL would treat each
+    token as a prefix. Examples:
+    - mlx5 : Use all ports of all cards starting with mlx5
+    - =mlx5_0:1,mlx5_1:1 : Use ports 1 of cards mlx5_0 and mlx5_1.
+    - ^=mlx5_1,mlx5_4 : Do not use cards mlx5_1 and mlx5_4.
+    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
+Type: prefixed_stringlist
+Default: None
+
 NCCL_CTRAN_IB_MAX_QPS
 Description:
     Maximum number of QPs to enable, so data can be split across
@@ -97,10 +111,3 @@ Description:
     data is split across all available QPs.
 Type: int
 Default: 1048576
-
-NCCL_IB_HCA
-Description:
-    List of IB HCAs available for NCCL to use.
-    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
-Type: stringlist
-Default: None
