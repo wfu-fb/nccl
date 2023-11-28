@@ -97,45 +97,7 @@ class basetype:
 
     @staticmethod
     def utilfns(file):
-        indent(file, "// trim from start (in place)")
-        indent(file, "static inline void ltrim(std::string &s) {")
-        indent(file, "s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {")
-        indent(file, "return !std::isspace(ch);")
-        indent(file, "}));")
-        indent(file, "}")
-        file.write("\n")
-        indent(file, "// trim from end (in place)")
-        indent(file, "static inline void rtrim(std::string &s) {")
-        indent(file, "s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {")
-        indent(file, "return !std::isspace(ch);")
-        indent(file, "}).base(), s.end());")
-        indent(file, "}")
-        file.write("\n")
-        indent(file, "static std::vector<std::string> tokenizer(const char *str_, const char *def_) {")
-        indent(file, "const char *def = def_ ? def_ : \"\";")
-        indent(file, "std::string str(getenv(str_) ? getenv(str_) : def);")
-        indent(file, "std::string delim = \",\";")
-        indent(file, "std::vector<std::string> tokens;")
-        file.write("\n")
-        indent(file, "while (auto pos = str.find(\",\")) {")
-        indent(file, "std::string newstr = str.substr(0, pos);")
-        indent(file, "ltrim(newstr);")
-        indent(file, "rtrim(newstr);")
-        indent(file, "// Skip empty string")
-        indent(file, "if(!newstr.empty()) {")
-        indent(file, "if(std::find(tokens.begin(), tokens.end(), newstr) != tokens.end()) {")
-        indent(file, "// WARN(\"Duplicate token %s found in the value of %s\", newstr.c_str(), str_);")
-        indent(file, "}")
-        indent(file, "tokens.push_back(newstr);")
-        indent(file, "}")
-        indent(file, "str.erase(0, pos + delim.length());")
-        indent(file, "if (pos == std::string::npos) {")
-        indent(file, "break;")
-        indent(file, "}")
-        indent(file, "}")
-        indent(file, "return tokens;")
-        indent(file, "}")
-        file.write("\n")
+        pass
 
     def externDecl(self, file):
         indent(file, "extern %s %s;" % (self.type, self.name))
@@ -159,24 +121,7 @@ class basetype:
 class bool(basetype):
     @staticmethod
     def utilfns(file):
-        indent(file, "static bool env2bool(const char *str_, const char *def) {")
-        indent(file, "std::string str(getenv(str_) ? getenv(str_) : def);")
-        indent(file, "std::transform(str.cbegin(), str.cend(), str.begin(), " +
-               "[](unsigned char c) { return std::tolower(c); });")
-        indent(file, "if (str == \"y\") return true;")
-        indent(file, "else if (str == \"n\") return false;")
-        indent(file, "else if (str == \"yes\") return true;")
-        indent(file, "else if (str == \"no\") return false;")
-        indent(file, "else if (str == \"t\") return true;")
-        indent(file, "else if (str == \"f\") return false;")
-        indent(file, "else if (str == \"true\") return true;")
-        indent(file, "else if (str == \"false\") return false;")
-        indent(file, "else if (str == \"1\") return true;")
-        indent(file, "else if (str == \"0\") return false;")
-        indent(file, "// else WARN(\"Unrecognized value for env %s\\n\", str_);")
-        indent(file, "return true;")
-        indent(file, "}")
-        file.write("\n")
+        pass
 
     def unitTest(self, file):
         for i, val in enumerate(["y", "yes", "true", "1"]):
@@ -212,10 +157,7 @@ class bool(basetype):
 class int(basetype):
     @staticmethod
     def utilfns(file):
-        indent(file, "static int env2int(const char *str, const char *def) {")
-        indent(file, "return getenv(str) ? atoi(getenv(str)) : atoi(def);")
-        indent(file, "}")
-        file.write("\n")
+        pass
 
     def unitTest(self, file):
         for i, val in enumerate(["-100", "0", "9999", "INT_MAX", "INT_MIN"]):
@@ -241,14 +183,7 @@ class int(basetype):
 class string(basetype):
     @staticmethod
     def utilfns(file):
-        indent(file, "static std::string env2str(const char *str, const char *def_) {")
-        indent(file, "const char *def = def_ ? def_ : \"\";")
-        indent(file, "std::string str_s = getenv(str) ? std::string(getenv(str)) : std::string(def);")
-        indent(file, "ltrim(str_s);")
-        indent(file, "rtrim(str_s);")
-        indent(file, "return str_s;")
-        indent(file, "}")
-        file.write("\n")
+        pass
 
     def externDecl(self, file):
         indent(file, "extern std::string %s;" % self.name)
@@ -287,10 +222,7 @@ class string(basetype):
 class stringlist(basetype):
     @staticmethod
     def utilfns(file):
-        indent(file, "static std::vector<std::string> env2strlist(const char *str, const char *def) {")
-        indent(file, "return tokenizer(str, def);")
-        indent(file, "}")
-        file.write("\n")
+        pass
 
     def externDecl(self, file):
         indent(file, "extern std::vector<std::string> %s;" % self.name)
@@ -383,7 +315,7 @@ class enum(basetype):
                indent(file, "} else if (str == std::string(\"%s\")) {" % c)
             indent(file, "%s = %s::%s;" % (self.name, self.name, c))
         indent(file, "} else {")
-        indent(file, "// WARN(\"Unknown value %%s for env %s\", str.c_str());" % self.name)
+        indent(file, "  CVAR_WARN_UNKNOWN_VALUE(\"%s\", str.c_str());" % self.name)
         indent(file, "}")
         indent(file, "}")
         file.write("\n")
@@ -459,88 +391,90 @@ class enumlist(basetype):
         indent(file, "}")
         file.write("\n")
 
-
-def populateCCFile(allcvars, filename):
-    file = open(filename, "w")
-    file.write("// (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.\n")
-    file.write("\n")
-    file.write("// Automatically generated\n")
-    file.write("//   by ./maint/extractcvars.py\n")
+def printAutogenHeader(file):
+    file.write("// Automatically generated by ./maint/extractcvars.py --- START\n")
     file.write("// DO NOT EDIT!!!\n")
-    file.write("\n")
-    file.write("#include <string>\n")
-    file.write("#include <iostream>\n")
-    file.write("#include <algorithm>\n")
-    file.write("#include <unordered_set>\n")
-    file.write("#include <vector>\n")
-    file.write("#include <cstring>\n")
-    file.write("#include \"nccl_cvars.h\"\n")
-    file.write("#include \"debug.h\"\n")
-    file.write("\n")
 
-    basetype.utilfns(file)
-    bool.utilfns(file)
-    int.utilfns(file)
-    string.utilfns(file)
-    stringlist.utilfns(file)
-    enum.utilfns(file)
-    enumlist.utilfns(file)
+def printAutogenFooter(file):
+    file.write("// Automatically generated by ./maint/extractcvars.py --- END\n")
 
+def populateCCFile(allcvars, templateFilename, outputFilename):
+    file = StringIO()
+
+    # Generate contents
+    storageDecl = None
+    envInsertion = None
+    readenv = None
+
+    # Generate storage declaration
+    printAutogenHeader(file)
     for cvar in allcvars:
         cvar.storageDecl(file)
+    printAutogenFooter(file)
 
-    indent(file, "extern char **environ;")
-    file.write("\n")
+    storageDecl = file.getvalue()
+    file.seek(0)
+    file.truncate(0)
 
-    indent(file, "void ncclCvarInit() {")
-    indent(file, "std::unordered_set<std::string> env;")
+    # Generate initialization for environment variable set
+    printAutogenHeader(file)
+    indent(file, "void initEnvSet() {")
     for cvar in allcvars:
         indent(file, "env.insert(\"%s\");" % cvar.name)
     for e in acceptedEnvs:
         indent(file, "env.insert(\"%s\");" % e)
+    indent(file, "}")
+    printAutogenFooter(file)
 
-    file.write("\n")
-    indent(file, "char **s = environ;")
-    indent(file, "for (; *s; s++) {")
-    indent(file, "if (!strncmp(*s, \"NCCL_\", strlen(\"NCCL_\"))) {")
-    indent(file, "std::string str(*s);")
-    indent(file, "str = str.substr(0, str.find(\"=\"));")
-    indent(file, "if (env.find(str) == env.end()) {")
-    indent(file, "// WARN(\"Unknown env %s in the NCCL namespace\\n\", str.c_str());")
-    indent(file, "}")
-    indent(file, "}")
-    indent(file, "}")
-    file.write("\n")
+    envInsertion = file.getvalue()
+    file.seek(0)
+    file.truncate(0)
 
+    # Generate environment reading of all cvars
+    printAutogenHeader(file)
+    indent(file, "void readCvarEnv() {")
     for cvar in allcvars:
         cvar.readenv(file)
-
     indent(file, "}")
+    printAutogenFooter(file)
+    readenv = file.getvalue()
+    file.seek(0)
+    file.truncate(0)
+
+    # load template and insert generated contents
+    with open(templateFilename, "r") as tpl:
+        fileContents = tpl.read()
+        fileContents = fileContents.replace("## NCCL_CVAR_STORAGE_DECL ##", storageDecl)
+        fileContents = fileContents.replace("## NCCL_CVAR_INIT_ENV_SET ##", envInsertion)
+        fileContents = fileContents.replace("## NCCL_CVAR_READ_CVAR_ENV ##", readenv)
+
+        with open(outputFilename, "w") as out:
+            out.write(fileContents)
+
     file.close()
 
 
-def populateHFile(allcvars, filename):
-    file = open(filename, "w")
-    file.write("// (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.\n")
-    file.write("\n")
-    file.write("// Automatically generated\n")
-    file.write("//   by ./maint/extractcvars.py\n")
-    file.write("// DO NOT EDIT!!!\n")
-    file.write("\n")
-    file.write("#ifndef NCCL_CVARS_H_INCLUDED\n")
-    file.write("#define NCCL_CVARS_H_INCLUDED\n")
-    file.write("\n")
-    file.write("#include <string>\n")
-    file.write("#include <vector>\n")
-    file.write("\n")
+def populateHFile(allcvars, templateFilename, outputFilename):
+    file = StringIO()
+    externDecl = None
 
+    # Generate extern declaration
+    printAutogenHeader(file)
     for cvar in allcvars:
         cvar.externDecl(file)
+    printAutogenFooter(file)
 
-    indent(file, "void ncclCvarInit();")
-    file.write("\n")
+    externDecl = file.getvalue()
+    file.seek(0)
 
-    file.write("#endif  /* NCCL_CVARS_H_INCLUDED */\n")
+    # load template and insert generated contents
+    with open(templateFilename, "r") as tpl:
+        fileContents = tpl.read()
+        fileContents = fileContents.replace("## NCCL_CVAR_EXTERN_DECL ##", externDecl)
+
+        with open(outputFilename, "w") as out:
+            out.write(fileContents)
+
     file.close()
 
 
@@ -603,8 +537,8 @@ def main():
             print("UNKNOWN TYPE: %s" % cvar['type'])
             exit()
 
-    populateCCFile(allcvars, "src/misc/nccl_cvars.cc")
-    populateHFile(allcvars, "src/include/nccl_cvars.h")
+    populateCCFile(allcvars, "src/misc/nccl_cvars.cc.in", "src/misc/nccl_cvars.cc")
+    populateHFile(allcvars, "src/include/nccl_cvars.h.in", "src/include/nccl_cvars.h")
     populateReadme(allcvars, "README.cvars")
     populateUT(allcvars, "src/tests/CvarUT.cc.in", "src/tests/CvarUT.cc")
 

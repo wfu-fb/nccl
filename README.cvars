@@ -80,13 +80,6 @@ Description:
 Type: bool
 Default: False
 
-NCCL_IB_HCA
-Description:
-    List of IB HCAs available for NCCL to use.
-    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
-Type: stringlist
-Default: None
-
 NCCL_CTRAN_IB_MAX_QPS
 Description:
     Maximum number of QPs to enable, so data can be split across
@@ -104,3 +97,10 @@ Description:
     data is split across all available QPs.
 Type: int
 Default: 1048576
+
+NCCL_IB_HCA
+Description:
+    List of IB HCAs available for NCCL to use.
+    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
+Type: stringlist
+Default: None

@@ -1,0 +1,13 @@
+// (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+
+#ifndef NCCL_CVARS_H_INCLUDED
+#define NCCL_CVARS_H_INCLUDED
+
+#include <string>
+#include <vector>
+
+## NCCL_CVAR_EXTERN_DECL ##
+
+void ncclCvarInit();
+
+#endif  /* NCCL_CVARS_H_INCLUDED */
