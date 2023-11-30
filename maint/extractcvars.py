@@ -414,7 +414,7 @@ class enumlist(basetype):
     def readenv(self, file):
         indent(file, "{")
         indent(file, "%s.clear();" % self.name)
-        indent(file, "auto tokens = tokenizer(\"%s\", \"%s\");" % (self.name, self.default))
+        indent(file, "auto tokens = env2strlist(\"%s\", \"%s\");" % (self.name, self.default))
         choices = self.choices.replace(" ", "").split(",")
         indent(file, "for (auto token : tokens) {")
         for idx, c in enumerate(choices):
@@ -422,7 +422,7 @@ class enumlist(basetype):
                indent(file, "if (token == std::string(\"%s\")) {" % c)
             else:
                indent(file, "} else if (token == std::string(\"%s\")) {" % c)
-            indent(file, "%s.insert(%s::%s);" % (self.name, self.name, c))
+            indent(file, "%s.emplace_back(%s::%s);" % (self.name, self.name, c))
         indent(file, "} else {")
         indent(file, "// WARN(\"Unknown value %%s for env %s\", token.c_str());" % self.name)
         indent(file, "}")
