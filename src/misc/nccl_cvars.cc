@@ -125,6 +125,8 @@ int NCCL_DDA_MAX_RANKS;
 
 enum NCCL_ALLREDUCE_ALGO NCCL_ALLREDUCE_ALGO;
 
+enum NCCL_ALLREDUCE_ALGO2 NCCL_ALLREDUCE_ALGO2;
+
 int NCCL_ALLGATHER_DIRECT_CUTOFF;
 
 int NCCL_DDA_ALLREDUCE_MAX_BLOCKS;
@@ -159,6 +161,7 @@ void initEnvSet() {
   env.insert("NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE");
   env.insert("NCCL_DDA_MAX_RANKS");
   env.insert("NCCL_ALLREDUCE_ALGO");
+  env.insert("NCCL_ALLREDUCE_ALGO2");
   env.insert("NCCL_ALLGATHER_DIRECT_CUTOFF");
   env.insert("NCCL_DDA_ALLREDUCE_MAX_BLOCKS");
   env.insert("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS");
@@ -226,6 +229,19 @@ void readCvarEnv() {
       NCCL_ALLREDUCE_ALGO = NCCL_ALLREDUCE_ALGO::dda;
     } else {
       CVAR_WARN_UNKNOWN_VALUE("NCCL_ALLREDUCE_ALGO", str.c_str());
+    }
+  }
+
+  if (getenv("NCCL_ALLREDUCE_ALGO2") == nullptr) {
+    NCCL_ALLREDUCE_ALGO2 = NCCL_ALLREDUCE_ALGO2::orig;
+  } else {
+    std::string str(getenv("NCCL_ALLREDUCE_ALGO2"));
+    if (str == std::string("orig")) {
+      NCCL_ALLREDUCE_ALGO2 = NCCL_ALLREDUCE_ALGO2::orig;
+    } else if (str == std::string("dda")) {
+      NCCL_ALLREDUCE_ALGO2 = NCCL_ALLREDUCE_ALGO2::dda;
+    } else {
+      CVAR_WARN_UNKNOWN_VALUE("NCCL_ALLREDUCE_ALGO2", str.c_str());
     }
   }
 

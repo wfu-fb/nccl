@@ -31,6 +31,14 @@ Description:
 Type: enum
 Default: orig
 
+NCCL_ALLREDUCE_ALGO2
+Description:
+    The algorithm to use for Allreduce communication
+    orig - Copy-based algorithm
+    dda - Direct Data Access algorithms
+Type: enum
+Default: orig
+
 NCCL_ALLGATHER_DIRECT_CUTOFF
 Description:
     Message size up to which we use the direct algorithm for Allgather.
