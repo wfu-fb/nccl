@@ -170,13 +170,14 @@ barrier(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
   __syncthreads();
 }
 
-/* We use a simple Allgather + local reduce algorithm here.  For small
+/*
+ * We use a simple Allgather + local reduce algorithm here.  For small
  * messages, we are mostly latency bound on fast networks such as
  * NVLink.  So fetching data from all the GPUs simultaneously should
  * basically take the same amount of time as fetching data from one
  * GPU.  This algorithm directly reads data from the other GPUs and
- * reduces it into the local destination buffer. */
-
+ * reduces it into the local destination buffer.
+ */
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA2_Flat(
     uintptr_t barrierFlag,
@@ -185,25 +186,126 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat(
     const T* sendbuff,
     T* recvbuff,
     size_t count) {
-  const int gtidx = blockDim.x * blockIdx.x + threadIdx.x;
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // always use rank0's barrierMbox as the shared barrier
   uintptr_t* mbox = devStates[0].barrierMbox;
   barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
 
-  const T* src[NRANKS];
+  const T* srcs[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
-    int r = (rank + i) & (NRANKS - 1);
-    src[i] = reinterpret_cast<const T*>(mbox[r] & ~1UL);
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank] & ~1UL);
   }
 
-  for (size_t offset = gtidx * 16 / sizeof(T); offset < count;
-       offset += gridDim.x * blockDim.x * 16 / sizeof(T)) {
-    reinterpret_cast<uint4*>(&recvbuff[offset])[0] =
-      vecAdd<T, NRANKS>(src, offset);
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = count;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    reinterpret_cast<uint4*>(&recvbuff[idx])[0] =
+      vecAdd<T, NRANKS>(srcs, idx);
   }
 
   barrier<NRANKS>(mbox + NRANKS, barrierFlag, rank);
+}
+
+template <typename T, uint32_t NRANKS>
+static inline __device__ void reduceScatter(
+    uintptr_t* mbox,
+    uintptr_t barrierFlag,
+    int rank,
+    const T* sendbuff,
+    T* recvbuff,
+    size_t recvcount) {
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // barrier to ensure every rank's sendbuff is ready to read
+  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+
+  const T* srcs[NRANKS];
+  for (int i = 0; i < NRANKS; ++i) {
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank] & ~1UL);
+  }
+
+  // direct-access reduce data on rank-th block with 16-byte loads
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = recvcount;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    reinterpret_cast<uint4*>(&recvbuff[idx])[0] =
+        vecAdd<T, NRANKS>(srcs, idx + rank * recvcount);
+  }
+}
+
+template <typename T, uint32_t NRANKS>
+static inline __device__ void allGather(
+    uintptr_t* mbox,
+    uintptr_t barrierFlag,
+    int rank,
+    const T* sendbuff,
+    T* recvbuff,
+    size_t sendcount) {
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // barrier to ensure every rank's sendbuff is ready to read
+  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+
+  const T* srcs[NRANKS];
+  int rankOffset[NRANKS];
+  for (int i = 0; i < NRANKS; ++i) {
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank] & ~1UL);
+    rankOffset[i] = nbrRank * sendcount;
+  }
+
+  // direct-access all-gather with 16-byte loads
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = sendcount;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (int i = 0; i < NRANKS; ++i) {
+    for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+      reinterpret_cast<uint4*>(&recvbuff[idx + rankOffset[i]])[0] = reinterpret_cast<const uint4*>(&srcs[i][idx])[0];
+    }
+  }
+}
+
+/*
+ * Hierarchical algorithm for large messages.  In this algorithm, we
+ * avoid every rank fetching all of the data from every other rank
+ * that the flat algorithm above does.  Instead, we do two steps:
+ * - step1: (reduce-scatter)
+ * each rank fetches only a subset of data
+ * from all other ranks and reduces locally.
+ * - step2: (all-gather)
+ * Then we do a second step where the reduced data is Allgathered (by
+ * direct copy by each rank).
+ */
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA2_Tree(
+    uintptr_t barrierFlag,
+    DdaDeviceState* devStates,
+    int rank,
+    const T* sendbuff,
+    T* recvbuff,
+    size_t count) {
+  // always use rank0's barrierMbox as the shared barrier
+  uintptr_t* mbox = devStates[0].barrierMbox;
+
+  const size_t chunkSize = count / NRANKS;
+  reduceScatter<T, NRANKS>(mbox, barrierFlag, rank, sendbuff, recvbuff + rank * chunkSize, chunkSize);
+
+  // make sure the result from RS are observed by all threads in peer devices
+  __threadfence_system();
+  allGather<T, NRANKS>(mbox + NRANKS, barrierFlag, rank, recvbuff + rank * chunkSize, recvbuff, chunkSize);
+
+  barrier<NRANKS>(mbox + 2 * NRANKS, barrierFlag, rank);
 }
 
 DECL_DDA2_FUNC(char);

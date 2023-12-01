@@ -160,60 +160,91 @@ class GpuAgent {
 };
 
 TEST(AllReduceAlgoTest, NvsFlatThreaded) {
-  const int count = 16;
+  const int count = 32;
   const int nRanks = 2;
   const int nIter = 10;
 
   ncclUniqueId commId;
   NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
 
-  auto agent0 = std::make_unique<GpuAgent>(0, nRanks, count, commId, nIter);
-  auto agent1 = std::make_unique<GpuAgent>(1, nRanks, count, commId, nIter);
+  std::vector<std::unique_ptr<GpuAgent>> agents{};
+  std::vector<std::thread> threads{};
 
-  {
-    auto t0 = std::thread([&agent0] { agent0->init(); });
-    auto t1 = std::thread([&agent1] { agent1->init(); });
-
-    t0.join();
-    t1.join();
+  // initialize all GpuAgents
+  for (int i = 0; i < nRanks; ++i) {
+    agents.push_back(std::make_unique<GpuAgent>(i, nRanks, count, commId, nIter));
+    threads.emplace_back([&agents, i] { agents.at(i)->init(); });
   }
 
-  {
-    auto t0 = std::thread([&] {
-      for (int i = 0; i < nIter; ++i) {
-        auto algo = agent0->comm->algoMgr->getAllReduceDdaNvsFlatThreadedAlgo(
-            agent0->sendbufs_d_.at(i),
-            agent0->recvbufs_d_.at(i),
-            count,
-            ncclFloat,
-            ncclSum,
-            agent0->comm,
-            agent0->stream);
-        agent0->runAllReduceAndVerify(std::move(algo), i);
-      }
-    });
-    auto t1 = std::thread([&] {
-      for (int i = 0; i < nIter; ++i) {
-        auto algo = agent1->comm->algoMgr->getAllReduceDdaNvsFlatThreadedAlgo(
-            agent1->sendbufs_d_.at(i),
-            agent1->recvbufs_d_.at(i),
-            count,
-            ncclFloat,
-            ncclSum,
-            agent1->comm,
-            agent1->stream);
-        agent1->runAllReduceAndVerify(std::move(algo), i);
-      }
-    });
+  for (auto& t : threads) {
+    t.join();
+  }
 
-    t0.join();
-    t1.join();
+  // launch collectives
+  threads.clear();
+  for (int i = 0; i < nRanks; ++i) {
+    threads.emplace_back([&agents, i] {
+      for (int itr = 0; itr < nIter; ++itr) {
+        auto algo = agents.at(i)->comm->algoMgr->getAllReduceDdaNvsFlatThreadedAlgo(
+            agents.at(i)->sendbufs_d_.at(itr),
+            agents.at(i)->recvbufs_d_.at(itr),
+            count,
+            ncclFloat,
+            ncclSum,
+            agents.at(i)->comm,
+            agents.at(i)->stream);
+        agents.at(i)->runAllReduceAndVerify(std::move(algo), itr);
+      }
+    });
+  }
+
+  for (auto& t : threads) {
+    t.join();
   }
 }
 
-TEST(AllReduceDdaNvsTreeThreadedAlgoTest, Create) {
-  auto algo = std::make_unique<AllReduceDdaNvsTreeThreadedAlgo>();
-  algo->allReduce();
+TEST(AllReduceAlgoTest, NvsTreeThreaded) {
+  const int count = 32;
+  const int nRanks = 2;
+  const int nIter = 10;
+
+  ncclUniqueId commId;
+  NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
+
+  std::vector<std::unique_ptr<GpuAgent>> agents{};
+  std::vector<std::thread> threads{};
+
+  // initialize all GpuAgents
+  for (int i = 0; i < nRanks; ++i) {
+    agents.push_back(std::make_unique<GpuAgent>(i, nRanks, count, commId, nIter));
+    threads.emplace_back([&agents, i] { agents.at(i)->init(); });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  // launch collectives
+  threads.clear();
+  for (int i = 0; i < nRanks; ++i) {
+    threads.emplace_back([&agents, i] {
+      for (int itr = 0; itr < nIter; ++itr) {
+        auto algo = agents.at(i)->comm->algoMgr->getAllReduceDdaNvsTreeThreadedAlgo(
+            agents.at(i)->sendbufs_d_.at(itr),
+            agents.at(i)->recvbufs_d_.at(itr),
+            count,
+            ncclFloat,
+            ncclSum,
+            agents.at(i)->comm,
+            agents.at(i)->stream);
+        agents.at(i)->runAllReduceAndVerify(std::move(algo), itr);
+      }
+    });
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
 }
 
 } // namespace algorithms

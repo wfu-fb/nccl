@@ -9,6 +9,13 @@
     int rank,                                                           \
     const T* sendbuff,                                                  \
     T* recvbuff,                                                        \
+    size_t count);                                                      \
+  template __global__ void ncclKernel_AllReduce_DDA2_Tree<T, NRANKS>(   \
+    uintptr_t barrierFlag,                                              \
+    DdaDeviceState* devStates,                                          \
+    int rank,                                                           \
+    const T* sendbuff,                                                  \
+    T* recvbuff,                                                        \
     size_t count);
 
 #define DECL_DDA2_FUNC(T)      \

@@ -1,13 +1,28 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 #include "AlgoManager.h"
 
+#include "AlgoUtils.h"
 #include "DdaThreadedData.h"
 #include "argcheck.h"
 #include "checks.h"
 #include "comm.h"
 #include "debug.h"
+#include "nccl_cvars.h"
 
 #include <cassert>
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
+   type        : int
+   default     : 262144
+   description : |-
+     Message size at which DDA Allreduce switches to the tree algorithm.
+     Only applies for NVSwitch-based systems.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 namespace nccl {
 namespace algorithms {
@@ -82,9 +97,15 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream) {
-  // add algorithm selection logic here
-  return getAllReduceDdaNvsFlatThreadedAlgo(
-      sendbuff, recvbuff, count, datatype, op, comm, stream);
+  // select proper algorithm
+  const size_t totalSize = count * getDataSize(datatype);
+  if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
+    return getAllReduceDdaNvsFlatThreadedAlgo(
+        sendbuff, recvbuff, count, datatype, op, comm, stream);
+  } else {
+    return getAllReduceDdaNvsTreeThreadedAlgo(
+        sendbuff, recvbuff, count, datatype, op, comm, stream);
+  }
 }
 
 std::unique_ptr<AllReduceDdaNvsFlatThreadedAlgo>
@@ -100,6 +121,32 @@ AlgoManager::getAllReduceDdaNvsFlatThreadedAlgo(
   barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AllReduceDdaNvsFlatThreadedAlgo>(
       new AllReduceDdaNvsFlatThreadedAlgo{
+          sendbuff,
+          recvbuff,
+          count,
+          datatype,
+          op,
+          comm,
+          stream,
+          devStates_d_,
+          barrierFlag_,
+          devProp_.multiProcessorCount});
+  return algo;
+}
+
+std::unique_ptr<AllReduceDdaNvsTreeThreadedAlgo>
+AlgoManager::getAllReduceDdaNvsTreeThreadedAlgo(
+    const void* sendbuff,
+    void* recvbuff,
+    size_t count,
+    ncclDataType_t datatype,
+    ncclRedOp_t op,
+    ncclComm* comm,
+    cudaStream_t stream) {
+  // toggle barrier flag
+  barrierFlag_ = !barrierFlag_;
+  auto algo = std::unique_ptr<AllReduceDdaNvsTreeThreadedAlgo>(
+      new AllReduceDdaNvsTreeThreadedAlgo{
           sendbuff,
           recvbuff,
           count,

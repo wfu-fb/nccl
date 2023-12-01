@@ -44,6 +44,16 @@ class AlgoManager {
       ncclComm* comm,
       cudaStream_t stream);
 
+  std::unique_ptr<AllReduceDdaNvsTreeThreadedAlgo>
+  getAllReduceDdaNvsTreeThreadedAlgo(
+      const void* sendbuff,
+      void* recvbuff,
+      size_t count,
+      ncclDataType_t datatype,
+      ncclRedOp_t op,
+      ncclComm* comm,
+      cudaStream_t stream);
+
  private:
   ncclComm_t comm_{nullptr};
   cudaDeviceProp devProp_;

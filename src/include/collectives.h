@@ -34,10 +34,17 @@ ncclResult_t ncclAllReduceDDA(const void* sendbuff, void* recvbuff, size_t count
                                    ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm,
                                    cudaStream_t stream);
 
+// DDA2 kernels
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA2_Flat(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, const T* sendbuff, T* recvbuff, size_t count);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA2_Tree(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
+
+// DDA kernels (TODO deprecate DDA once migrated to DDA2)
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA_Flat(
   uintptr_t barrierFlag, int barrierMboxId, struct commMd *commMdDev,
