@@ -146,6 +146,8 @@ bool NCCL_DDA_FORCE_P2P_ACCESS;
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
 
+bool NCCL_CTRAN_IB_TRAFFIC_PROFILNG;
+
 int NCCL_CTRAN_IB_MAX_QPS;
 
 int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;
@@ -173,6 +175,7 @@ void initEnvSet() {
   env.insert("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE");
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_IB_HCA");
+  env.insert("NCCL_CTRAN_IB_TRAFFIC_PROFILNG");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
   env.insert("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD");
   env.insert("NCCL_ALGO");
@@ -267,6 +270,8 @@ void readCvarEnv() {
   std::vector<std::string> NCCL_IB_HCA_allPrefixes{"^", "="};
   NCCL_IB_HCA.clear();
   std::tie(NCCL_IB_HCA_PREFIX, NCCL_IB_HCA) = env2prefixedStrlist("NCCL_IB_HCA", "", NCCL_IB_HCA_allPrefixes);
+
+  NCCL_CTRAN_IB_TRAFFIC_PROFILNG = env2bool("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "False");
 
   NCCL_CTRAN_IB_MAX_QPS = env2int("NCCL_CTRAN_IB_MAX_QPS", "1");
 

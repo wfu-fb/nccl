@@ -45,6 +45,8 @@ extern bool NCCL_DDA_FORCE_P2P_ACCESS;
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 
+extern bool NCCL_CTRAN_IB_TRAFFIC_PROFILNG;
+
 extern int NCCL_CTRAN_IB_MAX_QPS;
 
 extern int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;

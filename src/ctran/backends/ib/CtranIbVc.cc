@@ -341,6 +341,9 @@ ncclResult_t CtranIb::Impl::VirtualConn::postPutMsg(const void *sbuf, void *dbuf
 
   uint64_t offset = 0;
 
+  CtranIbSingleton& s = CtranIbSingleton::getInstance();
+  s.recordDeviceTraffic(this->context_, len_);
+
   for (int i = 0; i < numQps; i++) {
     uint64_t len = len_ / numQps;
     if (i == 0) {
@@ -382,6 +385,8 @@ ncclResult_t CtranIb::Impl::VirtualConn::postPutMsg(const void *sbuf, void *dbuf
       }
       wr.wr.rdma.remote_addr = reinterpret_cast<uint64_t>(dbuf) + offset;
       wr.wr.rdma.rkey = rkey;
+
+      s.recordQpTraffic(this->dataQps_[i], toSend);
 
       NCCLCHECKGOTO(wrap_ibv_post_send(this->dataQps_[i], &wr, &badWr), res, exit);
 

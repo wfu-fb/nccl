@@ -52,9 +52,20 @@ class CtranIbSingleton {
     std::vector<struct ibv_pd *> pds;
     std::vector<std::string> devNames;
 
+    // Record traffic in bytes whenever IB data transfer happens.
+    // Accumulate per device name and per QP.
+    void recordDeviceTraffic(struct ibv_context *ctx, size_t nbytes);
+    void recordQpTraffic(struct ibv_qp* qp, size_t nbytes);
+
+    std::unordered_map<std::string, size_t> getDeviceTrafficSnapshot(void);
+    std::unordered_map<uint32_t, size_t> getQpTrafficSnapshot(void);
+
   private:
     CtranIbSingleton();
     ~CtranIbSingleton();
+    std::unordered_map<std::string, size_t> trafficPerDevice_;
+    std::unordered_map<uint32_t, size_t> trafficPerQP_;
+    std::mutex trafficRecordMutex_;
 };
 
 class CtranIb::Impl {

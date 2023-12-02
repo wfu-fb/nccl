@@ -32,6 +32,13 @@
      - ^=mlx5_1,mlx5_4 : Do not use cards mlx5_1 and mlx5_4.
      (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
 
+ - name        : NCCL_CTRAN_IB_TRAFFIC_PROFILNG
+   type        : bool
+   default     : false
+   description : |-
+     Enable IB transport traffic profiling.
+     Disabled by default.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -151,6 +158,62 @@ CtranIbSingleton::~CtranIbSingleton() {
   for (auto context : this->contexts) {
     NCCLCHECKIGNORE(wrap_ibv_close_device(context));
   }
+
+  if (!NCCL_CTRAN_IB_TRAFFIC_PROFILNG)
+    return;
+
+  this->trafficRecordMutex_.lock();
+  for (auto& it : this->trafficPerDevice_) {
+    INFO(NCCL_INIT, "CTRAN-IB: [traffic profiling] device %s total traffic: %ld bytes", it.first.c_str(), it.second);
+  }
+  for (auto& it : this->trafficPerQP_) {
+    INFO(NCCL_INIT, "CTRAN-IB: [traffic profiling] qp %d total traffic: %ld bytes", it.first, it.second);
+  }
+}
+
+std::unordered_map<std::string, size_t>
+CtranIbSingleton::getDeviceTrafficSnapshot(void) {
+  std::unordered_map<std::string, size_t> snapshot;
+  std::lock_guard<std::mutex> guard(this->trafficRecordMutex_);
+  for (auto& it : this->trafficPerDevice_) {
+    snapshot[it.first] = it.second;
+  }
+  return snapshot;
+}
+
+std::unordered_map<uint32_t, size_t> CtranIbSingleton::getQpTrafficSnapshot(
+    void) {
+  std::unordered_map<uint32_t, size_t> snapshot;
+  std::lock_guard<std::mutex> guard(this->trafficRecordMutex_);
+  for (auto& it : this->trafficPerQP_) {
+    snapshot[it.first] = it.second;
+  }
+  return snapshot;
+}
+
+void CtranIbSingleton::recordDeviceTraffic(
+    struct ibv_context* ctx,
+    size_t nbytes) {
+  if (!NCCL_CTRAN_IB_TRAFFIC_PROFILNG)
+    return;
+
+  std::lock_guard<std::mutex> guard(this->trafficRecordMutex_);
+  auto devName = std::string(ctx->device->name);
+
+  if (this->trafficPerDevice_.count(devName) == 0) {
+    this->trafficPerDevice_[devName] = 0;
+  }
+  this->trafficPerDevice_[devName] += nbytes;
+}
+
+void CtranIbSingleton::recordQpTraffic(struct ibv_qp* qp, size_t nbytes) {
+  if (!NCCL_CTRAN_IB_TRAFFIC_PROFILNG)
+    return;
+  std::lock_guard<std::mutex> guard(this->trafficRecordMutex_);
+  if (this->trafficPerQP_.count(qp->qp_num) == 0) {
+    this->trafficPerQP_[qp->qp_num] = 0;
+  }
+  this->trafficPerQP_[qp->qp_num] += nbytes;
 }
 
 CtranIb::CtranIb(ncclComm *comm) {
@@ -401,7 +464,10 @@ ncclResult_t CtranIb::irecvCtrl(void **buf, struct CtranIbRemoteAccessKey *key, 
 
   auto vc = this->pimpl_->vcList[peerRank];
   if (this->pimpl_->rank < peerRank && vc->isReady() == false) {
+    INFO(NCCL_INIT, "CTRAN-IB: irecvCtrl, rank %d connecting to %d", this->pimpl_->rank, peerRank);
     NCCLCHECKGOTO(this->pimpl_->bootstrapConnect(peerRank), res, exit);
+  } else{
+    INFO(NCCL_INIT, "CTRAN-IB: irecvCtrl, rank %d skip connection to %d, vc ready %d", this->pimpl_->rank, peerRank, vc->isReady());
   }
 
   *req = new CtranIbRequest();

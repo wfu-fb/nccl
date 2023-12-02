@@ -6,9 +6,12 @@
 #include <climits>
 #include <cstddef>
 #include <iostream>
+#include <memory>
 #include "CtranIb.h"
+#include "CtranIbImpl.h"
 #include "comm.h"
 #include "socket.h"
+#include "nccl_cvars.h"
 #include "tests_common.cuh"
 
 class MPIEnvironment : public ::testing::Environment {
@@ -350,6 +353,139 @@ TEST_F(CtranIbTest, GpuMemPutNotify) {
   } catch (const std::bad_alloc& e) {
     printf("CtranIbTest: IB backend not enabled. Skip test\n");
   }
+}
+
+TEST_F(CtranIbTest, MultiPutTrafficProfiler) {
+  this->printTestDesc(
+      "MultiPutTrafficProfiler",
+      "Expect rank 0 puts data from its local GPU data to other ranks and "
+      "the traffic profiling can catch exact bytes as expected per device and per QP.");
+
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "true", 1);
+  ncclCvarInit();
+
+#undef BUF_COUNT
+#define BUF_COUNT 8192
+  try {
+    auto ctranIb = std::unique_ptr<class CtranIb>(new class CtranIb(comm));
+    int* buf;
+    void* handle = nullptr;
+    std::vector<struct CtranIbRemoteAccessKey> remoteKeys(this->numRanks);
+    std::vector<void*> remoteBufs(this->numRanks);
+    std::unique_ptr<CtranIbRequest> ctrlSReq;
+    std::vector<std::unique_ptr<CtranIbRequest>> ctrlRReqs(this->numRanks);
+    std::vector<std::unique_ptr<CtranIbRequest>> putReqs(this->numRanks);
+    CtranIbRequest *req = nullptr;
+    const int rootRank = 0;
+
+    CUDACHECK_TEST(cudaSetDevice(this->globalRank));
+
+    // Allocate and register buffer
+    CUDACHECK_TEST(cudaMalloc(&buf, BUF_COUNT * sizeof(int)));
+    NCCLCHECK_TEST(ctranIb->regMem(buf, BUF_COUNT * sizeof(int), &handle));
+
+    // rootRank receives remoteAddr from all ranks
+    if (this->globalRank == rootRank) {
+      for (int i = 0; i < this->numRanks; i++) {
+        // skip rootRank itself
+        if (i == rootRank) {
+          continue;
+        }
+
+        NCCLCHECK_TEST(ctranIb->irecvCtrl(&remoteBufs[i], &remoteKeys[i], i, &req));
+        ctrlRReqs[i] = std::unique_ptr<CtranIbRequest>(req);
+      }
+    } else {
+      // other rank sends the remoteAddr and rkey to rootRank
+      NCCLCHECK_TEST(ctranIb->isendCtrl(buf, handle, rootRank, &req));
+      ctrlSReq = std::unique_ptr<CtranIbRequest>(req);
+    }
+
+    // rootRank puts data to other ranks
+    if (this->globalRank == rootRank) {
+      int nPendingPuts = this->numRanks - 1;
+      while(nPendingPuts > 0) {
+        for (int i = 0; i < this->numRanks; i++) {
+          // skip rootRank itself
+          if (i == rootRank) {
+            continue;
+          }
+
+          // wait control messages to be received from this sender
+          // or skip if has already put
+          if (!ctrlRReqs[i]->isComplete() || putReqs[i]) {
+            NCCLCHECK_TEST(ctranIb->progress());
+            continue;
+          }
+
+          // put data to sender
+          ctranIb->iput(
+              buf,
+              remoteBufs[i],
+              BUF_COUNT * sizeof(int),
+              i,
+              handle,
+              remoteKeys[i],
+              true,
+              &req);
+          putReqs[i] = std::unique_ptr<CtranIbRequest>(req);
+          nPendingPuts--;
+        }
+      }
+
+      // waits for all put to finish
+      int nCompletedPuts = this->numRanks - 1;
+      do {
+        NCCLCHECK_TEST(ctranIb->progress());
+        for (int i = 0; i < this->numRanks; i++) {
+          // skip rootRank itself
+          if (i == rootRank) {
+            continue;
+          }
+
+          if (putReqs[i]->isComplete()) {
+            nCompletedPuts--;
+          }
+        }
+      } while (nCompletedPuts > 0);
+    } else {
+      // Other rank ensures send control messages has completed
+      while (!ctrlSReq->isComplete()) {
+        NCCLCHECK_TEST(ctranIb->progress());
+      }
+
+      // Other rank waits notify to safely free buffer
+      bool notify = false;
+      do {
+        NCCLCHECK_TEST(ctranIb->checkNotify(rootRank, &notify));
+      } while (!notify);
+    }
+
+    // Rank 0 checks traffic snapshot
+    if (this->globalRank == rootRank) {
+      CtranIbSingleton& s = CtranIbSingleton::getInstance();
+      auto devSnapshot = s.getDeviceTrafficSnapshot();
+      for (auto& it : devSnapshot) {
+        // all data sent to other ranks should go through the same device
+        EXPECT_EQ(it.second, (this->numRanks - 1) * BUF_COUNT * sizeof(int));
+      }
+
+      auto qpSnapshot = s.getQpTrafficSnapshot();
+      for (auto& it : qpSnapshot) {
+        // data sent to each rank should go through different QP
+        EXPECT_EQ(it.second, BUF_COUNT * sizeof(int));
+      }
+    }
+
+    // Free resources
+    NCCLCHECK_TEST(ctranIb->deregMem(handle));
+    CUDACHECK_TEST(cudaFree(buf));
+
+  } catch (const std::bad_alloc& e) {
+    printf("CtranIbTest: IB backend not enabled. Skip test\n");
+  }
+
+  unsetenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG");
 }
 
 int main(int argc, char* argv[]) {
