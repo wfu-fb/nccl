@@ -137,6 +137,12 @@ public:
  //   - notify: whether the remote peer has finished the outstanding iput.
  ncclResult_t checkNotify(int rank, bool* notify);
 
+ // Wait until the remote rank has finished the outstanding iput
+ // Input arguments:
+ //   - rank: the rank of the remote peer in the current communicator that has
+ //           issued iput to the local rank.
+ ncclResult_t waitNotify(int rank);
+
  std::string getIbDevName();
 
  int getIbDevPort();

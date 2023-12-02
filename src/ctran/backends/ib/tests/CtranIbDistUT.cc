@@ -256,10 +256,7 @@ TEST_F(CtranIbTest, CpuMemPutNotify) {
       } while (!putReq->isComplete());
     } else {
       // Receiver waits notify and check data
-      bool notify = false;
-      do {
-        NCCLCHECK_TEST(ctranIb->checkNotify(sendRank, &notify));
-      } while (!notify);
+      NCCLCHECK_TEST(ctranIb->waitNotify(sendRank));
 
       for (int i = 0; i < BUF_COUNT; i++) {
         EXPECT_EQ(buf[i], sendVal);
@@ -335,10 +332,7 @@ TEST_F(CtranIbTest, GpuMemPutNotify) {
       } while (!putReq->isComplete());
     } else {
       // Receiver waits notify and check data
-      bool notify = false;
-      do {
-        NCCLCHECK_TEST(ctranIb->checkNotify(sendRank, &notify));
-      } while (!notify);
+      NCCLCHECK_TEST(ctranIb->waitNotify(sendRank));
 
       CUDACHECK_TEST(cudaMemcpy(
           hostBuf, buf, BUF_COUNT * sizeof(int), cudaMemcpyDeviceToHost));
@@ -455,10 +449,7 @@ TEST_F(CtranIbTest, MultiPutTrafficProfiler) {
       }
 
       // Other rank waits notify to safely free buffer
-      bool notify = false;
-      do {
-        NCCLCHECK_TEST(ctranIb->checkNotify(rootRank, &notify));
-      } while (!notify);
+      NCCLCHECK_TEST(ctranIb->waitNotify(rootRank));
     }
 
     // Rank 0 checks traffic snapshot
