@@ -1,6 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <thread>
 #include <unistd.h>
@@ -9,6 +10,7 @@
 #include "CtranIb.h"
 #include "CtranIbImpl.h"
 #include "CtranIbVc.h"
+#include "CtranUtils.h"
 
 void CtranIb::Impl::bootstrapAccept(CtranIb::Impl *pimpl) {
   while (1) {
@@ -47,6 +49,14 @@ void CtranIb::Impl::bootstrapAccept(CtranIb::Impl *pimpl) {
     for (auto qpn : dataQps) {
       pimpl->qpToRank[qpn] = peerRank;
     }
+
+    INFO(
+        NCCL_INIT,
+        "CTRAN-IB: Established connection: rank %d, peer %d, control qpn %d, data qpns %s",
+        pimpl->rank,
+        peerRank,
+        controlQp,
+        vecToStr(dataQps).c_str());
 
     free(localBusCard);
     free(remoteBusCard);
@@ -96,6 +106,14 @@ ncclResult_t CtranIb::Impl::bootstrapConnect(int peerRank, int cmd) {
   for (auto qpn : dataQps) {
     this->qpToRank[qpn] = peerRank;
   }
+
+  INFO(
+      NCCL_INIT,
+      "CTRAN-IB: Established connection: rank %d, peer %d, control qpn %d, data qpns %s",
+      this->rank,
+      peerRank,
+      controlQp,
+      vecToStr(dataQps).c_str());
 
   free(localBusCard);
   free(remoteBusCard);
