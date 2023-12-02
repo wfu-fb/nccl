@@ -318,3 +318,37 @@ TEST_F(CtranUtilsAvlTreeTest, ToString) {
   }
   rangeRegistList.clear();
 }
+
+TEST_F(CtranUtilsAvlTreeTest, DoubleRemove) {
+  auto tree = std::make_unique<CtranAvlTree>();
+
+  const int maxNumBufs = 1, numOverlaps = 0;
+  int numOverlapsHint = numOverlaps;
+  this->genBufRanges(maxNumBufs, &numOverlapsHint);
+
+  // Check insertion
+  RangeRegistration rangeRegist = RangeRegistration(
+      this->bufRanges[0], reinterpret_cast<void*>(static_cast<uintptr_t>(0)));
+
+  rangeRegist.hdl = tree->insert(
+      reinterpret_cast<void*>(rangeRegist.addr),
+      rangeRegist.len,
+      rangeRegist.val);
+  ASSERT_NE(rangeRegist.hdl, nullptr);
+  ASSERT_EQ(tree->validateHeight(), true);
+  ASSERT_EQ(tree->isBalanced(), true);
+
+  ASSERT_EQ(tree->size(), 1);
+
+  // Check removal from head
+  auto res = tree->remove(rangeRegist.hdl);
+  ASSERT_EQ(res, ncclSuccess);
+  ASSERT_EQ(tree->size(), 0);
+  ASSERT_EQ(tree->validateHeight(), true);
+
+  // Check double removal
+  res = tree->remove(rangeRegist.hdl);
+  ASSERT_EQ(res, ncclInvalidUsage);
+  ASSERT_EQ(tree->size(), 0);
+
+}

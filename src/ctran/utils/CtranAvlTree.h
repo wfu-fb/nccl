@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include "nccl.h"
 
 /**
  * AVL tree.
@@ -27,7 +28,7 @@ class CtranAvlTree {
   void* insert(const void* addr, std::size_t len, void* val);
 
   // Remove an element from the tree by searching the provided handle.
-  void remove(void* hdl);
+  ncclResult_t remove(void* hdl);
 
   // Search for an element in the tree, handle is returned if found; otherwise
   // return nullptr.

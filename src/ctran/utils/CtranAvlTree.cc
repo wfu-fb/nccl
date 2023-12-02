@@ -37,9 +37,13 @@ void* CtranAvlTree::insert(const void* addr_, std::size_t len, void* val) {
   return hdl;
 }
 
-void CtranAvlTree::remove(void* hdl) {
+ncclResult_t CtranAvlTree::remove(void* hdl) {
   CtranAvlTree::TreeElem* e = reinterpret_cast<CtranAvlTree::TreeElem*>(hdl);
 
+  if (!this->root_) {
+    WARN("CTRAN-AVL-TREE: Trying to remove hdl %p while the AVL tree is NULL, likely double freeing", hdl);
+    return ncclInvalidUsage;
+  }
   // First try to remove from AVL tree
   bool removed = false;
   this->root_ = this->root_->remove(e, &removed);
@@ -55,6 +59,7 @@ void CtranAvlTree::remove(void* hdl) {
       delete e;
     }
   }
+  return ncclSuccess;
 }
 
 void* CtranAvlTree::search(const void* addr_, std::size_t len) {
