@@ -1,5 +1,6 @@
 #include "Ctran.h"
 #include <nccl.h>
+#include <memory>
 #include "CtranGpe.h"
 #include "CtranMapper.h"
 #include "argcheck.h"

@@ -10,6 +10,7 @@
 #include "transport.h"
 #include "channel.h"
 #include <assert.h>
+#include "Ctran.h"
 
 __thread int ncclGroupDepth = 0; // depth of ncclGroupStart nesting
 __thread ncclResult_t ncclGroupError = ncclSuccess;
@@ -368,6 +369,8 @@ ncclResult_t ncclGroupEndInternal() {
   }
 
   if ((--ncclGroupDepth) > 0) goto exit;
+
+  NCCLCHECKGOTO(ctranGroupEndHook(), ret, fail);
 
   if ((ret = ncclGroupError) != ncclSuccess) goto fail;
 

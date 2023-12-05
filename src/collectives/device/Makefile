@@ -14,6 +14,7 @@ LIBSRCFILES := all_reduce.cu broadcast.cu reduce.cu all_gather.cu reduce_scatter
 LIBSRCFILES += all_reduce_dda.cu
 LIBSRCFILES += all_reduce_dda2.cu
 LIBSRCFILES += all_reduce_sparse_block.cu
+LIBSRCFILES += ../../ctran/gpe/CtranGpeKernel.cu
 
 LIBSRCFILES += functions.cu
 
@@ -43,6 +44,7 @@ LIBOBJ     := $(GENOBJS) $(OBJDIR)/functions.o $(OBJDIR)/onerank_reduce.o
 LIBOBJ     += $(OBJDIR)/all_reduce_dda.o
 LIBOBJ     += $(OBJDIR)/all_reduce_dda2.o
 LIBOBJ     += $(OBJDIR)/all_reduce_sparse_block.o
+LIBOBJ     += $(OBJDIR)/CtranGpeKernel.o
 
 -include $(DEPFILES)
 
@@ -75,6 +77,20 @@ $(OBJDIR)/onerank_reduce.o : onerank_reduce.cu $(OBJDIR)/onerank_reduce.dep
 	$(NVCC) $(NVCUFLAGS) -dc $< -o $@
 
 $(OBJDIR)/%.o : %.cu $(OBJDIR)/%.dep
+	@printf "Compiling  %-35s > %s\n" $< $@
+	mkdir -p `dirname $@`
+	$(NVCC) $(NVCUFLAGS) -dc $< -o $@
+
+$(OBJDIR)/CtranGpeKernel.dep : ../../ctran/gpe/CtranGpeKernel.cu
+	@mkdir -p $(OBJDIR)
+	@$(NVCC) $(NVCUFLAGS) -M $< -o $@.tmp
+	@sed "0,/^.*:/s//$(subst /,\/,$@):/" $@.tmp > $@
+	@sed -e 's/.*://' -e 's/\\$$//' < $@.tmp | fmt -1 | \
+                sed -e 's/^ *//' -e 's/$$/:/' >> $@
+	@rm -f $@.tmp
+	@cp $@ $(@:.dep=.d)
+
+$(OBJDIR)/CtranGpeKernel.o : ../../ctran/gpe/CtranGpeKernel.cu $(OBJDIR)/CtranGpeKernel.dep
 	@printf "Compiling  %-35s > %s\n" $< $@
 	mkdir -p `dirname $@`
 	$(NVCC) $(NVCUFLAGS) -dc $< -o $@

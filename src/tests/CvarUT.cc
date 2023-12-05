@@ -403,6 +403,23 @@ TEST_F(CvarTest, NCCL_DDA_FORCE_P2P_ACCESS_value_n3) {
   EXPECT_FALSE(NCCL_DDA_FORCE_P2P_ACCESS);
 }
 
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_single_choice_0) {
+  setenv("NCCL_SENDRECV_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_single_choice_1) {
+  setenv("NCCL_SENDRECV_ALGO", "ctran", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::ctran);
+}
+
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_default_choice) {
+  testDefaultValue("NCCL_SENDRECV_ALGO");
+  EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::orig);
+}
+
 TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
   setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
   std::vector<std::string> vals{"val1","val2","val3"};

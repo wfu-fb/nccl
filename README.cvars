@@ -80,6 +80,14 @@ Description:
 Type: bool
 Default: False
 
+NCCL_SENDRECV_ALGO
+Description:
+    The algorithm to use for sendrecv communication
+    orig - Copy-based communication
+    ctran - Ctran-based communication
+Type: enum
+Default: orig
+
 NCCL_IB_HCA
 Description:
     List of IB HCAs available for NCCL to use. The list is comma-separated;

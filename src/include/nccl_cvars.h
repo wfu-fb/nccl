@@ -34,6 +34,12 @@ extern int NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
 extern bool NCCL_DDA_FORCE_P2P_ACCESS;
 
+enum class NCCL_SENDRECV_ALGO {
+  orig,
+  ctran,
+};
+extern enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
+
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 

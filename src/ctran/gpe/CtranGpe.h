@@ -48,4 +48,8 @@ class CtranGpe {
   std::unique_ptr<Impl> pimpl;
 };
 
+__global__ void ncclKernelSend(int* flag);
+__global__ void ncclKernelRecv(int* flag);
+__global__ void ncclKernelSendRecv(int* flag);
+
 #endif
