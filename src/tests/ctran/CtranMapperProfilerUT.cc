@@ -20,7 +20,6 @@ class CtranMapperProfilerTest : public ::testing::Test {
  protected:
   void SetUp() override {
     setenv("NCCL_CTRAN_BACKENDS", "", 1);
-    ncclCvarInit();
 
     dummyComm = new ncclComm;
     dummyComm->rank = 0;
@@ -174,7 +173,8 @@ TEST_F(CtranMapperProfilerTest, MapperFlushTimerInfo) {
 TEST_F(CtranMapperProfilerTest, MapperFlushTimerKineto) {
   auto outputDir = "/tmp";
   auto pid = getpid();
-  // NOTE: this is default prefix of output name, need to be consistent with the code in CtranMapper.cc
+  // NOTE: this is default prefix of output name, need to be consistent with the
+  // code in CtranMapper.cc
   auto prefix = "nccl_ctran_log." + std::to_string(pid);
   setenv("NCCL_CTRAN_PROFILING", "kineto", 1);
   setenv("NCCL_CTRAN_KINETO_PROFILE_DIR", outputDir, 1);
@@ -222,4 +222,50 @@ TEST_F(CtranMapperProfilerTest, MapperFlushTimerKineto) {
     }
   }
   EXPECT_TRUE(foundFile);
+}
+
+TEST_F(CtranMapperProfilerTest, regSnapshot) {
+  setenv("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", "0", 1);
+  setenv("NCCL_DEBUG", "INFO", 1);
+  setenv("NCCL_DEBUG_SUBSYS", "INIT", 1);
+  ncclCvarInit();
+
+  auto mapper = std::unique_ptr<CtranMapper>(new CtranMapper(dummyComm));
+  EXPECT_THAT(mapper, testing::NotNull());
+
+  int nBufs = rand() % 10 + 1;
+  size_t bufSize = 4096;
+  // allocate & register nBufs buffers, which is a random number between [1, 10]
+  for (int i = 0; i < nBufs; ++i) {
+    void* buf = nullptr;
+    CUDACHECKIGNORE(cudaMalloc(&buf, bufSize));
+    void* hdl = nullptr;
+
+    auto res = mapper->regMem(buf, bufSize, &hdl, true);
+
+    EXPECT_EQ(res, ncclSuccess);
+    EXPECT_THAT(hdl, testing::NotNull());
+
+    res = mapper->deregMem(hdl);
+    EXPECT_EQ(res, ncclSuccess);
+
+    CUDACHECKIGNORE(cudaFree(buf));
+  }
+
+  testing::internal::CaptureStdout();
+
+  mapper->reportRegSnapshot();
+
+  // expected outputs
+  // NOTE: this has to match the output defined in CtranMapper.cc
+  auto kExpectedOutput1 = "NCCL INFO";
+  auto kExpectedOutput2 = "total registered " + std::to_string(nBufs);
+
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput1));
+  EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput2));
+
+  unsetenv("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT");
+  unsetenv("NCCL_DEBUG");
+  unsetenv("NCCL_DEBUG_SUBSYS");
 }

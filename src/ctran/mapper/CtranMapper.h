@@ -204,6 +204,7 @@ class CtranMapper {
    *   - flush: force flushing the profiling result
    */
   void reportProfiling(bool flush = false);
+  void reportRegSnapshot();
 
   int rank;
   uint64_t commHash;

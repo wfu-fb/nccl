@@ -54,6 +54,16 @@
      Backends to enable for ctran
      ib - RoCE/IB backend
 
+ - name        : NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT
+   type        : int
+   default     : -1
+   description : |-
+     Manages the frequency of register snapshot reporting. Set to -1 to
+     completely disable. Set to 0 to report only at communicator destroy time. Set to
+     N to allows a snapshot to be reported whenever once every N registrations. It
+     helps understand the performance impact of registeration at different period of
+     a long running job.
+
  - name        : NCCL_CTRAN_PROFILING_REPORT_COUNT
    type        : int
    default     : 100
@@ -62,6 +72,80 @@
 
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
+
+enum GlobalRegistDurationType { REG_MEM, DEREG_MEM, LOOKUP_HIT, LOOKUP_MISS };
+
+static std::unordered_map<GlobalRegistDurationType, std::string>
+    globalRegistDurationTypeNameMap = {
+        {REG_MEM, "registration"},
+        {DEREG_MEM, "deregistration"},
+        {LOOKUP_HIT, "lookup-hit"},
+        {LOOKUP_MISS, "lookup-miss"},
+};
+static std::unordered_map<uint64_t, CtranMapper*> allCommHashCtranMapperMap;
+static std::unordered_map<GlobalRegistDurationType, std::vector<double>>
+    allCommRegistDurationsMap;
+static std::mutex allCommMutex;
+
+static double sumDurations(std::vector<double>& durs) {
+  double total = 0;
+  for (auto& dur : durs) {
+    total += dur;
+  }
+  return total;
+}
+
+static void reportGlobalRegSnapshot(void) {
+  const std::lock_guard<std::mutex> lock(allCommMutex);
+
+  // Counts per communicator
+  for (auto& it : allCommHashCtranMapperMap) {
+    auto& mapper = it.second;
+    mapper->reportRegSnapshot();
+  }
+
+  // Timers accumulated from all communicators
+  for (auto& it : allCommRegistDurationsMap) {
+    auto& key = it.first;
+    auto& durs = it.second;
+    size_t numDurs = durs.size();
+    if (numDurs) {
+      double totalLat = sumDurations(durs);
+      INFO(
+          NCCL_INIT,
+          "CTRAN-MAPPER: [register snapshot] total %s latency across all comms %.2f ms, average %.2f ms across %lu %s",
+          globalRegistDurationTypeNameMap[key].c_str(),
+          totalLat,
+          totalLat / numDurs,
+          numDurs,
+          globalRegistDurationTypeNameMap[key].c_str());
+    }
+  }
+}
+
+static void recordRegistDuration(
+    GlobalRegistDurationType key,
+    double duration) {
+  allCommMutex.lock();
+  allCommRegistDurationsMap[key].push_back(duration);
+
+  // Allow periodical snapshot report during long job running
+  bool shouldReport = false;
+  if (key == GlobalRegistDurationType::REG_MEM &&
+      NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT > 0 &&
+      (allCommRegistDurationsMap[key].size() %
+           NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT ==
+       0)) {
+    shouldReport = true;
+  }
+  allCommMutex.unlock();
+
+  // Call report after unlock since we will lock again inside
+  // reportGlobalRegSnapshot
+  if (shouldReport) {
+    reportGlobalRegSnapshot();
+  }
+}
 
 CtranMapper::CtranMapper(ncclComm* comm) {
   this->pimpl_ = std::unique_ptr<impl>(new impl());
@@ -104,11 +188,38 @@ CtranMapper::CtranMapper(ncclComm* comm) {
     }
   }
 
+  this->pimpl_->numRegistrations = 0;
+  this->pimpl_->numCachedRegistrations = 0;
+  this->pimpl_->totalNumDynamicRegistrations = 0;
+  this->pimpl_->totalNumRegistrations = 0;
+  this->pimpl_->totalNumCachedRegistrations = 0;
+  this->pimpl_->totalNumRegLookupHit = 0;
+  this->pimpl_->totalNumRegLookupMiss = 0;
+
   CUDACHECKIGNORE(
       cudaStreamCreateWithFlags(&this->internalStream, cudaStreamNonBlocking));
 
   this->rank = comm->rank;
   this->commHash = comm->commHash;
+
+  if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    allCommMutex.lock();
+    allCommHashCtranMapperMap[this->commHash] = this;
+    allCommMutex.unlock();
+  }
+}
+
+void CtranMapper::reportRegSnapshot(void) {
+  INFO(
+      NCCL_INIT,
+      "CTRAN-MAPPER: [register snapshot] buffer registration with commHash %lu: "
+      "total cached %u total registered %u total dynamically registered %u, total lookup hits %u misses %u",
+      this->commHash,
+      this->pimpl_->totalNumCachedRegistrations,
+      this->pimpl_->totalNumRegistrations,
+      this->pimpl_->totalNumDynamicRegistrations,
+      this->pimpl_->totalNumRegLookupHit,
+      this->pimpl_->totalNumRegLookupMiss);
 }
 
 void CtranMapper::reportProfiling(bool flush) {
@@ -250,12 +361,31 @@ CtranMapper::~CtranMapper() {
     NCCLCHECKIGNORE(this->deregMem(hdl));
   }
 
+  if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    // Report summary of this communicator before destroying it
+    this->reportRegSnapshot();
+
+    bool lastMapper = false;
+    allCommMutex.lock();
+    allCommHashCtranMapperMap.erase(this->commHash);
+    lastMapper = allCommHashCtranMapperMap.empty();
+    allCommMutex.unlock();
+
+    // Report global counters after all communicators have been destroyed
+    // Call report after unlock since we will lock again inside
+    // reportGlobalRegSnapshot
+    if (lastMapper) {
+      reportGlobalRegSnapshot();
+    }
+  }
+
   CUDACHECKIGNORE(cudaStreamDestroy(this->internalStream));
 }
 
 ncclResult_t CtranMapper::impl::regMem(
     struct CtranMapperRegElem* mapperRegElem) {
   ncclResult_t res = ncclSuccess;
+  auto dur = CtranMapperTimer();
 
   if (this->ctranIb != nullptr) {
     assert(mapperRegElem->ibRegElem == nullptr);
@@ -267,6 +397,11 @@ ncclResult_t CtranMapper::impl::regMem(
   }
 
   mapperRegElem->state = CtranMapperRegElemState::REGISTERED;
+  if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    this->numRegistrations++;
+    this->totalNumRegistrations++;
+    recordRegistDuration(GlobalRegistDurationType::REG_MEM, dur.durationMs());
+  }
 
   INFO(
       NCCL_COLL,
@@ -282,6 +417,7 @@ exit:
 ncclResult_t CtranMapper::impl::deregMem(
     struct CtranMapperRegElem* mapperRegElem) {
   ncclResult_t res = ncclSuccess;
+  auto dur = CtranMapperTimer();
 
   if (this->ctranIb != nullptr) {
     NCCLCHECKGOTO(this->ctranIb->deregMem(mapperRegElem->ibRegElem), res, exit);
@@ -293,6 +429,16 @@ ncclResult_t CtranMapper::impl::deregMem(
       mapperRegElem->buf,
       mapperRegElem->len,
       mapperRegElem->state);
+  if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    this->numRegistrations--;
+    recordRegistDuration(GlobalRegistDurationType::DEREG_MEM, dur.durationMs());
+  }
+
+  INFO(
+      NCCL_COLL,
+      "CTRAN-MAPPER: deregiter buffer %p len %ld",
+      mapperRegElem->buf,
+      mapperRegElem->len);
 
 exit:
   return res;
@@ -333,6 +479,10 @@ ncclResult_t CtranMapper::regMem(
   /* regiser the buffer only if on Eager mode or forced by caller */
   if (NCCL_CTRAN_REGISTER == NCCL_CTRAN_REGISTER::eager || forceRegist) {
     NCCLCHECKGOTO(this->pimpl_->regMem(mapperRegElem), res, fail);
+  } else if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    // In lazy registration
+    this->pimpl_->numCachedRegistrations++;
+    this->pimpl_->totalNumCachedRegistrations++;
   }
 
 exit:
@@ -358,6 +508,9 @@ ncclResult_t CtranMapper::deregMem(void* hdl) {
 
   if (mapperRegElem->state == CtranMapperRegElemState::REGISTERED) {
     NCCLCHECKGOTO(this->pimpl_->deregMem(mapperRegElem), res, exit);
+  } else if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    // Just remove cache if the buffer is never registered
+    this->pimpl_->numCachedRegistrations--;
   }
 
 exit:
@@ -370,6 +523,9 @@ ncclResult_t CtranMapper::searchRegHandle(
     void** hdl,
     bool* dynamicRegist) {
   ncclResult_t res = ncclSuccess;
+  // Determine whether the buffer has already registered
+  bool lookupHit = true;
+  auto dur = CtranMapperTimer();
 
   *hdl = this->pimpl_->mapperRegElemList->search(buf, len);
 
@@ -382,6 +538,7 @@ ncclResult_t CtranMapper::searchRegHandle(
     // registration
     if (mapperRegElem->state == CtranMapperRegElemState::CACHED) {
       NCCLCHECKGOTO(this->pimpl_->regMem(mapperRegElem), res, exit);
+      lookupHit = false;
     }
     *dynamicRegist = false;
   } else {
@@ -391,6 +548,24 @@ ncclResult_t CtranMapper::searchRegHandle(
         this->regMem(buf, len, hdl, true /* force register */), res, exit);
     // caller is responsible for deregisgration
     *dynamicRegist = true;
+    lookupHit = false;
+  }
+
+  if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
+    if (lookupHit) {
+      recordRegistDuration(
+          GlobalRegistDurationType::LOOKUP_HIT, dur.durationMs());
+      this->pimpl_->totalNumRegLookupHit++;
+    } else {
+      recordRegistDuration(
+          GlobalRegistDurationType::LOOKUP_MISS, dur.durationMs());
+      this->pimpl_->totalNumRegLookupMiss++;
+      if (*dynamicRegist) {
+        this->pimpl_->totalNumDynamicRegistrations++;
+      } else {
+        this->pimpl_->numCachedRegistrations--;
+      }
+    }
   }
 
 exit:

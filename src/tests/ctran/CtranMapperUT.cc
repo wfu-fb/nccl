@@ -25,8 +25,8 @@ class CtranMapperTest : public ::testing::Test {
 
  protected:
   void SetUp() override {
-    setenv("NCCL_CTRAN_REGISTER", "none", 1);
-    setenv("NCCL_CTRAN_BACKENDS", "", 1);
+    setenv("NCCL_CTRAN_REGISTER", "none", 0);
+    setenv("NCCL_CTRAN_BACKENDS", "", 0);
     ncclCvarInit();
     dummyComm = new ncclComm;
     dummyComm->rank = 0;
