@@ -17,6 +17,7 @@
 #include "info.h"
 #include "colltrace.h"
 #include "AlgoManager.h"
+#include "Ctran.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -360,6 +361,7 @@ struct ncclComm {
   ddaPrivateMd *dda;
 
   std::unique_ptr<nccl::algorithms::AlgoManager> algoMgr{nullptr};
+  std::unique_ptr<Ctran> ctran{nullptr};
 };
 
 enum ncclLaunchMode {

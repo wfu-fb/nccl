@@ -25,11 +25,12 @@ LIBSRCFILES += ctran/backends/ib/CtranIb.cc ctran/backends/ib/CtranIbImpl.cc \
 			   ctran/backends/ib/CtranIbRequest.cc ctran/backends/ib/CtranIbVc.cc
 LIBSRCFILES += ctran/gpe/CtranGpe.cc ctran/gpe/CtranGpeImpl.cc
 LIBSRCFILES += ctran/mapper/CtranMapper.cc ctran/mapper/CtranMapperRequest.cc
+LIBSRCFILES += ctran/Ctran.cc
 LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc
 LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
 		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc
 
-INCLUDES := -Iinclude -Ictran/utils -Ictran/backends/ib -Ictran/mapper
+INCLUDES := -Iinclude -Ictran/utils -Ictran/ -Ictran/gpe -Ictran/mapper -Ictran/backends/ib
 INCLUDES += -Ialgorithms
 
 ##### lib files
