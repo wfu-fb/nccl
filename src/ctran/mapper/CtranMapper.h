@@ -40,6 +40,50 @@ class CtranMapperRequest {
 
 struct ncclComm;
 
+class CtranMapperTimestampPoint {
+  public:
+    CtranMapperTimestampPoint(int peer) {
+      this->now = std::chrono::high_resolution_clock::now();
+      this->peer = peer;
+    }
+    ~CtranMapperTimestampPoint() = default;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> now;
+    int peer;
+};
+
+class CtranMapperTimestamp {
+  public:
+    CtranMapperTimestamp(const std::string algo) {
+      this->algo = algo;
+      this->start = std::chrono::high_resolution_clock::now();
+    }
+    ~CtranMapperTimestamp() = default;
+
+    std::vector<CtranMapperTimestampPoint> recvCtrl;
+    std::vector<CtranMapperTimestampPoint> putIssued;
+    std::vector<CtranMapperTimestampPoint> putComplete;
+    std::string algo;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+};
+
+class CtranMapperTimer {
+ public:
+  CtranMapperTimer() {
+    this->start_ = std::chrono::high_resolution_clock::now();
+  }
+  ~CtranMapperTimer() = default;
+  double durationMs() {
+    auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               end - this->start_)
+        .count();
+  }
+
+ private:
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_;
+};
+
 class CtranMapper {
  public:
   CtranMapper(ncclComm* comm);
@@ -155,9 +199,15 @@ class CtranMapper {
    *   - rank: the rank of the peer to wait for the notification
    */
   ncclResult_t waitNotify(int rank);
+  /* report the Ctran profiling results
+   * Input arguments:
+   *   - flush: force flushing the profiling result
+   */
+  void reportProfiling(bool flush = false);
 
   int rank;
   uint64_t commHash;
+  std::vector<std::unique_ptr<CtranMapperTimestamp>> timestamps;
 
  protected:
   ncclResult_t progress(void);

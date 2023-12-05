@@ -148,9 +148,15 @@ int NCCL_CTRAN_IB_MAX_QPS;
 
 int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;
 
+enum NCCL_CTRAN_PROFILING NCCL_CTRAN_PROFILING;
+
+std::string NCCL_CTRAN_KINETO_PROFILE_DIR;
+
 enum NCCL_CTRAN_REGISTER NCCL_CTRAN_REGISTER;
 
 std::vector<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
+
+int NCCL_CTRAN_PROFILING_REPORT_COUNT;
 
 enum NCCL_ALLREDUCE_ALGO2 NCCL_ALLREDUCE_ALGO2;
 
@@ -180,8 +186,11 @@ void initEnvSet() {
   env.insert("NCCL_CTRAN_IB_TRAFFIC_PROFILNG");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
   env.insert("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD");
+  env.insert("NCCL_CTRAN_PROFILING");
+  env.insert("NCCL_CTRAN_KINETO_PROFILE_DIR");
   env.insert("NCCL_CTRAN_REGISTER");
   env.insert("NCCL_CTRAN_BACKENDS");
+  env.insert("NCCL_CTRAN_PROFILING_REPORT_COUNT");
   env.insert("NCCL_ALLREDUCE_ALGO2");
   env.insert("NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS");
   env.insert("NCCL_ALGO");
@@ -268,6 +277,25 @@ void readCvarEnv() {
 
   NCCL_CTRAN_IB_QP_SCALING_THRESHOLD = env2int("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", "1048576");
 
+  if (getenv("NCCL_CTRAN_PROFILING") == nullptr) {
+    NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::none;
+  } else {
+    std::string str(getenv("NCCL_CTRAN_PROFILING"));
+    if (str == std::string("none")) {
+      NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::none;
+    } else if (str == std::string("stdout")) {
+      NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::stdout;
+    } else if (str == std::string("info")) {
+      NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::info;
+    } else if (str == std::string("kineto")) {
+      NCCL_CTRAN_PROFILING = NCCL_CTRAN_PROFILING::kineto;
+    } else {
+      CVAR_WARN_UNKNOWN_VALUE("NCCL_CTRAN_PROFILING", str.c_str());
+    }
+  }
+
+  NCCL_CTRAN_KINETO_PROFILE_DIR = env2str("NCCL_CTRAN_KINETO_PROFILE_DIR", "/tmp");
+
   if (getenv("NCCL_CTRAN_REGISTER") == nullptr) {
     NCCL_CTRAN_REGISTER = NCCL_CTRAN_REGISTER::lazy;
   } else {
@@ -294,6 +322,8 @@ void readCvarEnv() {
       }
     }
   }
+
+  NCCL_CTRAN_PROFILING_REPORT_COUNT = env2int("NCCL_CTRAN_PROFILING_REPORT_COUNT", "100");
 
   if (getenv("NCCL_ALLREDUCE_ALGO2") == nullptr) {
     NCCL_ALLREDUCE_ALGO2 = NCCL_ALLREDUCE_ALGO2::orig;

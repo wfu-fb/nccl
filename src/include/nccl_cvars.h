@@ -43,6 +43,16 @@ extern int NCCL_CTRAN_IB_MAX_QPS;
 
 extern int NCCL_CTRAN_IB_QP_SCALING_THRESHOLD;
 
+enum class NCCL_CTRAN_PROFILING {
+  none,
+  stdout,
+  info,
+  kineto,
+};
+extern enum NCCL_CTRAN_PROFILING NCCL_CTRAN_PROFILING;
+
+extern std::string NCCL_CTRAN_KINETO_PROFILE_DIR;
+
 enum class NCCL_CTRAN_REGISTER {
   none,
   lazy,
@@ -54,6 +64,8 @@ enum class NCCL_CTRAN_BACKENDS {
   ib,
 };
 extern std::vector<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
+
+extern int NCCL_CTRAN_PROFILING_REPORT_COUNT;
 
 enum class NCCL_ALLREDUCE_ALGO2 {
   orig,
