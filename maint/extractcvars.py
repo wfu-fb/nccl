@@ -202,7 +202,7 @@ class string(basetype):
             indent(file, "TEST_F(CvarTest, %s_value_%s) {" % (self.name, i))
             indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
             indent(file, "ncclCvarInit();")
-            indent(file, "EXPECT_EQ(%s, \"%s\");" % (self.name, val.trim()))
+            indent(file, "EXPECT_EQ(%s, \"%s\");" % (self.name, val.strip()))
             indent(file, "}")
             file.write("\n")
 
