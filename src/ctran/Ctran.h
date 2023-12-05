@@ -14,7 +14,9 @@ class Ctran {
   Ctran(ncclComm* comm);
   ~Ctran() = default;
 
- public:
+  ncclResult_t commRegister(void* buff, size_t size, void** handle);
+  ncclResult_t commDeregister(void* handle);
+
   std::unique_ptr<CtranMapper> mapper{nullptr};
   std::unique_ptr<CtranGpe> gpe{nullptr};
 };

@@ -12,6 +12,32 @@ Ctran::Ctran(ncclComm* comm) {
   this->gpe = std::unique_ptr<CtranGpe>(new CtranGpe(comm->cudaDev));
 }
 
+ncclResult_t Ctran::commRegister(void* buff, size_t size, void** handle) {
+  ncclResult_t res = ncclSuccess;
+
+  if (!this->mapper) {
+    WARN("Ctran mapper is not initialized, skip commRegister\n");
+    return ncclInternalError;
+  } else if (NCCL_CTRAN_REGISTER != NCCL_CTRAN_REGISTER::none) {
+    return this->mapper->regMem(buff, size, handle);
+  }
+
+  return res;
+}
+
+ncclResult_t Ctran::commDeregister(void* handle) {
+  ncclResult_t res = ncclSuccess;
+
+  if (!this->mapper) {
+    WARN("Ctran mapper is not initialized, skip commDeregister\n");
+    return ncclInternalError;
+  } else if (NCCL_CTRAN_REGISTER != NCCL_CTRAN_REGISTER::none) {
+    return this->mapper->deregMem(handle);
+  }
+
+  return res;
+}
+
 ncclResult_t ctranInit(ncclComm* comm) {
   comm->ctran = std::unique_ptr<Ctran>(new Ctran(comm));
   return ncclSuccess;

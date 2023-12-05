@@ -2159,3 +2159,38 @@ ncclResult_t ncclCommUserRank(const ncclComm_t comm, int* rank) {
   *rank = comm->rank;
   return ncclSuccess;
 }
+
+NCCL_PARAM(LocalRegister, "LOCAL_REGISTER", 1);
+
+NCCL_API(ncclResult_t, ncclCommRegister, const ncclComm_t comm, void* buff, size_t size, void** handle);
+ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle) {
+  NVTX3_FUNC_RANGE_IN(nccl_domain);
+  ncclResult_t ret = ncclSuccess;
+
+  if (ncclParamLocalRegister()) {
+    if(ctranInitialized(comm)) {
+      return comm->ctran->commRegister(buff, size, handle);
+    } else {
+      WARN("ncclCommRegister is unsupported because Ctran is not initialized");
+      return ncclInvalidUsage;
+    }
+  }
+
+  return ret;
+}
+
+NCCL_API(ncclResult_t, ncclCommDeregister, const ncclComm_t comm, void* handle);
+ncclResult_t ncclCommDeregister(const ncclComm_t comm, void* handle) {
+  ncclResult_t ret = ncclSuccess;
+
+  if (ncclParamLocalRegister()) {
+    if(ctranInitialized(comm)) {
+      return comm->ctran->commDeregister(handle);
+    } else {
+      WARN("ncclCommDeregister is unsupported because Ctran is not initialized");
+      return ncclInvalidUsage;
+    }
+  }
+
+  return ret;
+}
