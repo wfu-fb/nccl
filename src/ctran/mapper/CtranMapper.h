@@ -135,6 +135,22 @@ class CtranMapper {
       const void* sbuf,
       std::size_t len,
       CtranMapperRequest** req);
+  /* Post a copy op and return a reqest object.
+   * Input arguments:
+   *   - dbuf: destination buffer to copy the data to
+   *   - sbuf: source buffer to copy the data from
+   *   - len: number of bytes to copy
+   *   - stream: the CUDA stream to execute the copy on
+   * Output arguments:
+   *   - req: a request object to track the progress of the copy
+   */
+  ncclResult_t icopy(
+      void* dbuf,
+      const void* sbuf,
+      std::size_t len,
+      cudaStream_t stream,
+      CtranMapperRequest** req);
+
 
   /* Post a send control op to associated backend.
    * Input arguments:

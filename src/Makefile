@@ -27,13 +27,13 @@ LIBSRCFILES += ctran/gpe/CtranGpe.cc ctran/gpe/CtranGpeImpl.cc
 LIBSRCFILES += ctran/mapper/CtranMapper.cc ctran/mapper/CtranMapperRequest.cc
 LIBSRCFILES += ctran/Ctran.cc
 LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc
-LIBSRCFILES += ctran/algos/sendrecv.cc
+LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllgatherDirect.cc
 LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
 		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc
 
 INCLUDES := -Iinclude
 INCLUDES += -Ialgorithms
-INCLUDES += -Ictran -Ictran/utils -Ictran/backends/ib -Ictran/mapper -Ictran/gpe -Ictran/algos
+INCLUDES += -Ictran -Ictran/utils -Ictran/backends/ib -Ictran/mapper -Ictran/gpe
 
 ##### lib files
 LIBNAME     := libnccl.so

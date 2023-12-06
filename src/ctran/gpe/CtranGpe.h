@@ -12,6 +12,7 @@ typedef ncclResult_t (*opFunc)(
 
 struct OpElem {
   enum opType {
+    ALLGATHER,
     SEND,
     RECV,
   } type;
@@ -19,6 +20,12 @@ struct OpElem {
   ncclComm_t comm;
 
   union {
+    struct {
+      const void* sendbuff;
+      void* recvbuff;
+      size_t sendcount;
+      ncclDataType_t datatype;
+    } allgather;
     struct {
       const void* sendbuff;
       size_t count;
@@ -51,5 +58,7 @@ class CtranGpe {
 __global__ void ncclKernelSend(int* flag);
 __global__ void ncclKernelRecv(int* flag);
 __global__ void ncclKernelSendRecv(int* flag);
+
+__global__ void ncclKernelAllGatherCtranDirect(int* flag);
 
 #endif

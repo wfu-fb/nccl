@@ -141,6 +141,8 @@ bool NCCL_DDA_FORCE_P2P_ACCESS;
 
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 
+enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
+
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
 
@@ -187,6 +189,7 @@ void initEnvSet() {
   env.insert("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE");
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_SENDRECV_ALGO");
+  env.insert("NCCL_ALLGATHER_ALGO");
   env.insert("NCCL_IB_HCA");
   env.insert("NCCL_CTRAN_IB_TRAFFIC_PROFILNG");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
@@ -283,6 +286,19 @@ void readCvarEnv() {
       NCCL_SENDRECV_ALGO = NCCL_SENDRECV_ALGO::ctran;
     } else {
       CVAR_WARN_UNKNOWN_VALUE("NCCL_SENDRECV_ALGO", str.c_str());
+    }
+  }
+
+  if (getenv("NCCL_ALLGATHER_ALGO") == nullptr) {
+    NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::orig;
+  } else {
+    std::string str(getenv("NCCL_ALLGATHER_ALGO"));
+    if (str == std::string("orig")) {
+      NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::orig;
+    } else if (str == std::string("ctdirect")) {
+      NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::ctdirect;
+    } else {
+      CVAR_WARN_UNKNOWN_VALUE("NCCL_ALLGATHER_ALGO", str.c_str());
     }
   }
 

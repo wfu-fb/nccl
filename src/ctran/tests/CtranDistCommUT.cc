@@ -1,8 +1,8 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <comm.h>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <nccl.h>
 #include <stdlib.h>
 #include "Ctran.h"
@@ -51,7 +51,7 @@ TEST_F(CtranTest, sendRecv) {
   int recvRank = 1;
   char* buf;
   cudaStream_t stream = 0;
-  void * hdl;
+  void* hdl;
   CUDACHECKIGNORE(cudaMalloc(&buf, bufSize));
 
   NCCLCHECK_TEST(ncclCommRegister(comm, buf, bufSize, &hdl));

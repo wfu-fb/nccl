@@ -21,6 +21,15 @@
      orig - Copy-based communication
      ctran - Ctran-based communication
 
+ - name        : NCCL_ALLGATHER_ALGO
+   type        : enum
+   default     : orig
+   choices     : orig, ctdirect
+   description : |-
+     The algorithm to use for Allgather communication
+     orig - Copy-based ring algorithm
+     ctdirect - Ctran-based direct point-to-point algorithm
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -94,5 +103,13 @@ ncclResult_t ctranRecv(
     cudaStream_t stream);
 
 ncclResult_t ctranGroupEndHook(void);
+
+ncclResult_t ctranAllGatherDirect(
+    const void* sendbuff,
+    void* recvbuff,
+    size_t sendcount,
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream);
 
 #endif // CTRAN_COMM_H_

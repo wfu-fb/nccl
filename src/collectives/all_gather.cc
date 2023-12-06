@@ -7,6 +7,7 @@
 #include "enqueue.h"
 #include "collectives.h"
 #include "nccl_cvars.h"
+#include "Ctran.h"
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -27,6 +28,13 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
   int nRanks = comm->nRanks;
   size_t rankOffset = sendcount * ncclTypeSize(datatype);
   bool directSend = (comm->localRanks == 1) && (rankOffset <= NCCL_ALLGATHER_DIRECT_CUTOFF);
+
+  // CTRAN allgather: only support inter-node now
+  if (ctranInitialized(comm) && comm->localRanks == 1 && nRanks > 1 && rankOffset > getpagesize()) {
+    if (NCCL_ALLGATHER_ALGO == NCCL_ALLGATHER_ALGO::ctdirect) {
+      return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    }
+  }
 
   if (directSend) {
     if (sendcount == 0) return ncclSuccess;

@@ -589,6 +589,24 @@ exit:
   return res;
 }
 
+ncclResult_t CtranMapper::icopy(
+    void* dbuf,
+    const void* sbuf,
+    std::size_t len,
+    cudaStream_t stream,
+    CtranMapperRequest** req) {
+  ncclResult_t res = ncclSuccess;
+
+  *req = new CtranMapperRequest(this);
+  CUDACHECKGOTO(
+      cudaMemcpyAsync(dbuf, sbuf, len, cudaMemcpyDefault, stream),
+      res,
+      exit);
+
+exit:
+  return res;
+}
+
 ncclResult_t CtranMapper::progress(void) {
   ncclResult_t res = ncclSuccess;
 

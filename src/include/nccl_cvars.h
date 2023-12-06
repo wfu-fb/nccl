@@ -40,6 +40,12 @@ enum class NCCL_SENDRECV_ALGO {
 };
 extern enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 
+enum class NCCL_ALLGATHER_ALGO {
+  orig,
+  ctdirect,
+};
+extern enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
+
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 
