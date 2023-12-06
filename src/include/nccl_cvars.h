@@ -43,6 +43,7 @@ extern enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 enum class NCCL_ALLGATHER_ALGO {
   orig,
   ctdirect,
+  ctring,
 };
 extern enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
 

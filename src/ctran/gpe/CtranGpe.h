@@ -60,5 +60,6 @@ __global__ void ncclKernelRecv(int* flag);
 __global__ void ncclKernelSendRecv(int* flag);
 
 __global__ void ncclKernelAllGatherCtranDirect(int* flag);
+__global__ void ncclKernelAllGatherCtranRing(int* flag);
 
 #endif

@@ -93,6 +93,7 @@ Description:
     The algorithm to use for Allgather communication
     orig - Copy-based ring algorithm
     ctdirect - Ctran-based direct point-to-point algorithm
+    ctring - Ctran-based ring algorithm
 Type: enum
 Default: orig
 

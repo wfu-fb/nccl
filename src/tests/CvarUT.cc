@@ -432,6 +432,12 @@ TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_1) {
   EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::ctdirect);
 }
 
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_2) {
+  setenv("NCCL_ALLGATHER_ALGO", "ctring", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::ctring);
+}
+
 TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_default_choice) {
   testDefaultValue("NCCL_ALLGATHER_ALGO");
   EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::orig);
