@@ -178,7 +178,7 @@ ncclResult_t ctranSend(
     int peer,
     ncclComm_t comm,
     cudaStream_t stream) {
-  CTRAN_COLL_INFO("CtranSend", sendbuff, count, datatype, peer, comm, stream);
+  CTRAN_COLL_INFO("CtranSend", sendbuff, nullptr, count, datatype, peer, comm, stream);
 
   ncclResult_t res = ncclSuccess;
   struct OpElem* op;
@@ -204,7 +204,7 @@ ncclResult_t ctranRecv(
     int peer,
     ncclComm_t comm,
     cudaStream_t stream) {
-  CTRAN_COLL_INFO("CtranRecv", recvbuff, count, datatype, peer, comm, stream);
+  CTRAN_COLL_INFO("CtranRecv", nullptr, recvbuff, count, datatype, peer, comm, stream);
 
   ncclResult_t res = ncclSuccess;
   struct OpElem* op;

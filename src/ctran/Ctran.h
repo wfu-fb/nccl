@@ -24,23 +24,24 @@
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
-#define CTRAN_COLL_INFO(                                                                                         \
-    algoStr, buffer, count, datatype, peer, comm, stream)                                                          \
-  do {                                                                                                             \
-    INFO(                                                                                                          \
-        NCCL_COLL,                                                                                                 \
-        "%s: opCount %lx buffer %p count %zi datatype %d peer %d comm %lu [nranks=%d, localRanks=%d] stream=%p\n", \
-        algoStr,                                                                                                   \
-        comm->opCount,                                                                                             \
-        buffer,                                                                                                    \
-        count,                                                                                                     \
-        datatype,                                                                                                  \
-        peer,                                                                                                      \
-        comm->commHash,                                                                                            \
-        comm->nRanks,                                                                                              \
-        comm->localRanks,                                                                                          \
-        stream);                                                                                                   \
-    comm->opCount++;                                                                                               \
+#define CTRAN_COLL_INFO(                                                                                                         \
+    algoStr, sendbuff, recvbuff, count, datatype, peer, comm, stream)                                                            \
+  do {                                                                                                                           \
+    INFO(                                                                                                                        \
+        NCCL_COLL,                                                                                                               \
+        "%s: opCount %lx sendbuff %p recvbuff %p count %zi datatype %d peer %d comm %lu [nranks=%d, localRanks=%d] stream=%p\n", \
+        algoStr,                                                                                                                 \
+        comm->opCount,                                                                                                           \
+        sendbuff,                                                                                                                \
+        recvbuff,                                                                                                                \
+        count,                                                                                                                   \
+        datatype,                                                                                                                \
+        peer,                                                                                                                    \
+        comm->commHash,                                                                                                          \
+        comm->nRanks,                                                                                                            \
+        comm->localRanks,                                                                                                        \
+        stream);                                                                                                                 \
+    comm->opCount++;                                                                                                             \
   } while (0)
 
 typedef enum {
