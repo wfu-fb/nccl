@@ -44,6 +44,7 @@ enum class NCCL_ALLGATHER_ALGO {
   orig,
   ctdirect,
   ctring,
+  ctrd,
 };
 extern enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
 

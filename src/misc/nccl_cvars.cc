@@ -299,6 +299,8 @@ void readCvarEnv() {
       NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::ctdirect;
     } else if (str == std::string("ctring")) {
       NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::ctring;
+    } else if (str == std::string("ctrd")) {
+      NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::ctrd;
     } else {
       CVAR_WARN_UNKNOWN_VALUE("NCCL_ALLGATHER_ALGO", str.c_str());
     }

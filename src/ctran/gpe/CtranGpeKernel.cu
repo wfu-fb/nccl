@@ -10,6 +10,10 @@ __global__ void ncclKernelAllGatherCtranRing(int *flag) {
   ncclKernelStallStream(flag);
 }
 
+__global__ void ncclKernelAllGatherCtranRecDbl(int *flag) {
+  ncclKernelStallStream(flag);
+}
+
 __global__ void ncclKernelSend(int *flag) {
   ncclKernelStallStream(flag);
 }

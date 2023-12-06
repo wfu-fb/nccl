@@ -196,6 +196,68 @@ TEST_F(CtranAllgatherTest, OutOfPlaceAllgatherRing) {
   NCCLCHECK_TEST(ncclCommDestroy(comm));
 }
 
+TEST_F(CtranAllgatherTest, InplaceAllgatherRD) {
+  ncclComm_t comm =
+      createNcclComm(this->globalRank, this->numRanks, this->localRank);
+
+  ASSERT_NE(nullptr, comm);
+  ASSERT_NE(nullptr, comm->ctran);
+
+  NCCLCHECK_TEST(ncclCommRegister(comm, recvbuf, recvBytes, &recvHdl));
+
+  void* inplaceSendBuf = (char*)recvbuf + this->globalRank * sendBytes;
+  auto res =
+      ctranAllGatherRd(inplaceSendBuf, recvbuf, count, dt, comm, stream);
+  EXPECT_EQ(res, ncclSuccess);
+
+  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+
+  for (int i = 0; i < this->numRanks; ++i) {
+    std::vector<char> observedVals(sendBytes, rand());
+    CUDACHECKIGNORE(cudaMemcpy(
+        observedVals.data(),
+        (char*)recvbuf + sendBytes * i,
+        sendBytes,
+        cudaMemcpyDefault));
+    EXPECT_THAT(observedVals, testing::Each(expectedVal * i));
+  }
+
+  NCCLCHECK_TEST(ncclCommDeregister(comm, recvHdl));
+
+  NCCLCHECK_TEST(ncclCommDestroy(comm));
+}
+
+TEST_F(CtranAllgatherTest, OutOfPlaceAllgatherRD) {
+  ncclComm_t comm =
+      createNcclComm(this->globalRank, this->numRanks, this->localRank);
+
+  ASSERT_NE(nullptr, comm);
+  ASSERT_NE(nullptr, comm->ctran);
+
+  NCCLCHECK_TEST(ncclCommRegister(comm, sendbuf, sendBytes, &sendHdl));
+  NCCLCHECK_TEST(ncclCommRegister(comm, recvbuf, recvBytes, &recvHdl));
+
+  auto res = ctranAllGatherRd(sendbuf, recvbuf, count, dt, comm, stream);
+  EXPECT_EQ(res, ncclSuccess);
+
+  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+
+  for (int i = 0; i < this->numRanks; ++i) {
+    std::vector<char> observedVals(sendBytes, rand());
+    CUDACHECKIGNORE(cudaMemcpy(
+        observedVals.data(),
+        (char*)recvbuf + sendBytes * i,
+        sendBytes,
+        cudaMemcpyDefault));
+    EXPECT_THAT(observedVals, testing::Each(expectedVal * i));
+  }
+
+  NCCLCHECK_TEST(ncclCommDeregister(comm, sendHdl));
+  NCCLCHECK_TEST(ncclCommDeregister(comm, recvHdl));
+
+  NCCLCHECK_TEST(ncclCommDestroy(comm));
+}
+
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::AddGlobalTestEnvironment(new MPIEnvironment);

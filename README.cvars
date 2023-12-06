@@ -94,6 +94,7 @@ Description:
     orig - Copy-based ring algorithm
     ctdirect - Ctran-based direct point-to-point algorithm
     ctring - Ctran-based ring algorithm
+    ctrd - Ctran-based recursive doubling algorithm
 Type: enum
 Default: orig
 

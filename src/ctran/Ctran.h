@@ -24,12 +24,13 @@
  - name        : NCCL_ALLGATHER_ALGO
    type        : enum
    default     : orig
-   choices     : orig, ctdirect, ctring
+   choices     : orig, ctdirect, ctring, ctrd
    description : |-
      The algorithm to use for Allgather communication
      orig - Copy-based ring algorithm
      ctdirect - Ctran-based direct point-to-point algorithm
      ctring - Ctran-based ring algorithm
+     ctrd - Ctran-based recursive doubling algorithm
 
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
@@ -106,6 +107,14 @@ ncclResult_t ctranRecv(
 ncclResult_t ctranGroupEndHook(void);
 
 ncclResult_t ctranAllGatherDirect(
+    const void* sendbuff,
+    void* recvbuff,
+    size_t sendcount,
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream);
+
+ncclResult_t ctranAllGatherRd(
     const void* sendbuff,
     void* recvbuff,
     size_t sendcount,
