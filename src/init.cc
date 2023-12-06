@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstdlib>
 
 #define STR2(v) #v
 #define STR(v) STR2(v)
@@ -37,6 +38,8 @@
 #define NCCL_GROUP_CUDA_STREAM 1 // CGMD: CUDA 9.0,9.1 Need to use an internal CUDA stream
 #endif
 
+ncclComm_t ncclCommWorld __attribute__ ((visibility("default")));
+
 const char* ncclFuncStr[NCCL_NUM_FUNCTIONS] = { "Broadcast", "Reduce", "AllGather", "ReduceScatter", "AllReduce" };
 const char* ncclAlgoStr[NCCL_NUM_ALGORITHMS] = { "Tree", "Ring", "CollNetDirect", "CollNetChain", "NVLS", "NVLSTree" };
 const char* ncclProtoStr[NCCL_NUM_PROTOCOLS] = { "LL", "LL128", "Simple" };
@@ -46,6 +49,7 @@ NCCL_PARAM(GroupCudaStream, "GROUP_CUDA_STREAM", NCCL_GROUP_CUDA_STREAM);
 NCCL_PARAM(CheckPointers, "CHECK_POINTERS", 0);
 NCCL_PARAM(CommBlocking, "COMM_BLOCKING", NCCL_CONFIG_UNDEF_INT);
 
+static ncclResult_t ncclCommInitWorld(const ncclComm_t comm);
 static ncclResult_t commReclaim(ncclComm_t comm);
 
 static uint64_t hashUniqueId(ncclUniqueId const &id) {
@@ -1404,6 +1408,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
 
   NCCLCHECKGOTO(nccl::algorithms::algoInit(comm), res, fail);
 
+  NCCLCHECKGOTO(ncclCommInitWorld(comm), res, fail);
+
 exit:
   if (job->newcomm) {
     /* assign it to user pointer. */
@@ -1587,6 +1593,32 @@ exit:
   return ret;
 fail:
   goto exit;
+}
+
+static ncclResult_t ncclCommDup(struct ncclComm* comm, struct ncclComm* parent) {
+  ncclResult_t res = ncclSuccess;
+  NCCLCHECKGOTO(commAlloc(ncclCommWorld, comm, parent->nRanks, parent->rank), res, exit);
+  memcpy((void*) comm, (void*) parent, sizeof(struct ncclComm));
+  NCCLCHECKGOTO(copyCommConfig(ncclCommWorld, comm), res, exit);
+exit:
+  return res;
+}
+
+/* initialize a world communicator based on a given comm */
+static ncclResult_t ncclCommInitWorld(const ncclComm_t comm) {
+  ncclResult_t res = ncclSuccess;
+  if (!ncclCommWorld) {
+    NCCLCHECK(ncclCalloc(&ncclCommWorld, 1));
+    NCCLCHECKGOTO(ncclCommDup(ncclCommWorld, comm), res, exit);
+    INFO(NCCL_INIT, "Initialized ncclCommWorld for nRanks=%d, nNodes=%d, localRanks=%d, commHash=%ld",
+      ncclCommWorld->nRanks,
+      ncclCommWorld->nNodes,
+      ncclCommWorld->localRanks,
+      ncclCommWorld->commHash);
+  }
+
+exit:
+  return res;
 }
 
 static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUniqueId commId, int myrank, int cudaDev, ncclConfig_t *config) {
@@ -1980,6 +2012,11 @@ ncclResult_t ncclCommDestroy(ncclComm_t comm) {
   if (comm->rank == -1 || comm->nRanks == -1 || comm->cudaDev == -1 || comm->busId == -1) {
     WARN("comm %p has already been destroyed", comm);
     return ncclInvalidArgument;
+  }
+
+  if (comm->commHash == ncclCommWorld->commHash) {
+    free(ncclCommWorld);
+    ncclCommWorld = NULL;
   }
 
   /* init thread must be joined before we destroy the comm. */
