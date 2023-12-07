@@ -2014,7 +2014,7 @@ ncclResult_t ncclCommDestroy(ncclComm_t comm) {
     return ncclInvalidArgument;
   }
 
-  if (comm->commHash == ncclCommWorld->commHash) {
+  if (ncclCommWorld && comm->commHash == ncclCommWorld->commHash) {
     free(ncclCommWorld);
     ncclCommWorld = NULL;
   }

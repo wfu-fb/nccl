@@ -167,6 +167,15 @@ TEST_F(CommWorldTest, commWorldColl) {
   free(observedVals);
 }
 
+TEST(CommWorld, SingleProcess) {
+  ncclComm_t comms[2];
+  int devs[] = {0, 1};
+  ncclCommInitAll(comms, 2, devs);
+
+  ncclCommDestroy(comms[0]);
+  ncclCommDestroy(comms[1]);
+}
+
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::AddGlobalTestEnvironment(new MPIEnvironment);
