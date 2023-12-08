@@ -28,6 +28,7 @@ struct commMd {
 struct DdaDeviceState {
   uintptr_t* barrierMbox;
   void* tmpbuff;
+  uintptr_t* barrierMboxIpc;
 };
 
 ncclResult_t ncclAllReduceDDA(const void* sendbuff, void* recvbuff, size_t count,
@@ -46,7 +47,7 @@ __global__ void ncclKernel_AllReduce_DDA2_Tree(
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
-  int rank, T* recvbuff, size_t count, size_t maxBlocks);
+  int rank, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA2_Tree_ipc(
   uintptr_t barrierFlag, DdaDeviceState* devStates,

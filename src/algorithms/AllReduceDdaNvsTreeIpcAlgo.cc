@@ -19,7 +19,7 @@ AllReduceDdaNvsTreeIpcAlgo::AllReduceDdaNvsTreeIpcAlgo(
     cudaStream_t stream,
     const DdaDeviceState* devStates_d,
     uintptr_t barrierFlag,
-    int multiProcessorCount)
+    size_t maxBlocks)
     : sendbuff_(sendbuff),
       recvbuff_(recvbuff),
       count_(count),
@@ -29,7 +29,7 @@ AllReduceDdaNvsTreeIpcAlgo::AllReduceDdaNvsTreeIpcAlgo(
       stream_(stream),
       devStates_d_(devStates_d),
       barrierFlag_(barrierFlag),
-      multiProcessorCount_(multiProcessorCount) {}
+      maxBlocks_(maxBlocks) {}
 
 AllReduceDdaNvsTreeIpcAlgo::~AllReduceDdaNvsTreeIpcAlgo() {}
 
@@ -39,10 +39,10 @@ ncclResult_t AllReduceDdaNvsTreeIpcAlgo::launchKernel() {
   ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Tree_ipc, comm_->nRanks);
 
   auto gridBlock =
-      getGridAndBlockDims(func, count_, datatype_, multiProcessorCount_);
+      getGridAndBlockDims(func, count_, datatype_, maxBlocks_);
   const auto& grid = gridBlock.first;
   const auto& block = gridBlock.second;
-  size_t maxBlocks = multiProcessorCount_;
+  size_t maxBlocks = maxBlocks_;
 
   void* args[] = {
       &barrierFlag_,

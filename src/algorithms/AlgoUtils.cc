@@ -25,14 +25,15 @@ std::pair<dim3, dim3> getGridAndBlockDims(
     const void* func,
     size_t count,
     ncclDataType_t datatype,
-    int multiProcessorCount) {
+    size_t maxBlocks) {
   cudaFuncAttributes funcAttr;
   CUDACHECKIGNORE(cudaFuncGetAttributes(&funcAttr, func));
 
   unsigned int minBlocks = 1;
-  unsigned int maxBlocks = multiProcessorCount;
+
   unsigned int minThreads = 32; // warp size
   unsigned int maxThreads = funcAttr.maxThreadsPerBlock;
+
   const size_t dataSize = getDataSize(datatype);
   const size_t elementsPerThread =
       16 / dataSize; // we do 16 Byte load in kernel

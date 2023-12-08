@@ -141,7 +141,7 @@ std::pair<dim3, dim3> getGridAndBlockDims(
     const void* func,
     size_t count,
     ncclDataType_t datatype,
-    int multiProcessorCount);
+    size_t maxBlocks);
 
 } // namespace algorithms
 } // namespace nccl

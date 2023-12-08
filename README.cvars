@@ -52,6 +52,12 @@ Description:
 Type: int
 Default: 33554432
 
+NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
+Description:
+    DDA Allreduce max number of blocks.
+Type: int
+Default: 24
+
 NCCL_ALLGATHER_DIRECT_CUTOFF
 Description:
     Message size up to which we use the direct algorithm for Allgather.

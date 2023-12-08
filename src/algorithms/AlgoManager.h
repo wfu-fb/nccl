@@ -103,6 +103,7 @@ class AlgoManager {
   ncclComm_t comm_{nullptr};
   cudaDeviceProp devProp_;
   DdaMemHandler memHandler_;
+  size_t maxBlocks_{0};
 
   // host memory
   DdaDeviceState* devStates_{nullptr};
@@ -112,6 +113,10 @@ class AlgoManager {
   uintptr_t* barrierMbox_d_{nullptr};
   void* tmpbuff_d_{nullptr};
   DdaDeviceState* devStates_d_{nullptr};
+
+  // ipc barrier
+  // TODO unify threaded/ipc barriers
+  uintptr_t* barrierMboxIpc_d_{nullptr};
 };
 
 } // namespace algorithms

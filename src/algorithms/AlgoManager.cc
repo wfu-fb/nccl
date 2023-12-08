@@ -27,6 +27,12 @@
    description : |-
      DDA Allreduce temporary buffer size.
 
+ - name        : NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
+   type        : int
+   default     : 24
+   description : |-
+     DDA Allreduce max number of blocks.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -55,7 +61,8 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
 
   // get device property (expensive call: 10+ ms)
   CUDACHECKIGNORE(cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
-  const int kMaxBlocks = devProp_.multiProcessorCount;
+  maxBlocks_ =
+      std::min(NCCL_DDA2_ALLREDUCE_MAX_BLOCKS, devProp_.multiProcessorCount);
 
   // allocate host memory
   devStates_ = static_cast<DdaDeviceState*>(
@@ -70,9 +77,22 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
   // barrier, RS, barrier, AG, barrier
   const size_t kNumBarriers = 3;
   CUDACHECKIGNORE(cudaMalloc(
-      &barrierMbox_d_, kNumBarriers * comm_->nRanks * kMaxBlocks * sizeof(uintptr_t)));
+      &barrierMbox_d_, kNumBarriers * comm_->nRanks * maxBlocks_ * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMemset(
-      barrierMbox_d_, 0, kNumBarriers * comm_->nRanks * kMaxBlocks * sizeof(uintptr_t)));
+      barrierMbox_d_, 0, kNumBarriers * comm_->nRanks * maxBlocks_ * sizeof(uintptr_t)));
+
+  // barrier for IPC, contains 3 barriers internally for Tree Algo
+  // 1) [r0, r1, ..., rN-1]
+  // 2) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
+  // 3) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
+  CUDACHECKIGNORE(cudaMalloc(
+      &barrierMboxIpc_d_,
+      (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
+  CUDACHECKIGNORE(cudaMemset(
+      barrierMboxIpc_d_,
+      0,
+      (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
+
   CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
       cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
@@ -80,11 +100,14 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
   // exchange handles
   memHandler_.add(barrierMbox_d_);
   memHandler_.add(tmpbuff_d_);
+  memHandler_.add(barrierMboxIpc_d_);
   memHandler_.exchangeMemHandles();
   for (int rank = 0; rank < comm_->nRanks; ++rank) {
     devStates_[rank].barrierMbox =
         static_cast<uintptr_t*>(memHandler_.get(rank, 0));
     devStates_[rank].tmpbuff = memHandler_.get(rank, 1);
+    devStates_[rank].barrierMboxIpc =
+        static_cast<uintptr_t*>(memHandler_.get(rank, 2));
   }
 
   CUDACHECKIGNORE(cudaMemcpy(
@@ -102,6 +125,7 @@ AlgoManager::~AlgoManager() {
 
   // free device memory
   CUDACHECKIGNORE(cudaFree(barrierMbox_d_));
+  CUDACHECKIGNORE(cudaFree(barrierMboxIpc_d_));
   CUDACHECKIGNORE(cudaFree(tmpbuff_d_));
   CUDACHECKIGNORE(cudaFree(devStates_d_));
 
@@ -310,7 +334,7 @@ AlgoManager::getAllReduceDdaNvsFlatThreadedAlgo(
           stream,
           devStates_d_,
           barrierFlag_,
-          devProp_.multiProcessorCount});
+          maxBlocks_});
   return algo;
 }
 
@@ -336,7 +360,7 @@ AlgoManager::getAllReduceDdaNvsTreeThreadedAlgo(
           stream,
           devStates_d_,
           barrierFlag_,
-          devProp_.multiProcessorCount});
+          maxBlocks_});
   return algo;
 }
 
@@ -362,7 +386,7 @@ AlgoManager::getAllReduceDdaNvsFlatIpcAlgo(
           stream,
           devStates_d_,
           barrierFlag_,
-          devProp_.multiProcessorCount});
+          maxBlocks_});
   return algo;
 }
 
@@ -388,7 +412,7 @@ AlgoManager::getAllReduceDdaNvsTreeIpcAlgo(
           stream,
           devStates_d_,
           barrierFlag_,
-          devProp_.multiProcessorCount});
+          maxBlocks_});
   return algo;
 }
 
