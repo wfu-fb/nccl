@@ -120,6 +120,8 @@ ncclResult_t ctranAllGatherRing(
   std::vector<std::unique_ptr<struct OpElem>> opGroup;
   std::unique_ptr<struct OpElem> op;
 
+  CTRAN_COLL_INFO("ctranAllGatherRing", sendbuff, recvbuff, sendcount, datatype, -1, comm, stream);
+
   /* copy data for out-of-place allgather */
   if ((uintptr_t)recvbuff + comm->rank * sendcount * ncclTypeSize(datatype) !=
       (uintptr_t)sendbuff) {
