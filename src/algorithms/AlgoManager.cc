@@ -68,28 +68,16 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
   devStates_ = static_cast<DdaDeviceState*>(
       malloc(sizeof(DdaDeviceState) * comm_->nRanks));
 
-  // each barrier has following memory layout
-  // rank0:[b0, b1, ..., bk], rank1:[b0, b1, ..., bk]
-  // where bk represents k-th block
-
   // allocate device memory
-  // we need 3 barriers for tree algorithms
-  // barrier, RS, barrier, AG, barrier
-  const size_t kNumBarriers = 3;
-  CUDACHECKIGNORE(cudaMalloc(
-      &barrierMbox_d_, kNumBarriers * comm_->nRanks * maxBlocks_ * sizeof(uintptr_t)));
-  CUDACHECKIGNORE(cudaMemset(
-      barrierMbox_d_, 0, kNumBarriers * comm_->nRanks * maxBlocks_ * sizeof(uintptr_t)));
-
-  // barrier for IPC, contains 3 barriers internally for Tree Algo
+  // we need 3 barriers for Tree Algo
   // 1) [r0, r1, ..., rN-1]
   // 2) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   // 3) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   CUDACHECKIGNORE(cudaMalloc(
-      &barrierMboxIpc_d_,
+      &barrierMbox_d_,
       (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMemset(
-      barrierMboxIpc_d_,
+      barrierMbox_d_,
       0,
       (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
 
@@ -100,14 +88,11 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
   // exchange handles
   memHandler_.add(barrierMbox_d_);
   memHandler_.add(tmpbuff_d_);
-  memHandler_.add(barrierMboxIpc_d_);
   memHandler_.exchangeMemHandles();
   for (int rank = 0; rank < comm_->nRanks; ++rank) {
     devStates_[rank].barrierMbox =
         static_cast<uintptr_t*>(memHandler_.get(rank, 0));
     devStates_[rank].tmpbuff = memHandler_.get(rank, 1);
-    devStates_[rank].barrierMboxIpc =
-        static_cast<uintptr_t*>(memHandler_.get(rank, 2));
   }
 
   CUDACHECKIGNORE(cudaMemcpy(
@@ -125,7 +110,6 @@ AlgoManager::~AlgoManager() {
 
   // free device memory
   CUDACHECKIGNORE(cudaFree(barrierMbox_d_));
-  CUDACHECKIGNORE(cudaFree(barrierMboxIpc_d_));
   CUDACHECKIGNORE(cudaFree(tmpbuff_d_));
   CUDACHECKIGNORE(cudaFree(devStates_d_));
 
