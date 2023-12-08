@@ -25,6 +25,13 @@
     int rank,                                                           \
     T* recvbuff,                                                        \
     size_t count,                                                       \
+    size_t maxBlocks);                                                  \
+  template __global__ void ncclKernel_AllReduce_DDA2_Tree_ipc<T, NRANKS>(   \
+    uintptr_t barrierFlag,                                              \
+    DdaDeviceState* devStates,                                          \
+    int rank,                                                           \
+    T* recvbuff,                                                        \
+    size_t count,                                                       \
     size_t maxBlocks);
 
 #define DECL_DDA2_FUNC(T)      \

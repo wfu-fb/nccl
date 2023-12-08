@@ -376,6 +376,108 @@ __global__ void ncclKernel_AllReduce_DDA2_Tree(
   barrier<NRANKS>(mbox + 2 * maxBlocks * NRANKS, barrierFlag, rank, maxBlocks);
 }
 
+// use devStates[rank].tmpbuff as sendbuff and reduce-scatter on recvbuff
+template <typename T, uint32_t NRANKS>
+static inline __device__ void reduceScatter_ipc(
+    uintptr_t* mbox,
+    uintptr_t barrierFlag,
+    DdaDeviceState* devStates,
+    int rank,
+    T* recvbuff,
+    size_t recvcount,
+    size_t maxBlocks) {
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
+  barrier<NRANKS>(mbox, barrierFlag, rank, maxBlocks);
+
+  const T* srcs[NRANKS];
+  for (int i = 0; i < NRANKS; ++i) {
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = reinterpret_cast<const T*>(devStates[nbrRank].tmpbuff);
+  }
+
+  // direct-access reduce data on rank-th block with 16-byte loads
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = recvcount;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    reinterpret_cast<uint4*>(&recvbuff[idx])[0] =
+        vecAdd<T, NRANKS>(srcs, idx + rank * recvcount);
+  }
+}
+
+// all-gather ipc version
+// use "devStates[rank].tmpbuff + rank * sendcount" as the sendbuff
+template <typename T, uint32_t NRANKS>
+static inline __device__ void allGather_ipc(
+    uintptr_t* mbox,
+    uintptr_t barrierFlag,
+    DdaDeviceState* devStates,
+    int rank,
+    T* recvbuff,
+    size_t sendcount,
+    size_t maxBlocks) {
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
+  barrier<NRANKS>(mbox, barrierFlag, rank, maxBlocks);
+
+  const T* srcs[NRANKS];
+  int rankOffset[NRANKS];
+  for (int i = 0; i < NRANKS; ++i) {
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = reinterpret_cast<const T*>(devStates[nbrRank].tmpbuff) + nbrRank * sendcount;
+    rankOffset[i] = nbrRank * sendcount;
+  }
+
+  // direct-access all-gather with 16-byte loads
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = sendcount;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (int i = 0; i < NRANKS; ++i) {
+    for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+      reinterpret_cast<uint4*>(&recvbuff[idx + rankOffset[i]])[0] = reinterpret_cast<const uint4*>(&srcs[i][idx])[0];
+    }
+  }
+}
+
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA2_Tree_ipc(
+    uintptr_t barrierFlag,
+    DdaDeviceState* devStates,
+    int rank,
+    T* recvbuff,
+    size_t count,
+    size_t maxBlocks) {
+  // always use rank0's barrierMbox as the shared barrier
+  uintptr_t* mbox = devStates[0].barrierMbox;
+
+  T* rsRecvbuff =
+      reinterpret_cast<T*>(devStates[rank].tmpbuff) + rank * count / NRANKS;
+  reduceScatter_ipc<T, NRANKS>(
+    mbox,
+    barrierFlag,
+    devStates,
+    rank,
+    rsRecvbuff,
+    count / NRANKS,
+    maxBlocks);
+
+  __threadfence_system();
+
+  allGather_ipc<T, NRANKS>(
+    mbox + maxBlocks * NRANKS,
+    barrierFlag,
+    devStates,
+    rank,
+    recvbuff,
+    count / NRANKS,
+    maxBlocks);
+
+  barrier<NRANKS>(mbox + 2 * maxBlocks * NRANKS, barrierFlag, rank, maxBlocks);
+}
+
 DECL_DDA2_FUNC(char);
 DECL_DDA2_FUNC(uint8_t);
 DECL_DDA2_FUNC(int32_t);

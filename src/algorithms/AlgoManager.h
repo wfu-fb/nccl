@@ -6,6 +6,7 @@
 #include "AllReduceDdaNvsFlatThreadedAlgo.h"
 #include "AllReduceDdaNvsTreeThreadedAlgo.h"
 #include "AllReduceDdaNvsFlatIpcAlgo.h"
+#include "AllReduceDdaNvsTreeIpcAlgo.h"
 #include "DdaMemHandler.h"
 #include "collectives.h"
 
@@ -57,6 +58,16 @@ class AlgoManager {
 
   std::unique_ptr<AllReduceDdaNvsFlatIpcAlgo>
   getAllReduceDdaNvsFlatIpcAlgo(
+      const void* sendbuff,
+      void* recvbuff,
+      size_t count,
+      ncclDataType_t datatype,
+      ncclRedOp_t op,
+      ncclComm* comm,
+      cudaStream_t stream);
+
+  std::unique_ptr<AllReduceDdaNvsTreeIpcAlgo>
+  getAllReduceDdaNvsTreeIpcAlgo(
       const void* sendbuff,
       void* recvbuff,
       size_t count,

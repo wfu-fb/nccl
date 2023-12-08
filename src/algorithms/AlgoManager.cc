@@ -134,20 +134,22 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     }
   } else {
     // multi-process environment
+
+    // copy src to tmp buffers
+    assert(totalSize <= NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE);
+    CUDACHECKIGNORE(cudaMemcpyAsync(
+        devStates_[comm_->rank].tmpbuff,
+        sendbuff,
+        totalSize,
+        cudaMemcpyDefault,
+        stream));
+
     if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
-      // copy src to tmp buffers
-      assert(totalSize <= NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE);
-      CUDACHECKIGNORE(cudaMemcpyAsync(
-          devStates_[comm_->rank].tmpbuff,
-          sendbuff,
-          totalSize,
-          cudaMemcpyDefault,
-          stream));
       return getAllReduceDdaNvsFlatIpcAlgo(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
     } else {
-      // TODO add tree IPC algo
-      return nullptr;
+      return getAllReduceDdaNvsTreeIpcAlgo(
+          sendbuff, recvbuff, count, datatype, op, comm, stream);
     }
   }
 }
@@ -217,6 +219,32 @@ AlgoManager::getAllReduceDdaNvsFlatIpcAlgo(
   barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AllReduceDdaNvsFlatIpcAlgo>(
       new AllReduceDdaNvsFlatIpcAlgo{
+          sendbuff,
+          recvbuff,
+          count,
+          datatype,
+          op,
+          comm,
+          stream,
+          devStates_d_,
+          barrierFlag_,
+          devProp_.multiProcessorCount});
+  return algo;
+}
+
+std::unique_ptr<AllReduceDdaNvsTreeIpcAlgo>
+AlgoManager::getAllReduceDdaNvsTreeIpcAlgo(
+    const void* sendbuff,
+    void* recvbuff,
+    size_t count,
+    ncclDataType_t datatype,
+    ncclRedOp_t op,
+    ncclComm* comm,
+    cudaStream_t stream) {
+  // toggle barrier flag
+  barrierFlag_ = !barrierFlag_;
+  auto algo = std::unique_ptr<AllReduceDdaNvsTreeIpcAlgo>(
+      new AllReduceDdaNvsTreeIpcAlgo{
           sendbuff,
           recvbuff,
           count,

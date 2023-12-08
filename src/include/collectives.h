@@ -47,6 +47,10 @@ template <typename T, uint32_t NRANKS>
 __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, T* recvbuff, size_t count, size_t maxBlocks);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA2_Tree_ipc(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, T* recvbuff, size_t count, size_t maxBlocks);
 
 // DDA kernels (TODO deprecate DDA once migrated to DDA2)
 template <typename T, uint32_t NRANKS>
