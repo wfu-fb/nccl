@@ -30,6 +30,7 @@ LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc
 LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllgatherDirect.cc
 LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
 		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc
+LIBSRCFILES += window.cc
 
 INCLUDES := -Iinclude
 INCLUDES += -Ialgorithms
