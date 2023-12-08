@@ -111,6 +111,117 @@ AlgoManager::~AlgoManager() {
   INFO(NCCL_INIT, "AlgoManager destroyed.");
 }
 
+bool AlgoManager::checkNumRanks(size_t numRanks) {
+  if (numRanks & (numRanks - 1)) {
+    // power of two ranks
+    return false;
+  }
+
+  if (numRanks == 1) {
+    // more than 1 rank
+    return false;
+  }
+
+  if (numRanks > 8) {
+    // only support 2, 4, 8 ranks (single-node)
+    return false;
+  }
+
+  return true;
+}
+
+bool AlgoManager::canRunDdaThreaded(
+    ncclComm* comm,
+    ncclRedOp_t op,
+    const void* sendbuff,
+    void* recvbuff,
+    size_t totalBytes,
+    size_t numDdaThreads,
+    size_t treeThresholdBytes) {
+  if (numDdaThreads != comm->nRanks) {
+    // my communicator group must contain only DdaThreads
+    return false;
+  }
+
+  if (!checkNumRanks(comm->nRanks)) {
+    return false;
+  }
+
+  if (op != ncclSum) {
+    // only sum is supported
+    return false;
+  }
+
+  if (((uintptr_t)sendbuff % 16) || ((uintptr_t)recvbuff % 16)) {
+    // 16 byte alignment as we do 16-byte loads in DDA kernel
+    return false;
+  }
+
+  if (totalBytes < treeThresholdBytes) {
+    // Flat algo
+    if (sendbuff == recvbuff) {
+      // we don't support inplace FLAT threaded algo yet
+      return false;
+    }
+    if (totalBytes % 16) {
+      // 16-bytes load
+      return false;
+    }
+  } else {
+    // Tree algo
+    if (totalBytes % (16 * comm->nRanks)) {
+      // 16-bytes load
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool AlgoManager::canRunDdaIpc(
+    ncclComm* comm,
+    ncclRedOp_t op,
+    const void* sendbuff,
+    void* recvbuff,
+    size_t totalBytes,
+    size_t treeThresholdBytes,
+    size_t tmpbuffSize) {
+  if (comm->localRanks != comm->nRanks) {
+    // all ranks must be local
+    return false;
+  }
+
+  if (!checkNumRanks(comm->nRanks)) {
+    return false;
+  }
+
+  if (op != ncclSum) {
+    // only sum is supported
+    return false;
+  }
+
+  if (totalBytes < treeThresholdBytes) {
+    // Flat algo
+    if (totalBytes % 16) {
+      // 16-bytes load
+      return false;
+    }
+  } else {
+    // Tree algo
+    if (totalBytes % (16 * comm->nRanks)) {
+      // 16-bytes load
+      return false;
+    }
+  }
+
+  if (totalBytes > tmpbuffSize) {
+    // we always copy sendbuff to tmpbuff for IPC
+    return false;
+  }
+
+  return true;
+}
+
 std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     const void* sendbuff,
     void* recvbuff,
@@ -120,11 +231,23 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     ncclComm* comm,
     cudaStream_t stream) {
   // select proper algorithm
-  const size_t numThreadedRanks = DdaThreadedData::get()->numRanks(comm_->commHash);
+  const size_t numDdaThreads = DdaThreadedData::get()->numRanks(comm_->commHash);
   const size_t totalSize = count * getDataSize(datatype);
 
-  if (numThreadedRanks == comm_->nRanks) {
+  if (numDdaThreads == comm_->nRanks) {
     // multi-threaded environment
+    if (!canRunDdaThreaded(
+        comm,
+        op,
+        sendbuff,
+        recvbuff,
+        totalSize,
+        numDdaThreads,
+        NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS)) {
+      // fallback to default
+      return nullptr;
+    }
+
     if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
       return getAllReduceDdaNvsFlatThreadedAlgo(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
@@ -134,6 +257,17 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     }
   } else {
     // multi-process environment
+    if (!canRunDdaIpc(
+          comm,
+          op,
+          sendbuff,
+          recvbuff,
+          totalSize,
+          NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS,
+          NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE)) {
+      // fallback to default
+      return nullptr;
+    }
 
     // copy src to tmp buffers
     assert(totalSize <= NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE);

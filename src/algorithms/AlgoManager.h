@@ -76,7 +76,30 @@ class AlgoManager {
       ncclComm* comm,
       cudaStream_t stream);
 
+  // check DDA threaded requirements
+  static bool canRunDdaThreaded(
+    ncclComm* comm,
+    ncclRedOp_t op,
+    const void* sendbuff,
+    void* recvbuff,
+    size_t totalBytes,
+    size_t numDdaThreads,
+    size_t treeThresholdBytes);
+
+  // check DDA IPC requirements
+  static bool canRunDdaIpc(
+    ncclComm* comm,
+    ncclRedOp_t op,
+    const void* sendbuff,
+    void* recvbuff,
+    size_t totalBytes,
+    size_t treeThresholdBytes,
+    size_t tmpbuffSize);
+
  private:
+  // we only support 2,4,8 ranks (single-node) for now
+  static bool checkNumRanks(size_t numRanks);
+
   ncclComm_t comm_{nullptr};
   cudaDeviceProp devProp_;
   DdaMemHandler memHandler_;
