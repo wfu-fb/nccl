@@ -31,6 +31,27 @@ Description:
 Type: enum
 Default: orig
 
+NCCL_ALLREDUCE_ALGO2
+Description:
+    The algorithm to use for Allreduce communication
+    orig - Copy-based algorithm
+    dda - Direct Data Access algorithms
+Type: enum
+Default: orig
+
+NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
+Description:
+    Message size at which DDA Allreduce switches to the tree algorithm.
+    Only applies for NVSwitch-based systems.
+Type: int
+Default: 262144
+
+NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE
+Description:
+    DDA Allreduce temporary buffer size.
+Type: int
+Default: 33554432
+
 NCCL_ALLGATHER_DIRECT_CUTOFF
 Description:
     Message size up to which we use the direct algorithm for Allgather.
@@ -189,18 +210,3 @@ Description:
     Number of ops to report CTRAN profiling results periodically
 Type: int
 Default: 100
-
-NCCL_ALLREDUCE_ALGO2
-Description:
-    The algorithm to use for Allreduce communication
-    orig - Copy-based algorithm
-    dda - Direct Data Access algorithms
-Type: enum
-Default: orig
-
-NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
-Description:
-    Message size at which DDA Allreduce switches to the tree algorithm.
-    Only applies for NVSwitch-based systems.
-Type: int
-Default: 262144

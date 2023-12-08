@@ -21,6 +21,12 @@
      Message size at which DDA Allreduce switches to the tree algorithm.
      Only applies for NVSwitch-based systems.
 
+ - name        : NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE
+   type        : int
+   default     : 33554432
+   description : |-
+     DDA Allreduce temporary buffer size.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -50,43 +56,52 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
   // get device property (expensive call: 10+ ms)
   CUDACHECKIGNORE(cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
 
+  // allocate host memory
+  devStates_ = static_cast<DdaDeviceState*>(
+      malloc(sizeof(DdaDeviceState) * comm_->nRanks));
+
   // allocate device memory
   const size_t kNumBarriers = 3;
   CUDACHECKIGNORE(cudaMalloc(
       &barrierMbox_d_, kNumBarriers * comm_->nRanks * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMemset(
       barrierMbox_d_, 0, kNumBarriers * comm_->nRanks * sizeof(uintptr_t)));
-  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, 128 * 1024));
+  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
       cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
 
+  // exchange handles
   memHandler_.add(barrierMbox_d_);
   memHandler_.add(tmpbuff_d_);
   memHandler_.exchangeMemHandles();
-
-  DdaDeviceState devStates[comm_->nRanks];
   for (int rank = 0; rank < comm_->nRanks; ++rank) {
-    devStates[rank].barrierMbox =
+    devStates_[rank].barrierMbox =
         static_cast<uintptr_t*>(memHandler_.get(rank, 0));
-    devStates[rank].tmpbuff = memHandler_.get(rank, 1);
+    devStates_[rank].tmpbuff = memHandler_.get(rank, 1);
   }
 
   CUDACHECKIGNORE(cudaMemcpy(
       devStates_d_,
-      devStates,
+      devStates_,
       sizeof(DdaDeviceState) * comm_->nRanks,
       cudaMemcpyDefault));
 
-  INFO(NCCL_COLL, "AlgoManager initialized.");
+  INFO(NCCL_INIT, "AlgoManager initialized.");
 }
 
 AlgoManager::~AlgoManager() {
   // unregister rank
   DdaThreadedData::get()->unregisterRank(comm_->commHash, comm_->rank);
 
+  // free device memory
   CUDACHECKIGNORE(cudaFree(barrierMbox_d_));
   CUDACHECKIGNORE(cudaFree(tmpbuff_d_));
   CUDACHECKIGNORE(cudaFree(devStates_d_));
+
+  // free host memory
+  free(devStates_);
+
+  INFO(NCCL_INIT, "AlgoManager destroyed.");
 }
 
 std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
@@ -98,13 +113,35 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     ncclComm* comm,
     cudaStream_t stream) {
   // select proper algorithm
+  const size_t numThreadedRanks = DdaThreadedData::get()->numRanks(comm_->commHash);
   const size_t totalSize = count * getDataSize(datatype);
-  if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
-    return getAllReduceDdaNvsFlatThreadedAlgo(
-        sendbuff, recvbuff, count, datatype, op, comm, stream);
+
+  if (numThreadedRanks == comm_->nRanks) {
+    // multi-threaded environment
+    if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
+      return getAllReduceDdaNvsFlatThreadedAlgo(
+          sendbuff, recvbuff, count, datatype, op, comm, stream);
+    } else {
+      return getAllReduceDdaNvsTreeThreadedAlgo(
+          sendbuff, recvbuff, count, datatype, op, comm, stream);
+    }
   } else {
-    return getAllReduceDdaNvsTreeThreadedAlgo(
-        sendbuff, recvbuff, count, datatype, op, comm, stream);
+    // multi-process environment
+    if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
+      // copy src to tmp buffers
+      assert(totalSize <= NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE);
+      CUDACHECKIGNORE(cudaMemcpyAsync(
+          devStates_[comm_->rank].tmpbuff,
+          sendbuff,
+          totalSize,
+          cudaMemcpyDefault,
+          stream));
+      return getAllReduceDdaNvsFlatIpcAlgo(
+          sendbuff, recvbuff, count, datatype, op, comm, stream);
+    } else {
+      // TODO add tree IPC algo
+      return nullptr;
+    }
   }
 }
 
@@ -147,6 +184,32 @@ AlgoManager::getAllReduceDdaNvsTreeThreadedAlgo(
   barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AllReduceDdaNvsTreeThreadedAlgo>(
       new AllReduceDdaNvsTreeThreadedAlgo{
+          sendbuff,
+          recvbuff,
+          count,
+          datatype,
+          op,
+          comm,
+          stream,
+          devStates_d_,
+          barrierFlag_,
+          devProp_.multiProcessorCount});
+  return algo;
+}
+
+std::unique_ptr<AllReduceDdaNvsFlatIpcAlgo>
+AlgoManager::getAllReduceDdaNvsFlatIpcAlgo(
+    const void* sendbuff,
+    void* recvbuff,
+    size_t count,
+    ncclDataType_t datatype,
+    ncclRedOp_t op,
+    ncclComm* comm,
+    cudaStream_t stream) {
+  // toggle barrier flag
+  barrierFlag_ = !barrierFlag_;
+  auto algo = std::unique_ptr<AllReduceDdaNvsFlatIpcAlgo>(
+      new AllReduceDdaNvsFlatIpcAlgo{
           sendbuff,
           recvbuff,
           count,

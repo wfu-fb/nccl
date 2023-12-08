@@ -68,5 +68,14 @@ bool DdaThreadedData::hasRank(uint64_t commHash, int rank) {
   return registeredRanks->second.count(rank) > 0;
 }
 
+size_t DdaThreadedData::numRanks(uint64_t commHash) {
+  std::lock_guard<std::mutex> lock(instanceMutex_);
+  auto registeredRanks = commToRanks_.find(commHash);
+  if (registeredRanks == commToRanks_.end()) {
+    return 0;
+  }
+  return registeredRanks->second.size();
+}
+
 } // namespace algorithms
 } // namespace nccl

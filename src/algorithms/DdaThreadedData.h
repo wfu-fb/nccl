@@ -23,6 +23,7 @@ class DdaThreadedData {
   bool registerRank(uint64_t commHash, int rank);
   bool unregisterRank(uint64_t commHash, int rank);
   bool hasRank(uint64_t commHash, int rank);
+  size_t numRanks(uint64_t commHash);
 
  private:
   DdaThreadedData();

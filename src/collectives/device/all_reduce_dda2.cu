@@ -212,6 +212,38 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat(
 }
 
 template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
+    uintptr_t barrierFlag,
+    DdaDeviceState* devStates,
+    int rank,
+    T* recvbuff,
+    size_t count) {
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
+
+  // always use rank0's barrierMbox as the shared barrier
+  uintptr_t* mbox = devStates[0].barrierMbox;
+  barrier<NRANKS>(mbox, barrierFlag, rank);
+
+  const T* srcs[NRANKS];
+  for (int i = 0; i < NRANKS; i++) {
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = reinterpret_cast<const T*>(devStates[nbrRank].tmpbuff);
+  }
+
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = count;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    reinterpret_cast<uint4*>(&recvbuff[idx])[0] =
+      vecAdd<T, NRANKS>(srcs, idx);
+  }
+
+  barrier<NRANKS>(mbox + NRANKS, barrierFlag, rank);
+}
+
+template <typename T, uint32_t NRANKS>
 static inline __device__ void reduceScatter(
     uintptr_t* mbox,
     uintptr_t barrierFlag,

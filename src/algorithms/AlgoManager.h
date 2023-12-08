@@ -5,6 +5,7 @@
 
 #include "AllReduceDdaNvsFlatThreadedAlgo.h"
 #include "AllReduceDdaNvsTreeThreadedAlgo.h"
+#include "AllReduceDdaNvsFlatIpcAlgo.h"
 #include "DdaMemHandler.h"
 #include "collectives.h"
 
@@ -54,17 +55,29 @@ class AlgoManager {
       ncclComm* comm,
       cudaStream_t stream);
 
+  std::unique_ptr<AllReduceDdaNvsFlatIpcAlgo>
+  getAllReduceDdaNvsFlatIpcAlgo(
+      const void* sendbuff,
+      void* recvbuff,
+      size_t count,
+      ncclDataType_t datatype,
+      ncclRedOp_t op,
+      ncclComm* comm,
+      cudaStream_t stream);
+
  private:
   ncclComm_t comm_{nullptr};
   cudaDeviceProp devProp_;
   DdaMemHandler memHandler_;
 
-  // device buffers
+  // host memory
+  DdaDeviceState* devStates_{nullptr};
+  uintptr_t barrierFlag_{0};
+
+  // device memory
   uintptr_t* barrierMbox_d_{nullptr};
   void* tmpbuff_d_{nullptr};
   DdaDeviceState* devStates_d_{nullptr};
-
-  uintptr_t barrierFlag_{0};
 };
 
 } // namespace algorithms
