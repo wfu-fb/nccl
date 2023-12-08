@@ -55,17 +55,24 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
 
   // get device property (expensive call: 10+ ms)
   CUDACHECKIGNORE(cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
+  const int kMaxBlocks = devProp_.multiProcessorCount;
 
   // allocate host memory
   devStates_ = static_cast<DdaDeviceState*>(
       malloc(sizeof(DdaDeviceState) * comm_->nRanks));
 
+  // each barrier has following memory layout
+  // rank0:[b0, b1, ..., bk], rank1:[b0, b1, ..., bk]
+  // where bk represents k-th block
+
   // allocate device memory
+  // we need 3 barriers for tree algorithms
+  // barrier, RS, barrier, AG, barrier
   const size_t kNumBarriers = 3;
   CUDACHECKIGNORE(cudaMalloc(
-      &barrierMbox_d_, kNumBarriers * comm_->nRanks * sizeof(uintptr_t)));
+      &barrierMbox_d_, kNumBarriers * comm_->nRanks * kMaxBlocks * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMemset(
-      barrierMbox_d_, 0, kNumBarriers * comm_->nRanks * sizeof(uintptr_t)));
+      barrierMbox_d_, 0, kNumBarriers * comm_->nRanks * kMaxBlocks * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
       cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));

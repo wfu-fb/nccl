@@ -153,20 +153,25 @@ vecAdd(const T* src_a, const T* src_b) {
 
 template <uint32_t NRANKS>
 static inline __device__ void
-barrier(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
+barrier(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank, size_t maxBlocks) {
   volatile uintptr_t* barrier_d = barrierMbox;
   const int gtidx = threadIdx.x + blockDim.x * blockIdx.x;
 
-  if (gtidx == 0) {
-    barrier_d[rank] = barrierFlag;
+  // sync threads in this block and mark this block as ready
+  __syncthreads();
+  if (threadIdx.x == 0) {
+    barrier_d[rank * maxBlocks + blockIdx.x] = barrierFlag;
   }
 
-  if (threadIdx.x < NRANKS) {
-    while ((barrier_d[threadIdx.x] & 1UL) != (barrierFlag & 1UL)) {
+  // wait till other ranks (each with multiple blocks) are ready
+  for (int i = threadIdx.x; i < gridDim.x * NRANKS; i += blockDim.x) {
+    const int rankId = i / gridDim.x;
+    const int blockId = i % gridDim.x;
+    while ((barrier_d[rankId * maxBlocks + blockId] & 1UL) != (barrierFlag & 1UL)) {
     }
   }
 
-  /* remaining threads in the block wait */
+  // sync remaining threads in this block
   __syncthreads();
 }
 
@@ -185,17 +190,22 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat(
     int rank,
     const T* sendbuff,
     T* recvbuff,
-    size_t count) {
+    size_t count,
+    size_t maxBlocks) {
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // always use rank0's barrierMbox as the shared barrier
   uintptr_t* mbox = devStates[0].barrierMbox;
-  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+  barrier<NRANKS>(
+      mbox,
+      (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag,
+      rank,
+      maxBlocks);
 
   const T* srcs[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
     int nbrRank = (rank + i) & (NRANKS - 1);
-    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank] & ~1UL);
+    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank * maxBlocks] & ~1UL);
   }
 
   const size_t countPerThread = 16 / sizeof(T);
@@ -208,7 +218,11 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat(
       vecAdd<T, NRANKS>(srcs, idx);
   }
 
-  barrier<NRANKS>(mbox + NRANKS, barrierFlag, rank);
+  barrier<NRANKS>(
+      mbox + maxBlocks * NRANKS,
+      barrierFlag,
+      rank,
+      maxBlocks);
 }
 
 template <typename T, uint32_t NRANKS>
@@ -217,12 +231,13 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
     DdaDeviceState* devStates,
     int rank,
     T* recvbuff,
-    size_t count) {
+    size_t count,
+    size_t maxBlocks) {
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // always use rank0's barrierMbox as the shared barrier
   uintptr_t* mbox = devStates[0].barrierMbox;
-  barrier<NRANKS>(mbox, barrierFlag, rank);
+  barrier<NRANKS>(mbox, barrierFlag, rank, maxBlocks);
 
   const T* srcs[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
@@ -240,7 +255,7 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
       vecAdd<T, NRANKS>(srcs, idx);
   }
 
-  barrier<NRANKS>(mbox + NRANKS, barrierFlag, rank);
+  barrier<NRANKS>(mbox + NRANKS * maxBlocks, barrierFlag, rank, maxBlocks);
 }
 
 template <typename T, uint32_t NRANKS>
@@ -250,16 +265,17 @@ static inline __device__ void reduceScatter(
     int rank,
     const T* sendbuff,
     T* recvbuff,
-    size_t recvcount) {
+    size_t recvcount,
+    size_t maxBlocks) {
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // barrier to ensure every rank's sendbuff is ready to read
-  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank, maxBlocks);
 
   const T* srcs[NRANKS];
   for (int i = 0; i < NRANKS; ++i) {
     int nbrRank = (rank + i) & (NRANKS - 1);
-    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank] & ~1UL);
+    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank * maxBlocks] & ~1UL);
   }
 
   // direct-access reduce data on rank-th block with 16-byte loads
@@ -281,17 +297,22 @@ static inline __device__ void allGather(
     int rank,
     const T* sendbuff,
     T* recvbuff,
-    size_t sendcount) {
+    size_t sendcount,
+    size_t maxBlocks) {
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // barrier to ensure every rank's sendbuff is ready to read
-  barrier<NRANKS>(mbox, (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag, rank);
+  barrier<NRANKS>(
+      mbox,
+      (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag,
+      rank,
+      maxBlocks);
 
   const T* srcs[NRANKS];
   int rankOffset[NRANKS];
   for (int i = 0; i < NRANKS; ++i) {
     int nbrRank = (rank + i) & (NRANKS - 1);
-    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank] & ~1UL);
+    srcs[i] = reinterpret_cast<const T*>(mbox[nbrRank * maxBlocks] & ~1UL);
     rankOffset[i] = nbrRank * sendcount;
   }
 
@@ -326,18 +347,33 @@ __global__ void ncclKernel_AllReduce_DDA2_Tree(
     int rank,
     const T* sendbuff,
     T* recvbuff,
-    size_t count) {
+    size_t count,
+    size_t maxBlocks) {
   // always use rank0's barrierMbox as the shared barrier
   uintptr_t* mbox = devStates[0].barrierMbox;
 
   const size_t chunkSize = count / NRANKS;
-  reduceScatter<T, NRANKS>(mbox, barrierFlag, rank, sendbuff, recvbuff + rank * chunkSize, chunkSize);
 
   // make sure the result from RS are observed by all threads in peer devices
+  reduceScatter<T, NRANKS>(
+      mbox,
+      barrierFlag,
+      rank,
+      sendbuff,
+      recvbuff + rank * chunkSize,
+      chunkSize,
+      maxBlocks);
   __threadfence_system();
-  allGather<T, NRANKS>(mbox + NRANKS, barrierFlag, rank, recvbuff + rank * chunkSize, recvbuff, chunkSize);
+  allGather<T, NRANKS>(
+      mbox + maxBlocks * NRANKS,
+      barrierFlag,
+      rank,
+      recvbuff + rank * chunkSize,
+      recvbuff,
+      chunkSize,
+      maxBlocks);
 
-  barrier<NRANKS>(mbox + 2 * NRANKS, barrierFlag, rank);
+  barrier<NRANKS>(mbox + 2 * maxBlocks * NRANKS, barrierFlag, rank, maxBlocks);
 }
 
 DECL_DDA2_FUNC(char);

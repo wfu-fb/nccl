@@ -42,13 +42,15 @@ ncclResult_t AllReduceDdaNvsFlatIpcAlgo::launchKernel() {
       getGridAndBlockDims(func, count_, datatype_, multiProcessorCount_);
   const auto& grid = gridBlock.first;
   const auto& block = gridBlock.second;
+  size_t maxBlocks = multiProcessorCount_;
 
   void* args[] = {
       &barrierFlag_,
       &devStates_d_,
       &comm_->rank,
       &recvbuff_,
-      &count_};
+      &count_,
+      &maxBlocks};
   CUDACHECK(cudaLaunchKernel(func, grid, block, args, 0, stream_));
   return ncclSuccess;
 }
