@@ -27,9 +27,10 @@ LIBSRCFILES += ctran/gpe/CtranGpe.cc ctran/gpe/CtranGpeImpl.cc
 LIBSRCFILES += ctran/mapper/CtranMapper.cc ctran/mapper/CtranMapperRequest.cc
 LIBSRCFILES += ctran/Ctran.cc
 LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc
-LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllgatherDirect.cc
+LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllGather/AllGatherDirect.cc ctran/algos/AllGather/AllGatherRing.cc ctran/algos/AllGather/AllGatherRecDbl.cc
 LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
-		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc
+		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc \
+		algorithms/AllReduceDdaNvsTreeIpcAlgo.cc algorithms/AllReduceDdaNvsFlatIpcAlgo.cc
 LIBSRCFILES += window.cc
 
 INCLUDES := -Iinclude
