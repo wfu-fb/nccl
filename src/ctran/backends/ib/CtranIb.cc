@@ -464,10 +464,7 @@ ncclResult_t CtranIb::irecvCtrl(void **buf, struct CtranIbRemoteAccessKey *key, 
 
   auto vc = this->pimpl_->vcList[peerRank];
   if (this->pimpl_->rank < peerRank && vc->isReady() == false) {
-    INFO(NCCL_INIT, "CTRAN-IB: irecvCtrl, rank %d connecting to %d", this->pimpl_->rank, peerRank);
     NCCLCHECKGOTO(this->pimpl_->bootstrapConnect(peerRank), res, exit);
-  } else{
-    INFO(NCCL_INIT, "CTRAN-IB: irecvCtrl, rank %d skip connection to %d, vc ready %d", this->pimpl_->rank, peerRank, vc->isReady());
   }
 
   *req = new CtranIbRequest();
