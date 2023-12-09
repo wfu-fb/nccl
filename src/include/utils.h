@@ -541,6 +541,12 @@ inline std::string getDatatypeStr(ncclDataType_t type) {
       return "ncclFloat64";
     case ncclBfloat16:
       return "ncclBfloat16";
+#if defined(__CUDA_FP8_TYPES_EXIST__)
+    case ncclFp8E4M3:
+      return "ncclFp8E4M3";
+    case ncclFp8E5M2:
+      return "ncclFp8E5M2";
+#endif
     default:
       return "Unknown type";
   }
