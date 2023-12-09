@@ -27,10 +27,8 @@ ncclResult_t ncclLoadTunerPlugin(ncclTuner_t** tuner) {
     tunerPluginRefCount = -2; // Default: no plugin, don't try again later
 
     const char* name = ncclGetEnv("NCCL_TUNER_PLUGIN");
-    if (name) {
-      INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", name);
-      tunerPluginLib = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
-    }
+    INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", name);
+    tunerPluginLib = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
     if (tunerPluginLib == nullptr) {
       // dlopen does not guarantee to set errno, but dlerror only gives us a
       // string, so checking errno doesn't hurt to try to provide a better
