@@ -5,6 +5,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
 
 namespace nccl {
 namespace algorithms {
@@ -17,6 +18,7 @@ class DdaThreadedData {
  public:
   // get underneath singleton instance
   static DdaThreadedData* get();
+
   void clear();
   void clear(uint64_t commHash);
 
@@ -25,17 +27,21 @@ class DdaThreadedData {
   bool hasRank(uint64_t commHash, int rank);
   size_t numRanks(uint64_t commHash);
 
+  ~DdaThreadedData();
+
  private:
   DdaThreadedData();
-  ~DdaThreadedData();
 
   // delete copy constructors
   DdaThreadedData(const DdaThreadedData&) = delete;
   DdaThreadedData& operator=(const DdaThreadedData&) = delete;
 
-  static DdaThreadedData* data_;
+  // static instance/mutex
+  static std::unique_ptr<DdaThreadedData> data_;
   static std::mutex instanceMutex_;
-  static std::unordered_map<uint64_t, std::unordered_set<int>> commToRanks_;
+
+  // internal data members
+  std::unordered_map<uint64_t, std::unordered_set<int>> commToRanks_;
 };
 
 } // namespace algorithms

@@ -6,27 +6,21 @@ namespace nccl {
 namespace algorithms {
 
 // intialize static members
-DdaThreadedData* DdaThreadedData::data_ = nullptr;
+std::unique_ptr<DdaThreadedData> DdaThreadedData::data_{nullptr};
 std::mutex DdaThreadedData::instanceMutex_;
-std::unordered_map<uint64_t, std::unordered_set<int>>
-    DdaThreadedData::commToRanks_ = {};
 
-DdaThreadedData::DdaThreadedData() {}
+DdaThreadedData::DdaThreadedData() {
+}
 
 DdaThreadedData::~DdaThreadedData() {
-  std::lock_guard<std::mutex> lock(instanceMutex_);
-  if (data_ != nullptr) {
-    delete data_;
-  }
 }
 
 DdaThreadedData* DdaThreadedData::get() {
   std::lock_guard<std::mutex> lock(instanceMutex_);
-  if (data_ != nullptr) {
-    return data_;
+  if (data_ == nullptr) {
+    data_ = std::unique_ptr<DdaThreadedData>(new DdaThreadedData());
   }
-  data_ = new DdaThreadedData();
-  return data_;
+  return data_.get();
 }
 
 void DdaThreadedData::clear() {
