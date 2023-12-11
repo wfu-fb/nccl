@@ -41,7 +41,6 @@ TEST(AlgoManagerTest, Create) {
   CUDACHECKIGNORE(cudaFree(sendbuff_d));
   CUDACHECKIGNORE(cudaFree(recvbuff_d));
   CUDACHECKIGNORE(cudaStreamDestroy(stream));
-  comm->algoMgr.reset();
   NCCLCHECKIGNORE(ncclCommDestroy(comm));
 }
 

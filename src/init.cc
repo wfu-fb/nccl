@@ -1810,6 +1810,7 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   if (comm->dda) {
     NCCLCHECKGOTO(freeDDAMd(comm), ret, fail);
   }
+  NCCLCHECKGOTO(nccl::algorithms::algoDestroy(comm), ret, fail);
 
   CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
   if (savedDevice != commDevice) {

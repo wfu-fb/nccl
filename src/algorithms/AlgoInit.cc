@@ -32,5 +32,12 @@ ncclResult_t algoInit(ncclComm_t comm, bool forceInit) {
   return ncclSuccess;
 }
 
+ncclResult_t algoDestroy(ncclComm_t comm) {
+  if (comm->algoMgr) {
+    comm->algoMgr.reset();
+  }
+  return ncclSuccess;
+}
+
 } // namespace algorithms
 } // namespace nccl
