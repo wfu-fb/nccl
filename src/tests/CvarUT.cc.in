@@ -1,10 +1,11 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <set>
-#include <vector>
 #include <nccl.h>
 #include <stdlib.h>
+#include <set>
+#include <vector>
 #include "../include/nccl_cvars.h"
 
 class NCCLEnvironment : public ::testing::Environment {
@@ -42,6 +43,21 @@ void testIntValue(const char* cvarName, int val) {
   std::string varStr = varOSS.str();
   setenv(cvarName, varStr.c_str(), 1);
   ncclCvarInit();
+}
+
+void testWarn(const char* cvarName, std::string expectedKeyword) {
+  testing::internal::CaptureStdout();
+  ncclCvarInit();
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_THAT(output, testing::HasSubstr(expectedKeyword));
+
+  // Unset to avoid warning in later tests
+  unsetenv(cvarName);
+}
+
+TEST_F(CvarTest, UnknownEnv) {
+  setenv("NCCL_DUMMY_ENV", "dummy", 1);
+  testWarn("NCCL_DUMMY_ENV", "Unknown env");
 }
 
 /**

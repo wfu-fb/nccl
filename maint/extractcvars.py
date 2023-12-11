@@ -121,6 +121,19 @@ class basetype:
         file.write("Type: %s\n" % self.type)
         file.write("Default: %s\n" % self.default)
 
+    def unknownValUnitTest(self, file):
+        indent(file, "TEST_F(CvarTest, %s_warn_unknown_val) {" % (self.name))
+        indent(file, "setenv(\"%s\", \"dummy\", 1);" % (self.name))
+        indent(file, "testWarn(\"%s\", \"Unknown value\");" % (self.name))
+        indent(file, "}")
+        file.write("\n")
+
+    def dupValUnitTest(self, file):
+        indent(file, "TEST_F(CvarTest, %s_warn_dup_val) {" % (self.name))
+        indent(file, "setenv(\"%s\", \"dummy,dummy\", 1);" % (self.name))
+        indent(file, "testWarn(\"%s\", \"Duplicate token\");" % (self.name))
+        indent(file, "}")
+        file.write("\n")
 
 class bool(basetype):
     @staticmethod
@@ -151,6 +164,8 @@ class bool(basetype):
             indent(file, "%s(%s);" % (func, self.name))
             indent(file, "}")
             file.write("\n")
+
+        self.unknownValUnitTest(file)
 
     def readenv(self, file):
         indent(file, "%s = env2bool(\"%s\", \"%s\");" %
@@ -260,6 +275,8 @@ class stringlist(basetype):
         indent(file, "}")
         file.write("\n")
 
+        self.dupValUnitTest(file)
+
     def readenv(self, file):
         indent(file, "%s.clear();" % self.name)
         if (self.default != None):
@@ -341,6 +358,8 @@ class enum(basetype):
             indent(file, "}")
         file.write("\n")
 
+        self.unknownValUnitTest(file)
+
     def readenv(self, file):
         indent(file, "if (getenv(\"%s\") == nullptr) {" % self.name)
         indent(file, "%s = %s::%s;" % (self.name, self.name, self.default))
@@ -411,6 +430,9 @@ class enumlist(basetype):
         indent(file, "}")
         file.write("\n")
 
+        self.unknownValUnitTest(file)
+        self.dupValUnitTest(file)
+
     def readenv(self, file):
         indent(file, "{")
         indent(file, "%s.clear();" % self.name)
@@ -424,7 +446,7 @@ class enumlist(basetype):
                indent(file, "} else if (token == std::string(\"%s\")) {" % c)
             indent(file, "%s.emplace_back(%s::%s);" % (self.name, self.name, c))
         indent(file, "} else {")
-        indent(file, "// WARN(\"Unknown value %%s for env %s\", token.c_str());" % self.name)
+        indent(file, "  CVAR_WARN_UNKNOWN_VALUE(\"%s\", token.c_str());" % self.name)
         indent(file, "}")
         indent(file, "}")
         indent(file, "}")

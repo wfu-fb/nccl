@@ -1,10 +1,11 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <set>
-#include <vector>
 #include <nccl.h>
 #include <stdlib.h>
+#include <set>
+#include <vector>
 #include "../include/nccl_cvars.h"
 
 class NCCLEnvironment : public ::testing::Environment {
@@ -42,6 +43,21 @@ void testIntValue(const char* cvarName, int val) {
   std::string varStr = varOSS.str();
   setenv(cvarName, varStr.c_str(), 1);
   ncclCvarInit();
+}
+
+void testWarn(const char* cvarName, std::string expectedKeyword) {
+  testing::internal::CaptureStdout();
+  ncclCvarInit();
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_THAT(output, testing::HasSubstr(expectedKeyword));
+
+  // Unset to avoid warning in later tests
+  unsetenv(cvarName);
+}
+
+TEST_F(CvarTest, UnknownEnv) {
+  setenv("NCCL_DUMMY_ENV", "dummy", 1);
+  testWarn("NCCL_DUMMY_ENV", "Unknown env");
 }
 
 /**
@@ -96,6 +112,11 @@ TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM_value_n3) {
   setenv("NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM", "0", 1);
   ncclCvarInit();
   EXPECT_FALSE(NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM_warn_unknown_val) {
+  setenv("NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM", "dummy", 1);
+  testWarn("NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM", "Unknown value");
 }
 
 TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE_value_0) {
@@ -175,6 +196,11 @@ TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_default_choice) {
   EXPECT_EQ(NCCL_ALLREDUCE_ALGO, NCCL_ALLREDUCE_ALGO::orig);
 }
 
+TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLREDUCE_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLREDUCE_ALGO", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO2_single_choice_0) {
   setenv("NCCL_ALLREDUCE_ALGO2", "orig", 1);
   ncclCvarInit();
@@ -190,6 +216,11 @@ TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO2_single_choice_1) {
 TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO2_default_choice) {
   testDefaultValue("NCCL_ALLREDUCE_ALGO2");
   EXPECT_EQ(NCCL_ALLREDUCE_ALGO2, NCCL_ALLREDUCE_ALGO2::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO2_warn_unknown_val) {
+  setenv("NCCL_ALLREDUCE_ALGO2", "dummy", 1);
+  testWarn("NCCL_ALLREDUCE_ALGO2", "Unknown value");
 }
 
 TEST_F(CvarTest, NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS_value_0) {
@@ -527,6 +558,11 @@ TEST_F(CvarTest, NCCL_SENDRECV_ALGO_default_choice) {
   EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::orig);
 }
 
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_warn_unknown_val) {
+  setenv("NCCL_SENDRECV_ALGO", "dummy", 1);
+  testWarn("NCCL_SENDRECV_ALGO", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_0) {
   setenv("NCCL_ALLGATHER_ALGO", "orig", 1);
   ncclCvarInit();
@@ -554,6 +590,11 @@ TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_3) {
 TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_default_choice) {
   testDefaultValue("NCCL_ALLGATHER_ALGO");
   EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLGATHER_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLGATHER_ALGO", "Unknown value");
 }
 
 TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
@@ -587,6 +628,11 @@ TEST_F(CvarTest, NCCL_IB_HCA_valuelist_3) {
 TEST_F(CvarTest, NCCL_IB_HCA_default_value) {
   testDefaultValue("NCCL_IB_HCA");
   EXPECT_EQ(NCCL_IB_HCA.size(), 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_warn_dup_val) {
+  setenv("NCCL_IB_HCA", "dummy,dummy", 1);
+  testWarn("NCCL_IB_HCA", "Duplicate token");
 }
 
 TEST_F(CvarTest, NCCL_IB_HCA_prefix_0) {
@@ -659,6 +705,11 @@ TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_n3) {
   setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "0", 1);
   ncclCvarInit();
   EXPECT_FALSE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_warn_unknown_val) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "dummy", 1);
+  testWarn("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "Unknown value");
 }
 
 TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_0) {
@@ -750,6 +801,11 @@ TEST_F(CvarTest, NCCL_CTRAN_PROFILING_default_choice) {
   EXPECT_EQ(NCCL_CTRAN_PROFILING, NCCL_CTRAN_PROFILING::none);
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_warn_unknown_val) {
+  setenv("NCCL_CTRAN_PROFILING", "dummy", 1);
+  testWarn("NCCL_CTRAN_PROFILING", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_KINETO_PROFILE_DIR_value_0) {
   setenv("NCCL_CTRAN_KINETO_PROFILE_DIR", "val1", 1);
   ncclCvarInit();
@@ -790,6 +846,11 @@ TEST_F(CvarTest, NCCL_CTRAN_REGISTER_default_choice) {
   EXPECT_EQ(NCCL_CTRAN_REGISTER, NCCL_CTRAN_REGISTER::lazy);
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_warn_unknown_val) {
+  setenv("NCCL_CTRAN_REGISTER", "dummy", 1);
+  testWarn("NCCL_CTRAN_REGISTER", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_single_choice_0) {
   setenv("NCCL_CTRAN_BACKENDS", "ib", 1);
   ncclCvarInit();
@@ -808,6 +869,16 @@ TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_default_choices) {
   testDefaultValue("NCCL_CTRAN_BACKENDS");
   std::vector<enum NCCL_CTRAN_BACKENDS> vals{NCCL_CTRAN_BACKENDS::ib};
   checkListValues<enum NCCL_CTRAN_BACKENDS>(vals, NCCL_CTRAN_BACKENDS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_warn_unknown_val) {
+  setenv("NCCL_CTRAN_BACKENDS", "dummy", 1);
+  testWarn("NCCL_CTRAN_BACKENDS", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_warn_dup_val) {
+  setenv("NCCL_CTRAN_BACKENDS", "dummy,dummy", 1);
+  testWarn("NCCL_CTRAN_BACKENDS", "Duplicate token");
 }
 
 TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_value_0) {

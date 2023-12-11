@@ -19,10 +19,46 @@
 * See ## CONTENTS ## in nccl_cvars.cc.in
 */
 
+// Cvar internal logger
+// We need avoid calling into default logger because it may call ncclGetEnv() on
+// demand in ncclDebugInit() and cause circular call & deadlock. Since CVAR_WARN
+// happens usually only at initialization time and is for warning only, we might
+// be OK to use separate logger here and always print to stdout.
+static int pid = getpid();
+static thread_local int tid = syscall(SYS_gettid);
+static char hostname[1024];
+static bool enableCvarWarn = true;
+static int cudaDev = -1;
+
+#define CVAR_WARN(fmt, ...)                                 \
+  if (enableCvarWarn) {                                     \
+    printf(                                                 \
+        "%s %s:%d:%d [%d] %s:%d NCCL WARN CVAR: " fmt "\n", \
+        getTime().c_str(),                                  \
+        hostname,                                           \
+        pid,                                                \
+        tid,                                                \
+        cudaDev,                                            \
+        __FUNCTION__,                                       \
+        __LINE__,                                           \
+        ##__VA_ARGS__);                                     \
+  }
+
 #define CVAR_WARN_UNKNOWN_VALUE(name, value)               \
   do {                                                     \
-    WARN("Unknown value %s for env %s", name, value);      \
+    CVAR_WARN("Unknown value %s for env %s", value, name); \
   } while (0)
+
+static void initCvarLogger() {
+  const char* nccl_debug = getenv("NCCL_DEBUG");
+  if (nccl_debug == NULL || strcasecmp(nccl_debug, "VERSION") == 0) {
+    enableCvarWarn = false;
+  }
+  getHostName(hostname, 1024, '.');
+
+  // Used for ncclCvarInit time warning only
+  CUDACHECKIGNORE(cudaGetDevice(&cudaDev));
+}
 
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
@@ -49,7 +85,7 @@ static std::vector<std::string> tokenizer(std::string str) {
     // Skip empty string
     if(!newstr.empty()) {
       if(std::find(tokens.begin(), tokens.end(), newstr) != tokens.end()) {
-        // WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str_);
+        CVAR_WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str.c_str());
       }
       tokens.push_back(newstr);
     }
@@ -74,7 +110,7 @@ static bool env2bool(const char *str_, const char *def) {
   else if (str == "false") return false;
   else if (str == "1") return true;
   else if (str == "0") return false;
-  // else CVAR_WARN_UNKNOWN_VALUE(str_, str.c_str());
+  else CVAR_WARN_UNKNOWN_VALUE(str_, str.c_str());
   return true;
 }
 
@@ -382,7 +418,7 @@ void readCvarEnv() {
       if (token == std::string("ib")) {
         NCCL_CTRAN_BACKENDS.emplace_back(NCCL_CTRAN_BACKENDS::ib);
       } else {
-        // WARN("Unknown value %s for env NCCL_CTRAN_BACKENDS", token.c_str());
+        CVAR_WARN_UNKNOWN_VALUE("NCCL_CTRAN_BACKENDS", token.c_str());
       }
     }
   }
@@ -398,6 +434,8 @@ void readCvarEnv() {
 void ncclCvarInit() {
   initEnvSet();
 
+  initCvarLogger();
+
   // Check if any NCCL_ env var is not in allow list
   char **s = environ;
   for (; *s; s++) {
@@ -405,7 +443,7 @@ void ncclCvarInit() {
       std::string str(*s);
       str = str.substr(0, str.find("="));
       if (env.find(str) == env.end()) {
-        // CVAR_WARN("Unknown env %s in the NCCL namespace\n", str.c_str());
+        CVAR_WARN("Unknown env %s in the NCCL namespace", str.c_str());
       }
     }
   }
