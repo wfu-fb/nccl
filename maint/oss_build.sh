@@ -4,14 +4,18 @@ set -x
 hash=""
 # guess default DEV_SIGNATURE
 is_git=$(git rev-parse --is-inside-work-tree)
+is_hg=$(hg id)
 if [ $is_git ]; then
     hash="git-"$(git rev-parse --short HEAD)
+elif [ $is_hg ]; then
+    hash="hg-"$(hg id)
+else
+    echo "Cannot detect source repository hash. Skip"
 fi
 
 BUILDDIR=${BUILDDIR:=/tmp/nccl-exp/2.18.3/build}
 NVCC_ARCH=${NVCC_ARCH:="a100,h100"}
 CUDA_HOME=${CUDA_HOME:="/usr/local/cuda"}
-# TODO: automatically get hg id or git hash
 DEV_SIGNATURE=${DEV_SIGNATURE:="$hash"}
 
 echo "BUILDDIR=${BUILDDIR}"
@@ -48,6 +52,12 @@ make src.clean && make -j src.build NVCC_GENCODE="$arch_gencode" CUDA_HOME="$CUD
 # sanity check
 pushd examples
 export NCCL_HOME=$BUILDDIR
+export NCCL_DEBUG=WARN
+export LD_LIBRARY_PATH=$BUILDDIR/lib
 make clean && make all
-NCCL_DEBUG=WARN LD_LIBRARY_PATH=$BUILDDIR/lib $BUILDDIR/examples/HelloWorld
+TIMEOUT=10s
+timeout $TIMEOUT $BUILDDIR/examples/HelloWorld
+if [ "$?" == "124" ]; then
+    echo "Program TIMEOUT in ${TIMEOUT}. Terminate."
+fi
 popd
