@@ -151,6 +151,19 @@ Description:
 Type: int
 Default: 100
 
+NCCL_CTRAN_TOPO_FILE
+Description:
+    File that contains topology information in KEY=VALUE format
+Type: string
+Default: 
+
+NCCL_CTRAN_TOPO_FILE_KEYS
+Description:
+    Comma-separated list of keys to look for in NCCL_CTRAN_TOPO_FILE. In order,
+    these will be used to determine the hierarchical configuration of the cluster.
+Type: stringlist
+Default: 
+
 NCCL_IB_HCA
 Description:
     List of IB HCAs available for NCCL to use. The list is comma-separated;

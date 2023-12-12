@@ -191,6 +191,10 @@ int NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT;
 
 int NCCL_CTRAN_PROFILING_REPORT_COUNT;
 
+std::string NCCL_CTRAN_TOPO_FILE;
+
+std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS;
+
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
 
@@ -236,6 +240,8 @@ void initEnvSet() {
   env.insert("NCCL_CTRAN_BACKENDS");
   env.insert("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT");
   env.insert("NCCL_CTRAN_PROFILING_REPORT_COUNT");
+  env.insert("NCCL_CTRAN_TOPO_FILE");
+  env.insert("NCCL_CTRAN_TOPO_FILE_KEYS");
   env.insert("NCCL_IB_HCA");
   env.insert("NCCL_CTRAN_IB_TRAFFIC_PROFILNG");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
@@ -397,6 +403,11 @@ void readCvarEnv() {
   NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT = env2int("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", "-1");
 
   NCCL_CTRAN_PROFILING_REPORT_COUNT = env2int("NCCL_CTRAN_PROFILING_REPORT_COUNT", "100");
+
+  NCCL_CTRAN_TOPO_FILE = env2str("NCCL_CTRAN_TOPO_FILE", "");
+
+  NCCL_CTRAN_TOPO_FILE_KEYS.clear();
+  NCCL_CTRAN_TOPO_FILE_KEYS = env2strlist("NCCL_CTRAN_TOPO_FILE_KEYS", "");
 
   std::vector<std::string> NCCL_IB_HCA_allPrefixes{"^", "="};
   NCCL_IB_HCA.clear();

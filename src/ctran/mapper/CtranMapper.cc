@@ -6,10 +6,13 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <unordered_map>
 #include "CtranMapperImpl.h"
 #include "comm.h"
 #include "nccl_cvars.h"
+#include "CtranTopoFile.h"
+#include "bootstrap.h"
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -207,6 +210,8 @@ CtranMapper::CtranMapper(ncclComm* comm) {
     allCommHashCtranMapperMap[this->commHash] = this;
     allCommMutex.unlock();
   }
+
+  this->bootstrapTopology(comm);
 }
 
 void CtranMapper::reportRegSnapshot(void) {
@@ -715,4 +720,40 @@ ncclResult_t CtranMapper::waitNotify(int rank) {
 
 exit:
   return res;
+}
+
+void CtranMapper::bootstrapTopology(ncclComm* comm) {
+  if (this->topoInfo != nullptr) {
+    return;
+  }
+
+  auto topoVals = getTopoValsFromFile();
+  auto nkeys = topoVals.size();
+
+  this->topoInfo = std::unique_ptr<std::vector<std::vector<int64_t>>>(new std::vector<std::vector<int64_t>>);
+  this->topoInfo->resize(comm->nRanks);
+  for (auto& v : *(this->topoInfo)) {
+    v.resize(nkeys, -1);
+  }
+
+  std::unique_ptr<int64_t[]> topoBuf(new int64_t[nkeys * comm->nRanks]);
+
+  size_t offset = comm->rank * nkeys;
+  for (int i = 0; i < topoVals.size(); i++) {
+    topoBuf[offset + i] = topoVals[i];
+  }
+
+  bootstrapAllGather(comm->bootstrap, (void*)topoBuf.get(), nkeys * sizeof(int64_t));
+
+  for (int rank = 0; rank < comm->nRanks; rank++) {
+    std::string s{"CTRAN topoInfo -- Rank " + std::to_string(rank) + ": "};
+    for (int keyId = 0; keyId < nkeys; keyId++) {
+      (*this->topoInfo)[rank][keyId] = topoBuf[rank * nkeys + keyId];
+      s += std::to_string((*this->topoInfo)[rank][keyId]);
+      if (keyId < nkeys - 1) {
+        s += ", ";
+      }
+    }
+    INFO(NCCL_INIT, "%s", s.c_str());
+  }
 }

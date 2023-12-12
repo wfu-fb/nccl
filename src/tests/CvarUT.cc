@@ -659,6 +659,56 @@ TEST_F(CvarTest, NCCL_CTRAN_PROFILING_REPORT_COUNT_default_value) {
   EXPECT_EQ(NCCL_CTRAN_PROFILING_REPORT_COUNT, 100);
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_value_0) {
+  setenv("NCCL_CTRAN_TOPO_FILE", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_TOPO_FILE, "val1");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_value_1) {
+  setenv("NCCL_CTRAN_TOPO_FILE", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_TOPO_FILE, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_0) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_1) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val1:1,val2:2,val3:3", 1);
+  std::vector<std::string> vals{"val1:1","val2:2","val3:3"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_2) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val", 1);
+  std::vector<std::string> vals{"val"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_3) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val1, val_w_space  ", 1);
+  std::vector<std::string> vals{"val1","val_w_space"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_default_value) {
+  testDefaultValue("NCCL_CTRAN_TOPO_FILE_KEYS");
+  EXPECT_EQ(NCCL_CTRAN_TOPO_FILE_KEYS.size(), 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_warn_dup_val) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "dummy,dummy", 1);
+  testWarn("NCCL_CTRAN_TOPO_FILE_KEYS", "Duplicate token");
+}
+
 TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
   setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
   std::vector<std::string> vals{"val1","val2","val3"};

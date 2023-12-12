@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <cstdint>
 #include "CtranIb.h"
 #include "checks.h"
 #include "nccl.h"
@@ -222,9 +223,15 @@ class CtranMapper {
   void reportProfiling(bool flush = false);
   void reportRegSnapshot();
 
+  /* Read the provided topology info file and bootstrap all-gather the
+  * information with other ranks
+  */
+  void bootstrapTopology(ncclComm* comm);
+
   int rank;
   uint64_t commHash;
   std::vector<std::unique_ptr<CtranMapperTimestamp>> timestamps;
+  std::unique_ptr<std::vector<std::vector<int64_t>>> topoInfo;
 
  protected:
   ncclResult_t progress(void);

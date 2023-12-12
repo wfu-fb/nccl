@@ -74,6 +74,10 @@ extern int NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT;
 
 extern int NCCL_CTRAN_PROFILING_REPORT_COUNT;
 
+extern std::string NCCL_CTRAN_TOPO_FILE;
+
+extern std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS;
+
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 
