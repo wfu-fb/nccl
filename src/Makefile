@@ -16,7 +16,7 @@ LIBSRCFILES := init.cc init_nvtx.cc channel.cc bootstrap.cc transport.cc enqueue
 		transport/p2p.cc transport/shm.cc transport/net.cc transport/net_socket.cc transport/net_ib.cc transport/coll_net.cc transport/nvls.cc \
                 collectives/sendrecv.cc collectives/all_reduce.cc collectives/all_gather.cc collectives/broadcast.cc collectives/reduce.cc collectives/reduce_scatter.cc \
                 graph/topo.cc graph/paths.cc graph/search.cc graph/connect.cc graph/rings.cc graph/trees.cc graph/tuning.cc graph/xml.cc
-LIBSRCFILES += collectives/all_reduce_sparse_block.cc setinfo.cc
+LIBSRCFILES += collectives/all_reduce_sparse_block.cc setinfo.cc commSplitType.cc
 LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += misc/nccl_cvars.cc
 LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
@@ -26,7 +26,7 @@ LIBSRCFILES += ctran/backends/ib/CtranIb.cc ctran/backends/ib/CtranIbImpl.cc \
 LIBSRCFILES += ctran/gpe/CtranGpe.cc ctran/gpe/CtranGpeImpl.cc
 LIBSRCFILES += ctran/mapper/CtranMapper.cc ctran/mapper/CtranMapperRequest.cc
 LIBSRCFILES += ctran/Ctran.cc
-LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc
+LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc ctran/utils/CtranTopoFile.cc
 LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllGather/AllGatherDirect.cc ctran/algos/AllGather/AllGatherRing.cc ctran/algos/AllGather/AllGatherRecDbl.cc
 LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
 		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc \
