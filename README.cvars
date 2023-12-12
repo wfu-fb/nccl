@@ -31,39 +31,6 @@ Description:
 Type: enum
 Default: orig
 
-NCCL_ALLREDUCE_ALGO2
-Description:
-    The algorithm to use for Allreduce communication
-    orig - Copy-based algorithm
-    dda - Direct Data Access algorithms
-Type: enum
-Default: orig
-
-NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
-Description:
-    Message size at which DDA Allreduce switches to the tree algorithm.
-    Only applies for NVSwitch-based systems.
-Type: int
-Default: 262144
-
-NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE
-Description:
-    DDA Allreduce temporary buffer size.
-Type: int
-Default: 33554432
-
-NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
-Description:
-    DDA Allreduce max number of blocks.
-Type: int
-Default: 24
-
-NCCL_ALLGATHER_DIRECT_CUTOFF
-Description:
-    Message size up to which we use the direct algorithm for Allgather.
-Type: int
-Default: 524288
-
 NCCL_DDA_ALLREDUCE_MAX_BLOCKS
 Description:
     Number of CUDA blocks to use for DDA Allreduce.
@@ -107,6 +74,12 @@ Description:
 Type: bool
 Default: False
 
+NCCL_ALLGATHER_DIRECT_CUTOFF
+Description:
+    Message size up to which we use the direct algorithm for Allgather.
+Type: int
+Default: 524288
+
 NCCL_SENDRECV_ALGO
 Description:
     The algorithm to use for sendrecv communication
@@ -124,45 +97,6 @@ Description:
     ctrd - Ctran-based recursive doubling algorithm
 Type: enum
 Default: orig
-
-NCCL_IB_HCA
-Description:
-    List of IB HCAs available for NCCL to use. The list is comma-separated;
-    port numbers can be specified using the : symbol. An optional prefix ^
-    indicates the list is an exclude list. A second optional prefix = indicates
-    that the tokens are exact names, otherwise by default NCCL would treat each
-    token as a prefix. Examples:
-    - mlx5 : Use all ports of all cards starting with mlx5
-    - =mlx5_0:1,mlx5_1:1 : Use ports 1 of cards mlx5_0 and mlx5_1.
-    - ^=mlx5_1,mlx5_4 : Do not use cards mlx5_1 and mlx5_4.
-    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
-Type: prefixed_stringlist
-Default: None
-
-NCCL_CTRAN_IB_TRAFFIC_PROFILNG
-Description:
-    Enable IB transport traffic profiling.
-    Disabled by default.
-Type: bool
-Default: False
-
-NCCL_CTRAN_IB_MAX_QPS
-Description:
-    Maximum number of QPs to enable, so data can be split across
-    multiple QPs.  This allows the communication to take multiple routes
-    and is a poor-man's version of fully adaptive routing.
-Type: int
-Default: 1
-
-NCCL_CTRAN_IB_QP_SCALING_THRESHOLD
-Description:
-    Threshold for QP scaling.  If T is the threshold, then for message sizes < T,
-    a single QP is used.  For [T,2T) message sizes, data is split across two QPs.
-    For [2T,3T) message sizes, data is split across three QPs, and so on.
-    Once we hit the maximum number of QPs (see NCCL_CTRAN_IB_MAX_QPS), the
-    data is split across all available QPs.
-Type: int
-Default: 1048576
 
 NCCL_CTRAN_PROFILING
 Description:
@@ -216,3 +150,69 @@ Description:
     Number of ops to report CTRAN profiling results periodically
 Type: int
 Default: 100
+
+NCCL_IB_HCA
+Description:
+    List of IB HCAs available for NCCL to use. The list is comma-separated;
+    port numbers can be specified using the : symbol. An optional prefix ^
+    indicates the list is an exclude list. A second optional prefix = indicates
+    that the tokens are exact names, otherwise by default NCCL would treat each
+    token as a prefix. Examples:
+    - mlx5 : Use all ports of all cards starting with mlx5
+    - =mlx5_0:1,mlx5_1:1 : Use ports 1 of cards mlx5_0 and mlx5_1.
+    - ^=mlx5_1,mlx5_4 : Do not use cards mlx5_1 and mlx5_4.
+    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
+Type: prefixed_stringlist
+Default: None
+
+NCCL_CTRAN_IB_TRAFFIC_PROFILNG
+Description:
+    Enable IB transport traffic profiling.
+    Disabled by default.
+Type: bool
+Default: False
+
+NCCL_CTRAN_IB_MAX_QPS
+Description:
+    Maximum number of QPs to enable, so data can be split across
+    multiple QPs.  This allows the communication to take multiple routes
+    and is a poor-man's version of fully adaptive routing.
+Type: int
+Default: 1
+
+NCCL_CTRAN_IB_QP_SCALING_THRESHOLD
+Description:
+    Threshold for QP scaling.  If T is the threshold, then for message sizes < T,
+    a single QP is used.  For [T,2T) message sizes, data is split across two QPs.
+    For [2T,3T) message sizes, data is split across three QPs, and so on.
+    Once we hit the maximum number of QPs (see NCCL_CTRAN_IB_MAX_QPS), the
+    data is split across all available QPs.
+Type: int
+Default: 1048576
+
+NCCL_ALLREDUCE_ALGO2
+Description:
+    The algorithm to use for Allreduce communication
+    orig - Copy-based algorithm
+    dda - Direct Data Access algorithms
+Type: enum
+Default: orig
+
+NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
+Description:
+    Message size at which DDA Allreduce switches to the tree algorithm.
+    Only applies for NVSwitch-based systems.
+Type: int
+Default: 262144
+
+NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE
+Description:
+    DDA Allreduce temporary buffer size.
+Type: int
+Default: 33554432
+
+NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
+Description:
+    DDA Allreduce max number of blocks.
+Type: int
+Default: 24
