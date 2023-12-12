@@ -45,7 +45,7 @@ ncclResult_t ctranInit(ncclComm* comm) {
 }
 
 bool ctranInitialized(ncclComm* comm) {
-  return comm && comm->ctran && comm->ctran->mapper && comm->ctran->gpe;
+  return comm && !comm->finalizeCalled && comm->ctran && comm->ctran->mapper && comm->ctran->gpe;
 }
 
 ncclResult_t ctranDestroy(ncclComm* comm) {
