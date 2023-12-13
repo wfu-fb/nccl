@@ -580,8 +580,10 @@ def main():
     if (data['cvars'] == None):
         return
 
+    loadedCvars = sorted(data['cvars'], key=lambda x: x['name'])
+
     allcvars = []
-    for cvar in data['cvars']:
+    for cvar in loadedCvars:
         if (cvar['type'] == "bool"):
             allcvars.append(bool(cvar))
         elif (cvar['type'] == "int"):
