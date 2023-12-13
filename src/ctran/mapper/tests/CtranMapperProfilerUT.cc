@@ -21,17 +21,14 @@ class CtranMapperProfilerTest : public ::testing::Test {
   void SetUp() override {
     setenv("NCCL_CTRAN_BACKENDS", "", 1);
 
-    dummyComm = new ncclComm;
-    dummyComm->rank = 0;
-    dummyComm->nRanks = 1;
-    dummyComm->commHash = 0;
+    NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
 
     // A random duration between 0-5ms to test the timer
     srand(time(NULL));
     expectedDurMS = rand() % 5 + 1;
   }
   void TearDown() override {
-    delete dummyComm;
+    NCCLCHECKABORT(ncclCommDestroy(dummyComm));
     unsetenv("NCCL_CTRAN_BACKENDS");
   }
 };

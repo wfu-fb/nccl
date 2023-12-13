@@ -16,8 +16,8 @@
 class CtranMapperTest : public ::testing::Test {
  public:
   std::unique_ptr<CtranMapper> mapper;
-  ncclComm* dummyComm;
-  void* buf, *buf2;
+  ncclComm* dummyComm{nullptr};
+  void *buf, *buf2;
   size_t bufSize = 4 * sizeof(char);
   void* hdl = nullptr;
   int cudaDev = 0;
@@ -28,10 +28,7 @@ class CtranMapperTest : public ::testing::Test {
     setenv("NCCL_CTRAN_REGISTER", "none", 0);
     setenv("NCCL_CTRAN_BACKENDS", "", 0);
     ncclCvarInit();
-    dummyComm = new ncclComm;
-    dummyComm->rank = 0;
-    dummyComm->nRanks = 1;
-    dummyComm->commHash = 0;
+    NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
 
     CUDACHECKABORT(cudaSetDevice(cudaDev));
     CUDACHECKABORT(cudaMalloc(&buf, bufSize));
@@ -39,7 +36,7 @@ class CtranMapperTest : public ::testing::Test {
     CUDACHECKIGNORE(cudaMemset(buf, 0, bufSize));
   }
   void TearDown() override {
-    delete dummyComm;
+    NCCLCHECKABORT(ncclCommDestroy(dummyComm));
     CUDACHECKIGNORE(cudaFree(buf));
     CUDACHECKIGNORE(cudaFree(buf2));
     unsetenv("NCCL_CTRAN_REGISTER");
@@ -96,7 +93,7 @@ TEST_F(CtranMapperTest, doubleRegMem) {
   EXPECT_EQ(res, ncclSuccess);
   EXPECT_THAT(hdl, testing::NotNull());
 
-  void *hdl2;
+  void* hdl2;
   res = mapper->regMem(buf, bufSize, &hdl2, false);
 
   EXPECT_EQ(res, ncclSuccess);
@@ -219,7 +216,8 @@ TEST_F(CtranMapperTest, icopy) {
   } while (!isComplete);
 
   std::vector<char> observedVals(bufSize);
-  CUDACHECKIGNORE(cudaMemcpy(observedVals.data(), buf, bufSize, cudaMemcpyDefault));
+  CUDACHECKIGNORE(
+      cudaMemcpy(observedVals.data(), buf, bufSize, cudaMemcpyDefault));
   EXPECT_THAT(observedVals, testing::ElementsAre(1, 1, 1, 1));
 
   CUDACHECKIGNORE(cudaFree(srcBuf));
