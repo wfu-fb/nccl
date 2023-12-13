@@ -130,6 +130,7 @@ ncclResult_t ctranAllGatherRing(
         (void*)((uintptr_t)recvbuff + comm->rank * sendcount * ncclTypeSize(datatype)),
         sendbuff,
         sendcount * ncclTypeSize(datatype),
+        stream,
         &req);
   }
 
