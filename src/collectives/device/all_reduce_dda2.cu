@@ -411,7 +411,7 @@ static inline __device__ void allGather(
  * direct copy by each rank).
  */
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Tree(
+__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree(
     uintptr_t barrierFlag,
     DdaDeviceState* devStates,
     int rank,
