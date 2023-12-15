@@ -36,6 +36,10 @@ extern "C" {
 #define NCCL_REGISTRATION_SUPPORTED
 #define NCCL_RMA_SUPPORTED
 
+#ifndef __CUDA_FP8_TYPES_EXIST__
+#undef NCCL_ENABLE_FP8
+#endif
+
 /* Opaque handle to communicator */
 typedef struct ncclComm* ncclComm_t;
 #define NCCL_COMM_NULL NULL
@@ -251,7 +255,7 @@ typedef enum { ncclInt8       = 0, ncclChar       = 0,
                ncclFloat16    = 6, ncclHalf       = 6,
                ncclFloat32    = 7, ncclFloat      = 7,
                ncclFloat64    = 8, ncclDouble     = 8,
-#if defined(__CUDA_BF16_TYPES_EXIST__) && defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(__CUDA_BF16_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
                ncclBfloat16   = 9,
                ncclFp8E4M3    = 10,
                ncclFp8E5M2    = 11,

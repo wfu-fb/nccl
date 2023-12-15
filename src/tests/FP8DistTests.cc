@@ -22,7 +22,7 @@ class MPIEnvironment : public ::testing::Environment {
   ~MPIEnvironment() override {}
 };
 
-#if defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
 class FP8Test : public ::testing::Test {
  public:
   FP8Test() = default;

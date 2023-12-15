@@ -261,7 +261,7 @@ struct Apply_Reduce<FuncSum<int8_t>, /*EltPerPack=*/4> {
 #endif
 #endif
 
-#if defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
 #if __CUDA_ARCH__ >= 800
   SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, __nv_fp8_e4m3(__hadd(__half(x),__half(y))))
   SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e4m3, 2, __nv_fp8x2_e4m3, __nv_fp8x2_e4m3(__hadd2(__half2(x),__half2(y))))
@@ -435,7 +435,7 @@ struct FuncPreMulSum<half> {
   };
 #endif
 
-#if defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
   template<>
   struct FuncPreMulSum<__nv_fp8_e4m3> {
     // Change these to switch between all prescale, all postscale, or both by sqrt(N).
@@ -542,7 +542,7 @@ struct Apply_PreOp<FuncPreMulSum<half>, /*EltPerPack=*/1> {
   #endif
 #endif
 
-#if defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
   template<>
   struct Apply_PreOp<FuncPreMulSum<__nv_fp8_e4m3>, /*EltPerPack=*/1> {
     static constexpr bool IsIdentity = false;
@@ -611,7 +611,7 @@ struct IsFloatingPoint<half>: std::true_type {};
 template<>
 struct IsFloatingPoint<__nv_bfloat16>: std::true_type {};
 #endif
-#if defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
 template<>
 struct IsFloatingPoint<__nv_fp8_e4m3>: std::true_type {};
 template<>
@@ -769,7 +769,7 @@ struct Apply_LoadMultimem {
     DEFINE_Apply_LoadMultimem_v4x2_and_subhalf(FuncMin, __nv_bfloat16, min, bf16x2, u32)
     DEFINE_Apply_LoadMultimem_v4x2_and_subhalf(FuncMax, __nv_bfloat16, max, bf16x2, u32)
   #endif
-  #if defined(__CUDA_FP8_TYPES_EXIST__)
+  #if defined(NCCL_ENABLE_FP8)
     DEFINE_Apply_LoadMultimem_v4x2_and_subhalf(FuncSum, __nv_fp8_e4m3, add, e4m3x2, u16)
     DEFINE_Apply_LoadMultimem_v4x2_and_subhalf(FuncMin, __nv_fp8_e4m3, min, e4m3x2, u16)
     DEFINE_Apply_LoadMultimem_v4x2_and_subhalf(FuncMax, __nv_fp8_e4m3, max, e4m3x2, u16)

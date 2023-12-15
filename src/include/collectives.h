@@ -128,7 +128,7 @@ extern __global__ void ncclKernel_AllReduceSparseBlock_Unpack(
   DECL4(func, NVLS,           devredop, type, undef) \
   DECL4(func, NVLS_TREE,      devredop, type, undef)
 
-#if defined(__CUDA_BF16_TYPES_EXIST__) && defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(__CUDA_BF16_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
 #define DECL2(func, devredop, undefForFloat) \
   DECL3(func, devredop, int8_t, /*undef=*/0) \
   DECL3(func, devredop, uint8_t, /*undef=*/0) \
@@ -192,7 +192,7 @@ extern __device__ void NCCL_ONERANK_REDUCE_NAME(PreMulSum, half)();
 #if defined(__CUDA_BF16_TYPES_EXIST__)
 extern __device__ void NCCL_ONERANK_REDUCE_NAME(PreMulSum, __nv_bfloat16)();
 #endif
-#if defined(__CUDA_FP8_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
 extern __device__ void NCCL_ONERANK_REDUCE_NAME(PreMulSum, __nv_fp8_e4m3)();
 extern __device__ void NCCL_ONERANK_REDUCE_NAME(PreMulSum, __nv_fp8_e5m2)();
 #endif

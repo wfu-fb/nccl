@@ -13,6 +13,7 @@ class FP8Test : public ::testing::Test {
   FP8Test() = default;
 };
 
+#ifdef NCCL_ENABLE_FP8
 TEST_F(FP8Test, ncclFp8E4M3) {
   ncclDataType_t type = ncclFp8E4M3;
   size_t nbytes = ncclTypeSize(type);
@@ -24,3 +25,4 @@ TEST_F(FP8Test, ncclFp8E5M2) {
   size_t nbytes = ncclTypeSize(type);
   EXPECT_EQ(nbytes, 1);
 }
+#endif
