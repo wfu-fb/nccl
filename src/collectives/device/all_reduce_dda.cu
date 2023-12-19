@@ -4,6 +4,9 @@
 #include "all_reduce_dda.h"
 #include "collectives.h"
 #include "common.h"
+#if CUDART_VERSION >= 11080
+#include <cuda_fp8.h>
+#endif
 
 #define idx(nranks, i, j) ((i) * (nranks) + (j))
 
@@ -39,9 +42,47 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
 #else
     __nv_bfloat16 z[2] = {x[0] + y[0], x[1] + y[1]};
     return (reinterpret_cast<uint32_t*>(z))[0];
-#endif
+#endif // #if (__CUDA_ARCH__ >= 800)
+#endif // #if defined(__CUDA_BF16_TYPES_EXIST__)
+#if defined(NCCL_ENABLE_FP8)
+  } else if (std::is_same<T, __nv_fp8_e4m3>::value) {
+    const __nv_fp8_e4m3* x = reinterpret_cast<const __nv_fp8_e4m3*>(&a);
+    const __nv_fp8_e4m3* y = reinterpret_cast<const __nv_fp8_e4m3*>(&b);
+#if (__CUDA_ARCH__ >= 800)
+    // TODO: may be optimized by using __nv_fp8x4_e4m3 for vectorized load/store
+    __nv_fp8_e4m3 z[4] = {__nv_fp8_e4m3(__hadd(__half(x[0]), __half(y[0]))),
+                          __nv_fp8_e4m3(__hadd(__half(x[1]), __half(y[1]))),
+                          __nv_fp8_e4m3(__hadd(__half(x[2]), __half(y[2]))),
+                          __nv_fp8_e4m3(__hadd(__half(x[3]), __half(y[3])))};
+    return (reinterpret_cast<uint32_t*>(z))[0];
+#else
+    // TODO: may be optimized by using __nv_fp8x4_e4m3 for vectorized load/store
+    __nv_fp8_e4m3 z[4] = {__nv_fp8_e4m3(float(x[0]) + float(y[0])),
+                          __nv_fp8_e4m3(float(x[1]) + float(y[1])),
+                          __nv_fp8_e4m3(float(x[2]) + float(y[2])),
+                          __nv_fp8_e4m3(float(x[3]) + float(y[3]))};
+    return (reinterpret_cast<uint32_t*>(z))[0];
+#endif // #if (__CUDA_ARCH__ >= 800)
+  } else if (std::is_same<T, __nv_fp8_e5m2>::value) {
+    const __nv_fp8_e5m2* x = reinterpret_cast<const __nv_fp8_e5m2*>(&a);
+    const __nv_fp8_e5m2* y = reinterpret_cast<const __nv_fp8_e5m2*>(&b);
+#if (__CUDA_ARCH__ >= 800)
+    // TODO: may be optimized by using __nv_fp8x4_e5m2 for vectorized load/store
+    __nv_fp8_e5m2 z[4] = {__nv_fp8_e5m2(__hadd(__half(x[0]), __half(y[0]))),
+                          __nv_fp8_e5m2(__hadd(__half(x[1]), __half(y[1]))),
+                          __nv_fp8_e5m2(__hadd(__half(x[2]), __half(y[2]))),
+                          __nv_fp8_e5m2(__hadd(__half(x[3]), __half(y[3])))};
+    return (reinterpret_cast<uint32_t*>(z))[0];
+#else
+    // TODO: may be optimized by using __nv_fp8x4_e5m2 for vectorized load/store
+    __nv_fp8_e5m2 z[4] = {__nv_fp8_e5m2(float(x[0]) + float(y[0])),
+                          __nv_fp8_e5m2(float(x[1]) + float(y[1])),
+                          __nv_fp8_e5m2(float(x[2]) + float(y[2])),
+                          __nv_fp8_e5m2(float(x[3]) + float(y[3]))};
+    return (reinterpret_cast<uint32_t*>(z))[0];
+#endif // #if (__CUDA_ARCH__ >= 800)
+#endif // #if defined(NCCL_ENABLE_FP8)
   }
-#endif
 
   return 0;
 }
@@ -57,6 +98,10 @@ static inline __device__
 typename std::enable_if<!std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     && !std::is_same<T, __nv_bfloat16>::value
+#endif
+#if defined(NCCL_ENABLE_FP8)
+    && !std::is_same<T, __nv_fp8_e4m3>::value
+    && !std::is_same<T, __nv_fp8_e5m2>::value
 #endif
     , uint4>::type
 seqAdd(const T** src, size_t offset) {
@@ -77,6 +122,10 @@ typename std::enable_if<std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     || std::is_same<T, __nv_bfloat16>::value
 #endif
+#if defined(NCCL_ENABLE_FP8)
+    || std::is_same<T, __nv_fp8_e4m3>::value
+    || std::is_same<T, __nv_fp8_e5m2>::value
+#endif
     , uint4>::type
 seqAdd(const T** src, size_t offset) {
   uint4 x = {0, 0, 0, 0};
@@ -89,6 +138,10 @@ static inline __device__ uint4 vecAdd(const T** src, size_t offset) {
   if (std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
       || std::is_same<T, __nv_bfloat16>::value
+#endif
+#if defined(NCCL_ENABLE_FP8)
+      || std::is_same<T, __nv_fp8_e4m3>::value
+      || std::is_same<T, __nv_fp8_e5m2>::value
 #endif
   ) {
     uint4 dst = {0, 0, 0, 0};
@@ -114,6 +167,10 @@ typename std::enable_if<std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     || std::is_same<T, __nv_bfloat16>::value
 #endif
+#if defined(NCCL_ENABLE_FP8)
+    || std::is_same<T, __nv_fp8_e4m3>::value
+    || std::is_same<T, __nv_fp8_e5m2>::value
+#endif
     , uint4>::type
 vecAdd(const T* src_a, const T* src_b) {
   /* 16-byte loads */
@@ -134,6 +191,10 @@ static inline __device__
 typename std::enable_if<!std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     && !std::is_same<T, __nv_bfloat16>::value
+#endif
+#if defined(NCCL_ENABLE_FP8)
+    && !std::is_same<T, __nv_fp8_e4m3>::value
+    && !std::is_same<T, __nv_fp8_e5m2>::value
 #endif
     , uint4>::type
 vecAdd(const T* src_a, const T* src_b) {
@@ -598,4 +659,8 @@ DECL_DDA_FUNC(float);
 DECL_DDA_FUNC(double);
 #if defined(__CUDA_BF16_TYPES_EXIST__)
 DECL_DDA_FUNC(__nv_bfloat16);
+#endif
+#if defined(NCCL_ENABLE_FP8)
+DECL_DDA_FUNC(__nv_fp8_e4m3);
+DECL_DDA_FUNC(__nv_fp8_e5m2);
 #endif

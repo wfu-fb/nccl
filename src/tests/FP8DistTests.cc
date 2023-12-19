@@ -1,8 +1,10 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include <AlgoInit.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <nccl.h>
+#include <cstdlib>
 #include <memory>
 #include "checks.h"
 #include "comm.h"
@@ -246,6 +248,48 @@ TEST_F(FP8Test, ncclFp8E4M3AllReduce) {
   // FIXME: Don't check the result since there could be rounding errors
 
   NCCLCHECK_TEST(ncclCommDestroy(comm));
+}
+
+TEST_F(FP8Test, ncclFp8E5M2AllReduceDDA) {
+  setenv("NCCL_ALLREDUCE_ALGO2", "dda", 1);
+  ncclCvarInit();
+  ncclDataType_t dt = ncclFp8E5M2;
+  ncclComm_t comm =
+      createNcclComm(this->globalRank, this->numRanks, this->localRank);
+
+  ASSERT_NE(nullptr, comm);
+
+  auto res = ncclAllReduce(sendbuf, recvbuf, count, dt, ncclSum, comm, stream);
+  EXPECT_EQ(res, ncclSuccess);
+
+  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+
+  // FIXME: Don't check the result since there could be rounding errors
+
+  NCCLCHECK_TEST(ncclCommDestroy(comm));
+  unsetenv("NCCL_ALLREDUCE_ALGO2");
+  ncclCvarInit();
+}
+
+TEST_F(FP8Test, ncclFp8E4M3AllReduceDDA) {
+  setenv("NCCL_ALLREDUCE_ALGO2", "dda", 1);
+  ncclCvarInit();
+  ncclDataType_t dt = ncclFp8E4M3;
+  ncclComm_t comm =
+      createNcclComm(this->globalRank, this->numRanks, this->localRank);
+
+  ASSERT_NE(nullptr, comm);
+
+  auto res = ncclAllReduce(sendbuf, recvbuf, count, dt, ncclSum, comm, stream);
+  EXPECT_EQ(res, ncclSuccess);
+
+  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+
+  // FIXME: Don't check the result since there could be rounding errors
+
+  NCCLCHECK_TEST(ncclCommDestroy(comm));
+  unsetenv("NCCL_ALLREDUCE_ALGO2");
+  ncclCvarInit();
 }
 
 TEST_F(FP8Test, ncclFp8E5M2Reduce) {

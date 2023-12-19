@@ -280,6 +280,14 @@ ncclResult_t ncclAllReduceDDA(
       NCCLCHECK(launchKernel<__nv_bfloat16>(comm, sendbuff, recvbuff, count, datatype, stream));
       break;
 #endif
+#if defined(NCCL_ENABLE_FP8)
+    case ncclFp8E4M3:
+      NCCLCHECK(launchKernel<__nv_fp8_e4m3>(comm, sendbuff, recvbuff, count, datatype, stream));
+      break;
+    case ncclFp8E5M2:
+      NCCLCHECK(launchKernel<__nv_fp8_e5m2>(comm, sendbuff, recvbuff, count, datatype, stream));
+      break;
+#endif
 
     default:
       goto not_supported;
