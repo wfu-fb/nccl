@@ -77,11 +77,11 @@ namespace algorithms {
           break;                                    \
         }                                           \
         case ncclFp8E5M2: {                        \
-          __res = func<__nv_bfloat16>(__VA_ARGS__); \
+          __res = func<__nv_fp8_e5m2>(__VA_ARGS__); \
           break;                                    \
         }                                           \
         case ncclFp8E4M3: {                        \
-          __res = func<__nv_bfloat16>(__VA_ARGS__); \
+          __res = func<__nv_fp8_e4m3>(__VA_ARGS__); \
           break;                                    \
         }                                           \
         default: {                                  \
