@@ -136,7 +136,7 @@ static inline __device__ uint4 vecAdd(const T** src, size_t offset) {
 #if defined(__CUDA_BF16_TYPES_EXIST__)
       || std::is_same<T, __nv_bfloat16>::value
 #endif
-#if defined(NCCL_ENABLED_FP8)
+#if defined(NCCL_ENABLE_FP8)
       || std::is_same<T, __nv_fp8_e4m3>::value
       || std::is_same<T, __nv_fp8_e5m2>::value
 #endif
