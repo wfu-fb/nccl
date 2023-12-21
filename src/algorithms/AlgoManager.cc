@@ -21,11 +21,11 @@
      Message size at which DDA Allreduce switches to the tree algorithm.
      Only applies for NVSwitch-based systems.
 
- - name        : NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE
+ - name        : NCCL_DDA2_TMPBUFF_SIZE
    type        : int
    default     : 33554432
    description : |-
-     DDA Allreduce temporary buffer size.
+     DDA temporary buffer size.
 
  - name        : NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
    type        : int
@@ -81,7 +81,7 @@ AlgoManager::AlgoManager(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
       0,
       (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
 
-  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE));
+  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
       cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
 
@@ -272,13 +272,13 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
           recvbuff,
           totalSize,
           NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS,
-          NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE)) {
+          NCCL_DDA2_TMPBUFF_SIZE)) {
       // fallback to default
       return nullptr;
     }
 
     // copy src to tmp buffers
-    assert(totalSize <= NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE);
+    assert(totalSize <= NCCL_DDA2_TMPBUFF_SIZE);
     CUDACHECKIGNORE(cudaMemcpyAsync(
         devStates_[comm_->rank].tmpbuff,
         sendbuff,

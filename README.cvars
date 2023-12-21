@@ -149,18 +149,18 @@ Description:
 Type: int
 Default: 24
 
-NCCL_DDA2_ALLREDUCE_TMPBUFF_SIZE
-Description:
-    DDA Allreduce temporary buffer size.
-Type: int
-Default: 33554432
-
 NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
 Description:
     Message size at which DDA Allreduce switches to the tree algorithm.
     Only applies for NVSwitch-based systems.
 Type: int
 Default: 262144
+
+NCCL_DDA2_TMPBUFF_SIZE
+Description:
+    DDA temporary buffer size.
+Type: int
+Default: 33554432
 
 NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM
 Description:
