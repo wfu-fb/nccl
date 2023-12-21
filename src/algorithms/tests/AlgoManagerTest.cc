@@ -60,7 +60,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 8;
     numDdaThreads = 4;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -76,7 +76,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 1;
     numDdaThreads = 1;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -92,7 +92,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 6;
     numDdaThreads = 6;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -108,7 +108,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 16;
     numDdaThreads = 16;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -124,7 +124,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 8;
     numDdaThreads = 8;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclMax,
       sendbuff_d,
@@ -140,7 +140,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 8;
     numDdaThreads = 8;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -156,7 +156,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 8;
     numDdaThreads = 8;
     totalBytes = 1032;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -174,7 +174,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
 
     // > 2048 tree threshold, but not multiple of 128
     totalBytes = 2064;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -190,7 +190,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
     comm.nRanks = 8;
     numDdaThreads = 8;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -208,7 +208,7 @@ TEST(AlgoManagerTest, CanRunDdaThreaded) {
 
     // > 2048 tree threshold, and multiple of 128
     totalBytes = 2176;
-    auto ret = AlgoManager::canRunDdaThreaded(
+    auto ret = AlgoManager::canRunDdaAllReduceThreaded(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -239,7 +239,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 8;
     comm.localRanks = 4;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -255,7 +255,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 1;
     comm.localRanks = 1;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -271,7 +271,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 6;
     comm.localRanks = 6;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -287,7 +287,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 8;
     comm.localRanks = 8;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclMax,
       sendbuff_d,
@@ -303,7 +303,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 8;
     comm.localRanks = 8;
     totalBytes = 1032;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -321,7 +321,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
 
     // > 2048 tree threshold, but not multiple of 128
     totalBytes = 2064;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -337,7 +337,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 8;
     comm.localRanks = 8;
     totalBytes = 1024 * 1024 * 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -353,7 +353,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 8;
     comm.localRanks = 8;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -371,7 +371,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
 
     // > 2048 tree threshold, and multiple of 128
     totalBytes = 2176;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,
@@ -387,7 +387,7 @@ TEST(AlgoManagerTest, CanRunDdaIpc) {
     comm.nRanks = 8;
     comm.localRanks = 8;
     totalBytes = 1024;
-    auto ret = AlgoManager::canRunDdaIpc(
+    auto ret = AlgoManager::canRunDdaAllReduceIpc(
       &comm,
       ncclSum,
       sendbuff_d,

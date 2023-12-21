@@ -138,7 +138,7 @@ bool AlgoManager::checkNumRanks(size_t numRanks) {
   return true;
 }
 
-bool AlgoManager::canRunDdaThreaded(
+bool AlgoManager::canRunDdaAllReduceThreaded(
     ncclComm* comm,
     ncclRedOp_t op,
     const void* sendbuff,
@@ -186,7 +186,7 @@ bool AlgoManager::canRunDdaThreaded(
   return true;
 }
 
-bool AlgoManager::canRunDdaIpc(
+bool AlgoManager::canRunDdaAllReduceIpc(
     ncclComm* comm,
     ncclRedOp_t op,
     const void* sendbuff,
@@ -244,7 +244,7 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
 
   if (numDdaThreads == comm_->nRanks) {
     // multi-threaded environment
-    if (!canRunDdaThreaded(
+    if (!canRunDdaAllReduceThreaded(
         comm,
         op,
         sendbuff,
@@ -265,7 +265,7 @@ std::unique_ptr<AllReduceAlgo> AlgoManager::getAllReduceAlgo(
     }
   } else {
     // multi-process environment
-    if (!canRunDdaIpc(
+    if (!canRunDdaAllReduceIpc(
           comm,
           op,
           sendbuff,

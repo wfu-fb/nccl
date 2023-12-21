@@ -77,7 +77,7 @@ class AlgoManager {
       cudaStream_t stream);
 
   // check DDA threaded requirements
-  static bool canRunDdaThreaded(
+  static bool canRunDdaAllReduceThreaded(
     ncclComm* comm,
     ncclRedOp_t op,
     const void* sendbuff,
@@ -87,7 +87,7 @@ class AlgoManager {
     size_t treeThresholdBytes);
 
   // check DDA IPC requirements
-  static bool canRunDdaIpc(
+  static bool canRunDdaAllReduceIpc(
     ncclComm* comm,
     ncclRedOp_t op,
     const void* sendbuff,
