@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 
 hash=""
 # guess default DEV_SIGNATURE
@@ -13,9 +12,11 @@ else
     echo "Cannot detect source repository hash. Skip"
 fi
 
+set -e
+
 BUILDDIR=${BUILDDIR:=/tmp/nccl-exp/2.18.3/build}
 NVCC_ARCH=${NVCC_ARCH:="a100,h100"}
-CUDA_HOME=${CUDA_HOME:="/usr/local/cuda"}
+CUDA_HOME=${CUDA_HOME:="`realpath ../../tp2/cuda/12.2.2/x86_64`"}
 DEV_SIGNATURE=${DEV_SIGNATURE:="$hash"}
 
 echo "BUILDDIR=${BUILDDIR}"
@@ -47,14 +48,17 @@ echo "NVCC_GENCODE=$arch_gencode"
 
 # build libnccl
 export BUILDDIR=$BUILDDIR
-make src.clean && make -j src.build NVCC_GENCODE="$arch_gencode" CUDA_HOME="$CUDA_HOME" DEV_SIGNATURE="$DEV_SIGNATURE"
+make -j src.build NVCC_GENCODE="$arch_gencode" CUDA_HOME="$CUDA_HOME" DEV_SIGNATURE="$DEV_SIGNATURE"
 
 # sanity check
 pushd examples
 export NCCL_HOME=$BUILDDIR
 export NCCL_DEBUG=WARN
 export LD_LIBRARY_PATH=$BUILDDIR/lib
-make clean && make all
+make all NVCC_GENCODE="$arch_gencode" CUDA_HOME="$CUDA_HOME" DEV_SIGNATURE="$DEV_SIGNATURE"
+
+set +e
+
 TIMEOUT=10s
 timeout $TIMEOUT $BUILDDIR/examples/HelloWorld
 if [ "$?" == "124" ]; then
