@@ -41,44 +41,26 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
     return (reinterpret_cast<uint32_t*>(z))[0];
 #endif
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(NCCL_ENABLE_FP8) && (__CUDA_ARCH__ >= 800)
   } else if (std::is_same<T, __nv_fp8_e4m3>::value) {
     const __nv_fp8_e4m3* x = reinterpret_cast<const __nv_fp8_e4m3*>(&a);
     const __nv_fp8_e4m3* y = reinterpret_cast<const __nv_fp8_e4m3*>(&b);
-#if (__CUDA_ARCH__ >= 800)
     // TODO: may be optimized by using __nv_fp8x4_e4m3 for vectorized load/store
     __nv_fp8_e4m3 z[4] = {__nv_fp8_e4m3(__hadd(__half(x[0]), __half(y[0]))),
                           __nv_fp8_e4m3(__hadd(__half(x[1]), __half(y[1]))),
                           __nv_fp8_e4m3(__hadd(__half(x[2]), __half(y[2]))),
                           __nv_fp8_e4m3(__hadd(__half(x[3]), __half(y[3])))};
     return (reinterpret_cast<uint32_t*>(z))[0];
-#else
-    // TODO: may be optimized by using __nv_fp8x4_e4m3 for vectorized load/store
-    __nv_fp8_e4m3 z[4] = {__nv_fp8_e4m3(float(x[0]) + float(y[0])),
-                          __nv_fp8_e4m3(float(x[1]) + float(y[1])),
-                          __nv_fp8_e4m3(float(x[2]) + float(y[2])),
-                          __nv_fp8_e4m3(float(x[3]) + float(y[3]))};
-    return (reinterpret_cast<uint32_t*>(z))[0];
-#endif // #if (__CUDA_ARCH__ >= 800)
   } else if (std::is_same<T, __nv_fp8_e5m2>::value) {
     const __nv_fp8_e5m2* x = reinterpret_cast<const __nv_fp8_e5m2*>(&a);
     const __nv_fp8_e5m2* y = reinterpret_cast<const __nv_fp8_e5m2*>(&b);
-#if (__CUDA_ARCH__ >= 800)
     // TODO: may be optimized by using __nv_fp8x4_e5m2 for vectorized load/store
     __nv_fp8_e5m2 z[4] = {__nv_fp8_e5m2(__hadd(__half(x[0]), __half(y[0]))),
                           __nv_fp8_e5m2(__hadd(__half(x[1]), __half(y[1]))),
                           __nv_fp8_e5m2(__hadd(__half(x[2]), __half(y[2]))),
                           __nv_fp8_e5m2(__hadd(__half(x[3]), __half(y[3])))};
     return (reinterpret_cast<uint32_t*>(z))[0];
-#else
-    // TODO: may be optimized by using __nv_fp8x4_e5m2 for vectorized load/store
-    __nv_fp8_e5m2 z[4] = {__nv_fp8_e5m2(float(x[0]) + float(y[0])),
-                          __nv_fp8_e5m2(float(x[1]) + float(y[1])),
-                          __nv_fp8_e5m2(float(x[2]) + float(y[2])),
-                          __nv_fp8_e5m2(float(x[3]) + float(y[3]))};
-    return (reinterpret_cast<uint32_t*>(z))[0];
-#endif // #if (__CUDA_ARCH__ >= 800)
-#endif // #if defined(NCCL_ENABLE_FP8)
+#endif // #if defined(NCCL_ENABLE_FP8) && (__CUDA_ARCH__ >= 800)
   }
 
   return 0;
