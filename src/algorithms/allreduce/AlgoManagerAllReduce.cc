@@ -172,15 +172,7 @@ std::unique_ptr<AlgoAllReduce> AlgoManagerAllReduce::getAlgoAllReduce(
       return nullptr;
     }
 
-    // copy src to tmp buffers
     assert(totalSize <= NCCL_DDA2_TMPBUFF_SIZE);
-    CUDACHECKIGNORE(cudaMemcpyAsync(
-        devStates_[comm_->rank].tmpbuff,
-        sendbuff,
-        totalSize,
-        cudaMemcpyDefault,
-        stream));
-
     if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
       return getAlgoAllReduceDdaNvsFlatIpc(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
@@ -263,6 +255,7 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsFlatIpc(
           op,
           comm,
           stream,
+          devStates_,
           devStates_d_,
           barrierFlag_,
           maxBlocks_});
@@ -289,6 +282,7 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsTreeIpc(
           op,
           comm,
           stream,
+          devStates_,
           devStates_d_,
           barrierFlag_,
           maxBlocks_});

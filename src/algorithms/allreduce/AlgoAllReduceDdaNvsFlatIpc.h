@@ -17,6 +17,7 @@ class AlgoAllReduceDdaNvsFlatIpc : public AlgoAllReduce {
       ncclRedOp_t op,
       ncclComm* comm,
       cudaStream_t stream,
+      const DdaDeviceState* devStates,
       const DdaDeviceState* devStates_d,
       uintptr_t barrierFlag,
       size_t maxBlocks);
@@ -35,6 +36,7 @@ class AlgoAllReduceDdaNvsFlatIpc : public AlgoAllReduce {
   ncclRedOp_t op_{ncclSum};
   ncclComm* comm_{nullptr};
   cudaStream_t stream_{nullptr};
+  const DdaDeviceState* devStates_{nullptr};
   const DdaDeviceState* devStates_d_{nullptr};
   uintptr_t barrierFlag_{0};
   const size_t maxBlocks_{0};

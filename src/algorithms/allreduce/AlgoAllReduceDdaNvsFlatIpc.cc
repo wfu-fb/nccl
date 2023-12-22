@@ -17,6 +17,7 @@ AlgoAllReduceDdaNvsFlatIpc::AlgoAllReduceDdaNvsFlatIpc(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream,
+    const DdaDeviceState* devStates,
     const DdaDeviceState* devStates_d,
     uintptr_t barrierFlag,
     size_t maxBlocks)
@@ -27,6 +28,7 @@ AlgoAllReduceDdaNvsFlatIpc::AlgoAllReduceDdaNvsFlatIpc(
       op_(op),
       comm_(comm),
       stream_(stream),
+      devStates_(devStates),
       devStates_d_(devStates_d),
       barrierFlag_(barrierFlag),
       maxBlocks_(maxBlocks) {}
@@ -55,6 +57,13 @@ ncclResult_t AlgoAllReduceDdaNvsFlatIpc::launchKernel() {
 
 ncclResult_t AlgoAllReduceDdaNvsFlatIpc::allReduce() {
   INFO(NCCL_COLL, "AlgoAllReduceDdaNvsFlatIpc::allReduce");
+  // copy src to tmp buffers
+  CUDACHECKIGNORE(cudaMemcpyAsync(
+        devStates_[comm_->rank].tmpbuff,
+        sendbuff_,
+        count_ * getDataSize(datatype_),
+        cudaMemcpyDefault,
+        stream_));
   NCCLCHECK(NCCL_TYPED_CALL(datatype_, launchKernel));
   return ncclSuccess;
 }
