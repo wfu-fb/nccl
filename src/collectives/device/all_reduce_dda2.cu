@@ -45,21 +45,25 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
   } else if (std::is_same<T, __nv_fp8_e4m3>::value) {
     const __nv_fp8_e4m3* x = reinterpret_cast<const __nv_fp8_e4m3*>(&a);
     const __nv_fp8_e4m3* y = reinterpret_cast<const __nv_fp8_e4m3*>(&b);
-    // TODO: may be optimized by using __nv_fp8x4_e4m3 for vectorized load/store
-    __nv_fp8_e4m3 z[4] = {__nv_fp8_e4m3(__hadd(__half(x[0]), __half(y[0]))),
-                          __nv_fp8_e4m3(__hadd(__half(x[1]), __half(y[1]))),
-                          __nv_fp8_e4m3(__hadd(__half(x[2]), __half(y[2]))),
-                          __nv_fp8_e4m3(__hadd(__half(x[3]), __half(y[3])))};
-    return (reinterpret_cast<uint32_t*>(z))[0];
+    __half2 r[2] = {
+      __hadd2(__halves2half2(__half(x[0]), __half(x[1])),
+          __halves2half2(__half(y[0]), __half(y[1]))),
+      __hadd2(__halves2half2(__half(x[2]), __half(x[3])),
+          __halves2half2(__half(y[2]), __half(y[3])))
+    };
+    __nv_fp8x4_e4m3 z(r[0], r[1]);
+    return (reinterpret_cast<uint32_t*>(&z))[0];
   } else if (std::is_same<T, __nv_fp8_e5m2>::value) {
     const __nv_fp8_e5m2* x = reinterpret_cast<const __nv_fp8_e5m2*>(&a);
     const __nv_fp8_e5m2* y = reinterpret_cast<const __nv_fp8_e5m2*>(&b);
-    // TODO: may be optimized by using __nv_fp8x4_e5m2 for vectorized load/store
-    __nv_fp8_e5m2 z[4] = {__nv_fp8_e5m2(__hadd(__half(x[0]), __half(y[0]))),
-                          __nv_fp8_e5m2(__hadd(__half(x[1]), __half(y[1]))),
-                          __nv_fp8_e5m2(__hadd(__half(x[2]), __half(y[2]))),
-                          __nv_fp8_e5m2(__hadd(__half(x[3]), __half(y[3])))};
-    return (reinterpret_cast<uint32_t*>(z))[0];
+    __half2 r[2] = {
+      __hadd2(__halves2half2(__half(x[0]), __half(x[1])),
+          __halves2half2(__half(y[0]), __half(y[1]))),
+      __hadd2(__halves2half2(__half(x[2]), __half(x[3])),
+          __halves2half2(__half(y[2]), __half(y[3])))
+    };
+    __nv_fp8x4_e5m2 z(r[0], r[1]);
+    return (reinterpret_cast<uint32_t*>(&z))[0];
 #endif // #if defined(NCCL_ENABLE_FP8) && (__CUDA_ARCH__ >= 800)
   }
 
