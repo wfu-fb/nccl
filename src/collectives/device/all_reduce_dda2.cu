@@ -260,8 +260,6 @@ template <uint32_t NRANKS>
 static inline __device__ void
 barrier_onSameBlockIdx_releaseAcquire(
     uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
-  volatile uintptr_t* barrier_d = barrierMbox;
-
   __syncthreads();
 
   if (threadIdx.x < NRANKS) {

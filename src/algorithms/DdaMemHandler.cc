@@ -41,8 +41,8 @@ ncclResult_t DdaMemHandler::exchangeMemHandles() {
   const size_t kSendSize = sizeof(ExchangedHandle) * kNumSendHandle;
   const size_t kRecvSize = kSendSize * comm_->nRanks;
 
-  ExchangedHandle sendHandles[kNumSendHandle];
-  ExchangedHandle recvHandles[kNumRecvHandle];
+  std::vector<ExchangedHandle> sendHandles(kNumSendHandle);
+  std::vector<ExchangedHandle> recvHandles(kNumRecvHandle);
   ExchangedHandle* sendBuff_d{nullptr};
   ExchangedHandle* recvBuff_d{nullptr};
   CUDACHECK(cudaMalloc(&sendBuff_d, kSendSize));
@@ -55,7 +55,7 @@ ncclResult_t DdaMemHandler::exchangeMemHandles() {
     handle.addr = memAddr.addr;
     CUDACHECK(cudaIpcGetMemHandle(&handle.ipcHandle, memAddr.addr));
   }
-  CUDACHECK(cudaMemcpy(sendBuff_d, sendHandles, kSendSize, cudaMemcpyDefault));
+  CUDACHECK(cudaMemcpy(sendBuff_d, sendHandles.data(), kSendSize, cudaMemcpyDefault));
 
   // exchange handles
   cudaStream_t stream;
@@ -66,7 +66,7 @@ ncclResult_t DdaMemHandler::exchangeMemHandles() {
   CUDACHECK(cudaStreamDestroy(stream));
 
   // decode received handles
-  CUDACHECK(cudaMemcpy(recvHandles, recvBuff_d, kRecvSize, cudaMemcpyDefault));
+  CUDACHECK(cudaMemcpy(recvHandles.data(), recvBuff_d, kRecvSize, cudaMemcpyDefault));
   for (int rank = 0; rank < comm_->nRanks; ++rank) {
     if (rank == comm_->rank) {
       // skip self
