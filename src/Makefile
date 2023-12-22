@@ -28,13 +28,21 @@ LIBSRCFILES += ctran/mapper/CtranMapper.cc ctran/mapper/CtranMapperRequest.cc
 LIBSRCFILES += ctran/Ctran.cc
 LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc ctran/utils/CtranTopoFile.cc
 LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllGather/AllGatherDirect.cc ctran/algos/AllGather/AllGatherRing.cc ctran/algos/AllGather/AllGatherRecDbl.cc
-LIBSRCFILES += algorithms/AlgoInit.cc algorithms/AlgoManager.cc algorithms/AlgoUtils.cc algorithms/AllReduceDdaNvsFlatThreadedAlgo.cc \
-		algorithms/AllReduceDdaNvsTreeThreadedAlgo.cc algorithms/DdaMemHandler.cc algorithms/DdaThreadedData.cc \
-		algorithms/AllReduceDdaNvsTreeIpcAlgo.cc algorithms/AllReduceDdaNvsFlatIpcAlgo.cc
+LIBSRCFILES += algorithms/AlgoDirector.cc \
+               algorithms/AlgoInit.cc \
+               algorithms/AlgoManagerBase.cc \
+               algorithms/AlgoUtils.cc \
+               algorithms/DdaMemHandler.cc \
+               algorithms/DdaThreadedData.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsFlatIpc.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsFlatThreaded.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsTreeIpc.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsTreeThreaded.cc \
+               algorithms/allreduce/AlgoManagerAllReduce.cc
 LIBSRCFILES += window.cc
 
 INCLUDES := -Iinclude
-INCLUDES += -Ialgorithms
+INCLUDES += -Ialgorithms -Ialgorithms/allreduce
 INCLUDES += -Ictran -Ictran/utils -Ictran/backends/ib -Ictran/mapper -Ictran/gpe
 
 ##### lib files

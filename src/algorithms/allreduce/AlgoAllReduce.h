@@ -10,11 +10,11 @@ namespace algorithms {
  * This class defines common interface for all AllReduce Algorithms
  * subclasses are expected to provide actual implementation
  */
-class AllReduceAlgo {
+class AlgoAllReduce {
  public:
   virtual ncclResult_t allReduce() = 0;
 
-  virtual ~AllReduceAlgo() {}
+  virtual ~AlgoAllReduce() {}
 };
 
 } // namespace algorithms

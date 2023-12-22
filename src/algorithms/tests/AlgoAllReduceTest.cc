@@ -6,8 +6,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "AllReduceDdaNvsFlatThreadedAlgo.h"
-#include "AllReduceDdaNvsTreeThreadedAlgo.h"
+#include "AlgoAllReduceDdaNvsFlatThreaded.h"
+#include "AlgoAllReduceDdaNvsTreeThreaded.h"
 #include "AlgoInit.h"
 #include "checks.h"
 #include "comm.h"
@@ -124,7 +124,7 @@ class GpuAgent {
     }
   }
 
-  void runAllReduceAndVerify(std::unique_ptr<AllReduceAlgo> algo, int iterId) {
+  void runAllReduceAndVerify(std::unique_ptr<AlgoAllReduce> algo, int iterId) {
     assert(initialized_);
     CUDACHECKIGNORE(cudaSetDevice(comm->cudaDev));
 
@@ -159,7 +159,7 @@ class GpuAgent {
   std::vector<float*> tmpbufs_d_{};
 };
 
-TEST(AllReduceAlgoTest, NvsFlatThreaded) {
+TEST(AlgoAllReduceTest, NvsFlatThreaded) {
   const int count = 32;
   const int nRanks = 2;
   const int nIter = 10;
@@ -185,7 +185,7 @@ TEST(AllReduceAlgoTest, NvsFlatThreaded) {
   for (int i = 0; i < nRanks; ++i) {
     threads.emplace_back([&agents, i] {
       for (int itr = 0; itr < nIter; ++itr) {
-        auto algo = agents.at(i)->comm->algoMgr->getAllReduceDdaNvsFlatThreadedAlgo(
+        auto algo = agents.at(i)->comm->algoDirector->allReduce->getAlgoAllReduceDdaNvsFlatThreaded(
             agents.at(i)->sendbufs_d_.at(itr),
             agents.at(i)->recvbufs_d_.at(itr),
             count,
@@ -203,7 +203,7 @@ TEST(AllReduceAlgoTest, NvsFlatThreaded) {
   }
 }
 
-TEST(AllReduceAlgoTest, NvsTreeThreaded) {
+TEST(AlgoAllReduceTest, NvsTreeThreaded) {
   const int count = 32;
   const int nRanks = 2;
   const int nIter = 10;
@@ -229,7 +229,7 @@ TEST(AllReduceAlgoTest, NvsTreeThreaded) {
   for (int i = 0; i < nRanks; ++i) {
     threads.emplace_back([&agents, i] {
       for (int itr = 0; itr < nIter; ++itr) {
-        auto algo = agents.at(i)->comm->algoMgr->getAllReduceDdaNvsTreeThreadedAlgo(
+        auto algo = agents.at(i)->comm->algoDirector->allReduce->getAlgoAllReduceDdaNvsTreeThreaded(
             agents.at(i)->sendbufs_d_.at(itr),
             agents.at(i)->recvbufs_d_.at(itr),
             count,

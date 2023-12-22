@@ -62,7 +62,7 @@ bool operator==(const ddaThreadSharedMd& lhs, const ddaThreadSharedMd& rhs) {
   return (lhs.commHash == rhs.commHash);
 }
 
-ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
+ncclDDAAlgoAllReduce_t getAlgoAllReduce(const void* sendbuff, void* recvbuff,
                                         size_t count, ncclDataType_t datatype, ncclRedOp_t op,
                                         ncclComm* comm) {
   const auto bytes = count * typeSize(datatype);

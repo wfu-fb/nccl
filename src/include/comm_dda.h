@@ -15,9 +15,9 @@ typedef enum {
   NCCL_DDA_ALLREDUCE_ALGO_DEFAULT,
   NCCL_DDA_ALLREDUCE_ALGO_DDA_IPC,
   NCCL_DDA_ALLREDUCE_ALGO_DDA_THREADED,
-} ncclDDAAllReduceAlgo_t;
+} ncclDDAAlgoAllReduce_t;
 
-ncclDDAAllReduceAlgo_t getAllReduceAlgo(const void* sendbuff, void* recvbuff,
+ncclDDAAlgoAllReduce_t getAlgoAllReduce(const void* sendbuff, void* recvbuff,
                                         size_t count, ncclDataType_t datatype, ncclRedOp_t op,
                                         ncclComm* comm);
 ncclResult_t allocDDAMd(ncclComm *comm);

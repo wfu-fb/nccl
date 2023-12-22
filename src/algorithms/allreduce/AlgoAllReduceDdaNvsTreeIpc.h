@@ -1,15 +1,15 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 #pragma once
 
-#include "AllReduceAlgo.h"
+#include "AlgoAllReduce.h"
 #include "collectives.h"
 
 namespace nccl {
 namespace algorithms {
 
-class AllReduceDdaNvsTreeIpcAlgo : public AllReduceAlgo {
+class AlgoAllReduceDdaNvsTreeIpc : public AlgoAllReduce {
  public:
-  AllReduceDdaNvsTreeIpcAlgo(
+  AlgoAllReduceDdaNvsTreeIpc(
       const void* sendbuff,
       void* recvbuff,
       size_t count,
@@ -20,7 +20,7 @@ class AllReduceDdaNvsTreeIpcAlgo : public AllReduceAlgo {
       const DdaDeviceState* devStates_d,
       uintptr_t barrierFlag,
       size_t maxBlocks);
-  ~AllReduceDdaNvsTreeIpcAlgo();
+  ~AlgoAllReduceDdaNvsTreeIpc();
 
   ncclResult_t allReduce() override;
 

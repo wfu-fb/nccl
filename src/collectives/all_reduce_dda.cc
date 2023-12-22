@@ -77,7 +77,7 @@ static ncclResult_t launchKernel(
     size_t count,
     ncclDataType_t datatype,
     cudaStream_t stream) {
-  ncclDDAAllReduceAlgo_t algo = getAllReduceAlgo(sendbuff, recvbuff, count, datatype, ncclSum, comm);
+  ncclDDAAlgoAllReduce_t algo = getAlgoAllReduce(sendbuff, recvbuff, count, datatype, ncclSum, comm);
   const void* func;
 
   if (comm->dda->topoType == NCCL_DDA_TOPO_TYPE__NVS) {

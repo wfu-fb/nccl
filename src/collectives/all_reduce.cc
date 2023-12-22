@@ -11,15 +11,15 @@ NCCL_API(ncclResult_t, ncclAllReduce, const void* sendbuff, void* recvbuff, size
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream);
 ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream) {
-  if (comm->algoMgr) {
+  if (comm->algoDirector) {
     // try to get meta customized algo
-    auto algo = comm->algoMgr->getAllReduceAlgo(sendbuff, recvbuff, count, datatype, op, comm, stream);
+    auto algo = comm->algoDirector->allReduce->getAlgoAllReduce(sendbuff, recvbuff, count, datatype, op, comm, stream);
     if (algo) {
       return algo->allReduce();
     }
   }
 
-  ncclDDAAllReduceAlgo_t allreduceAlgo = getAllReduceAlgo(sendbuff, recvbuff, count, datatype, op, comm);
+  ncclDDAAlgoAllReduce_t allreduceAlgo = getAlgoAllReduce(sendbuff, recvbuff, count, datatype, op, comm);
   if (allreduceAlgo != NCCL_DDA_ALLREDUCE_ALGO_DEFAULT) {
     auto ret = ncclAllReduceDDA(sendbuff, recvbuff, count, datatype, op, comm, stream);
     if (ret != ncclInvalidUsage) {

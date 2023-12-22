@@ -1,6 +1,6 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "AllReduceDdaNvsFlatThreadedAlgo.h"
+#include "AlgoAllReduceDdaNvsFlatIpc.h"
 
 #include "AlgoUtils.h"
 #include "comm.h"
@@ -9,7 +9,7 @@
 namespace nccl {
 namespace algorithms {
 
-AllReduceDdaNvsFlatThreadedAlgo::AllReduceDdaNvsFlatThreadedAlgo(
+AlgoAllReduceDdaNvsFlatIpc::AlgoAllReduceDdaNvsFlatIpc(
     const void* sendbuff,
     void* recvbuff,
     size_t count,
@@ -31,12 +31,12 @@ AllReduceDdaNvsFlatThreadedAlgo::AllReduceDdaNvsFlatThreadedAlgo(
       barrierFlag_(barrierFlag),
       maxBlocks_(maxBlocks) {}
 
-AllReduceDdaNvsFlatThreadedAlgo::~AllReduceDdaNvsFlatThreadedAlgo() {}
+AlgoAllReduceDdaNvsFlatIpc::~AlgoAllReduceDdaNvsFlatIpc() {}
 
 template <typename T>
-ncclResult_t AllReduceDdaNvsFlatThreadedAlgo::launchKernel() {
+ncclResult_t AlgoAllReduceDdaNvsFlatIpc::launchKernel() {
   const void* func = nullptr;
-  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Flat, comm_->nRanks);
+  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Flat_ipc, comm_->nRanks);
 
   auto gridBlock =
       getGridAndBlockDims(func, count_, datatype_, maxBlocks_);
@@ -47,15 +47,14 @@ ncclResult_t AllReduceDdaNvsFlatThreadedAlgo::launchKernel() {
       &barrierFlag_,
       &devStates_d_,
       &comm_->rank,
-      &sendbuff_,
       &recvbuff_,
       &count_};
   CUDACHECK(cudaLaunchKernel(func, grid, block, args, 0, stream_));
   return ncclSuccess;
 }
 
-ncclResult_t AllReduceDdaNvsFlatThreadedAlgo::allReduce() {
-  INFO(NCCL_COLL, "AllReduceDdaNvsFlatThreadedAlgo::allReduce");
+ncclResult_t AlgoAllReduceDdaNvsFlatIpc::allReduce() {
+  INFO(NCCL_COLL, "AlgoAllReduceDdaNvsFlatIpc::allReduce");
   NCCLCHECK(NCCL_TYPED_CALL(datatype_, launchKernel));
   return ncclSuccess;
 }

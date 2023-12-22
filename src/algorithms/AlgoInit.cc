@@ -26,15 +26,15 @@ ncclResult_t algoInit(ncclComm_t comm, bool forceInit) {
      return ncclSuccess;
    }
 
-  // initiate AlgoManager
-  comm->algoMgr = std::unique_ptr<nccl::algorithms::AlgoManager>(
-      new nccl::algorithms::AlgoManager(comm));
+  // initiate AlgoDirector
+  comm->algoDirector = std::unique_ptr<nccl::algorithms::AlgoDirector>(
+      new nccl::algorithms::AlgoDirector(comm));
   return ncclSuccess;
 }
 
 ncclResult_t algoDestroy(ncclComm_t comm) {
-  if (comm->algoMgr) {
-    comm->algoMgr.reset();
+  if (comm->algoDirector) {
+    comm->algoDirector.reset();
   }
   return ncclSuccess;
 }

@@ -1,6 +1,6 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "AllReduceDdaNvsTreeThreadedAlgo.h"
+#include "AlgoAllReduceDdaNvsTreeIpc.h"
 
 #include "AlgoUtils.h"
 #include "comm.h"
@@ -9,7 +9,7 @@
 namespace nccl {
 namespace algorithms {
 
-AllReduceDdaNvsTreeThreadedAlgo::AllReduceDdaNvsTreeThreadedAlgo(
+AlgoAllReduceDdaNvsTreeIpc::AlgoAllReduceDdaNvsTreeIpc(
     const void* sendbuff,
     void* recvbuff,
     size_t count,
@@ -31,12 +31,12 @@ AllReduceDdaNvsTreeThreadedAlgo::AllReduceDdaNvsTreeThreadedAlgo(
       barrierFlag_(barrierFlag),
       maxBlocks_(maxBlocks) {}
 
-AllReduceDdaNvsTreeThreadedAlgo::~AllReduceDdaNvsTreeThreadedAlgo() {}
+AlgoAllReduceDdaNvsTreeIpc::~AlgoAllReduceDdaNvsTreeIpc() {}
 
 template <typename T>
-ncclResult_t AllReduceDdaNvsTreeThreadedAlgo::launchKernel() {
+ncclResult_t AlgoAllReduceDdaNvsTreeIpc::launchKernel() {
   const void* func = nullptr;
-  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Tree, comm_->nRanks);
+  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Tree_ipc, comm_->nRanks);
 
   auto gridBlock =
       getGridAndBlockDims(func, count_, datatype_, maxBlocks_);
@@ -48,7 +48,6 @@ ncclResult_t AllReduceDdaNvsTreeThreadedAlgo::launchKernel() {
       &barrierFlag_,
       &devStates_d_,
       &comm_->rank,
-      &sendbuff_,
       &recvbuff_,
       &count_,
       &maxBlocks};
@@ -56,8 +55,8 @@ ncclResult_t AllReduceDdaNvsTreeThreadedAlgo::launchKernel() {
   return ncclSuccess;
 }
 
-ncclResult_t AllReduceDdaNvsTreeThreadedAlgo::allReduce() {
-  INFO(NCCL_COLL, "AllReduceDdaNvsTreeThreadedAlgo::allReduce");
+ncclResult_t AlgoAllReduceDdaNvsTreeIpc::allReduce() {
+  INFO(NCCL_COLL, "AlgoAllReduceDdaNvsTreeIpc::allReduce");
   NCCLCHECK(NCCL_TYPED_CALL(datatype_, launchKernel));
   return ncclSuccess;
 }
