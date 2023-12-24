@@ -31,7 +31,7 @@ uint64_t ncclParamIbRetryCnt();
      and is a poor-man's version of fully adaptive routing.
 
  - name        : NCCL_CTRAN_IB_QP_SCALING_THRESHOLD
-   type        : int
+   type        : uint64_t
    default     : 1048576
    description : |-
      Threshold for QP scaling.  If T is the threshold, then for message sizes < T,

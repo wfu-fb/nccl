@@ -15,7 +15,7 @@
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
  - name        : NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
-   type        : int
+   type        : uint64_t
    default     : 262144
    description : |-
      Message size at which DDA Allreduce switches to the tree algorithm.

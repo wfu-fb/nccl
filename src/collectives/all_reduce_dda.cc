@@ -17,14 +17,14 @@
      Number of CUDA blocks to use for DDA Allreduce.
 
  - name        : NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS
-   type        : int
+   type        : uint64_t
    default     : 262144
    description : |-
      Message size at which DDA Allreduce switches to the tree algorithm.
      Only applies for NVSwitch-based systems.
 
  - name        : NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM
-   type        : int
+   type        : uint64_t
    default     : 65536
    description : |-
      Message size at which DDA Allreduce switches to the tree algorithm.

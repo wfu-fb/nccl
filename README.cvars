@@ -17,7 +17,7 @@ Default: orig
 NCCL_ALLGATHER_DIRECT_CUTOFF
 Description:
     Message size up to which we use the direct algorithm for Allgather.
-Type: int
+Type: uint64_t
 Default: 524288
 
 NCCL_ALLREDUCE_ALGO
@@ -74,7 +74,7 @@ Description:
     For [2T,3T) message sizes, data is split across three QPs, and so on.
     Once we hit the maximum number of QPs (see NCCL_CTRAN_IB_MAX_QPS), the
     data is split across all available QPs.
-Type: int
+Type: uint64_t
 Default: 1048576
 
 NCCL_CTRAN_IB_TRAFFIC_PROFILNG
@@ -153,13 +153,13 @@ NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
 Description:
     Message size at which DDA Allreduce switches to the tree algorithm.
     Only applies for NVSwitch-based systems.
-Type: int
+Type: uint64_t
 Default: 262144
 
 NCCL_DDA2_TMPBUFF_SIZE
 Description:
     DDA temporary buffer size.
-Type: int
+Type: uint64_t
 Default: 33554432
 
 NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM
@@ -177,21 +177,21 @@ Default: 1
 NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE
 Description:
     DDA Allreduce temporary buffer size.
-Type: int
+Type: uint64_t
 Default: 33554432
 
 NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM
 Description:
     Message size at which DDA Allreduce switches to the tree algorithm.
     Only applies for HCM-based systems.
-Type: int
+Type: uint64_t
 Default: 65536
 
 NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS
 Description:
     Message size at which DDA Allreduce switches to the tree algorithm.
     Only applies for NVSwitch-based systems.
-Type: int
+Type: uint64_t
 Default: 262144
 
 NCCL_DDA_FORCE_P2P_ACCESS

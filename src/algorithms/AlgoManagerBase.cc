@@ -15,7 +15,7 @@
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
  - name        : NCCL_DDA2_TMPBUFF_SIZE
-   type        : int
+   type        : uint64_t
    default     : 33554432
    description : |-
      DDA temporary buffer size.

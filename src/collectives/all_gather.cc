@@ -13,7 +13,7 @@
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
  - name        : NCCL_ALLGATHER_DIRECT_CUTOFF
-   type        : int
+   type        : uint64_t
    default     : 524288
    description : |-
      Message size up to which we use the direct algorithm for Allgather.

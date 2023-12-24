@@ -21,7 +21,7 @@
      Enable DDA Allreduce for large messages on HCM platforms.
 
  - name        : NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE
-   type        : int
+   type        : uint64_t
    default     : 33554432
    description : |-
      DDA Allreduce temporary buffer size.
