@@ -199,6 +199,32 @@ class int(basetype):
         file.write("\n")
 
 
+class uint64_t(basetype):
+    @staticmethod
+    def utilfns(file):
+        pass
+
+    def unitTest(self, file):
+        for i, val in enumerate(["0", "9999", "UINT64_MAX"]):
+            indent(file, "TEST_F(CvarTest, %s_value_%s) {" % (self.name, i))
+            indent(file, "testIntValue(\"%s\", %s);" % (self.name, val))
+            indent(file, "EXPECT_EQ(%s, %s);" % (self.name, val))
+            indent(file, "}")
+            file.write("\n")
+
+        if self.default:
+            indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "EXPECT_EQ(%s, %s);" % (self.name, self.default))
+            indent(file, "}")
+            file.write("\n")
+
+    def readenv(self, file):
+        indent(file, "%s = env2uint64_t(\"%s\", \"%s\");" %
+            (self.name, self.name, self.default))
+        file.write("\n")
+
+
 class string(basetype):
     @staticmethod
     def utilfns(file):
@@ -588,6 +614,8 @@ def main():
             allcvars.append(bool(cvar))
         elif (cvar['type'] == "int"):
             allcvars.append(int(cvar))
+        elif (cvar['type'] == "uint64_t"):
+            allcvars.append(uint64_t(cvar))
         elif (cvar['type'] == "string"):
             allcvars.append(string(cvar))
         elif (cvar['type'] == "stringlist"):

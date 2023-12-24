@@ -118,6 +118,10 @@ static int env2int(const char *str, const char *def) {
   return getenv(str) ? atoi(getenv(str)) : atoi(def);
 }
 
+static int env2uint64_t(const char *str, const char *def) {
+  return getenv(str) ? std::stoull(getenv(str)) : std::stoull(def);
+}
+
 static std::string env2str(const char *str, const char *def_) {
   const char *def = def_ ? def_ : "";
   std::string str_s = getenv(str) ? std::string(getenv(str)) : std::string(def);
