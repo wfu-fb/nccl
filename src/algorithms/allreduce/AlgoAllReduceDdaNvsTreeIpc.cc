@@ -44,15 +44,13 @@ ncclResult_t AlgoAllReduceDdaNvsTreeIpc::launchKernel() {
       getGridAndBlockDims(func, count_, datatype_, maxBlocks_);
   const auto& grid = gridBlock.first;
   const auto& block = gridBlock.second;
-  size_t maxBlocks = maxBlocks_;
 
   void* args[] = {
       &barrierFlag_,
       &devStates_d_,
       &comm_->rank,
       &recvbuff_,
-      &count_,
-      &maxBlocks};
+      &count_};
   CUDACHECK(cudaLaunchKernel(func, grid, block, args, 0, stream_));
   return ncclSuccess;
 }

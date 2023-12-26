@@ -16,8 +16,7 @@
     int rank,                                                           \
     const T* sendbuff,                                                  \
     T* recvbuff,                                                        \
-    size_t count,                                                       \
-    size_t maxBlocks);                                                  \
+    size_t count);                                                      \
   template __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc<T, NRANKS>(   \
     uintptr_t barrierFlag,                                              \
     DdaDeviceState* devStates,                                          \
@@ -29,8 +28,7 @@
     DdaDeviceState* devStates,                                          \
     int rank,                                                           \
     T* recvbuff,                                                        \
-    size_t count,                                                       \
-    size_t maxBlocks);
+    size_t count);
 
 #define DECL_DDA2_FUNC(T)      \
   DECL_DDA2_FUNC_NRANKS(T, 2); \

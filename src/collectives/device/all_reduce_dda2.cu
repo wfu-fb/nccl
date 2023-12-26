@@ -459,8 +459,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree(
     int rank,
     const T* sendbuff,
     T* recvbuff,
-    size_t count,
-    size_t maxBlocks) {
+    size_t count) {
   // always use rank0's barrierMbox as the shared barrier
   uintptr_t* mbox = devStates[0].barrierMbox;
 
@@ -493,7 +492,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree(
 
   // barrier to ensure remote ranks won't free their buffers until I'm done
   barrier_onSameBlockIdx<NRANKS>(
-      mbox + (1 + maxBlocks) * NRANKS, barrierFlag, rank);
+      mbox + (1 + gridDim.x) * NRANKS, barrierFlag, rank);
 }
 
 // use devStates[rank].tmpbuff as sendbuff and reduce-scatter on recvbuff
@@ -560,8 +559,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
     DdaDeviceState* devStates,
     int rank,
     T* recvbuff,
-    size_t count,
-    size_t maxBlocks) {
+    size_t count) {
   // always use rank0's barrierMbox as the shared barrier
   uintptr_t* mbox = devStates[0].barrierMbox;
 
@@ -583,7 +581,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
     recvbuff,
     count / NRANKS);
 
-  barrier_onSameBlockIdx<NRANKS>(mbox + (1 + maxBlocks) * NRANKS, barrierFlag, rank);
+  barrier_onSameBlockIdx<NRANKS>(mbox + (1 + gridDim.x) * NRANKS, barrierFlag, rank);
 }
 
 DECL_DDA2_FUNC(char);
