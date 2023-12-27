@@ -5,21 +5,10 @@
 #include <utility>
 
 #include "checks.h"
+#include "core.h"
 
 namespace nccl {
 namespace algorithms {
-
-template <typename T>
-ncclResult_t getDataSize_impl(size_t* ret) {
-  *ret = sizeof(T);
-  return ncclSuccess;
-}
-
-size_t getDataSize(ncclDataType_t datatype) {
-  size_t dataSize{0};
-  NCCLCHECKIGNORE(NCCL_TYPED_CALL(datatype, getDataSize_impl, &dataSize));
-  return dataSize;
-}
 
 std::pair<dim3, dim3> getGridAndBlockDims(
     const void* func,
@@ -34,7 +23,7 @@ std::pair<dim3, dim3> getGridAndBlockDims(
   unsigned int minThreads = 32; // warp size
   unsigned int maxThreads = funcAttr.maxThreadsPerBlock;
 
-  const size_t dataSize = getDataSize(datatype);
+  const size_t dataSize = ncclTypeSize(datatype);
   const size_t elementsPerThread =
       16 / dataSize; // we do 16 Byte load in kernel
 

@@ -135,7 +135,7 @@ std::unique_ptr<AlgoAllReduce> AlgoManagerAllReduce::getAlgoAllReduce(
     cudaStream_t stream) {
   // select proper algorithm
   const size_t numDdaThreads = DdaThreadedData::get()->numRanks(comm_->commHash);
-  const size_t totalSize = count * getDataSize(datatype);
+  const size_t totalSize = count * ncclTypeSize(datatype);
 
   if (numDdaThreads == comm_->nRanks) {
     // multi-threaded environment

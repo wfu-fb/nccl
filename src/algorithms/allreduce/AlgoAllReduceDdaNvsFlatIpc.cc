@@ -61,7 +61,7 @@ ncclResult_t AlgoAllReduceDdaNvsFlatIpc::allReduce() {
   CUDACHECKIGNORE(cudaMemcpyAsync(
         devStates_[comm_->rank].tmpbuff,
         sendbuff_,
-        count_ * getDataSize(datatype_),
+        count_ * ncclTypeSize(datatype_),
         cudaMemcpyDefault,
         stream_));
   NCCLCHECK(NCCL_TYPED_CALL(datatype_, launchKernel));

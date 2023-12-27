@@ -195,8 +195,6 @@ namespace algorithms {
   })
 #endif
 
-size_t getDataSize(ncclDataType_t datatype);
-
 // determine the optimal grid/block size to launch kernel func
 std::pair<dim3, dim3> getGridAndBlockDims(
     const void* func,
