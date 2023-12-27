@@ -37,7 +37,8 @@ void testDefaultValue(const char* cvarName) {
   ncclCvarInit();
 }
 
-void testIntValue(const char* cvarName, int val) {
+template <typename T>
+void testNumValue(const char* cvarName, T val) {
   std::ostringstream varOSS;
   varOSS << val;
   std::string varStr = varOSS.str();

@@ -173,15 +173,17 @@ class bool(basetype):
         file.write("\n")
 
 
-class int(basetype):
+class numeric(basetype):
     @staticmethod
     def utilfns(file):
         pass
 
     def unitTest(self, file):
-        for i, val in enumerate(["-100", "0", "9999", "INT_MAX", "INT_MIN"]):
+        for i, val in enumerate(["0", "9999", \
+            "std::numeric_limits<%s>::max()" % self.type, \
+            "std::numeric_limits<%s>::min()" % self.type]):
             indent(file, "TEST_F(CvarTest, %s_value_%s) {" % (self.name, i))
-            indent(file, "testIntValue(\"%s\", %s);" % (self.name, val))
+            indent(file, "testNumValue<%s>(\"%s\", %s);" % (self.type, self.name, val))
             indent(file, "EXPECT_EQ(%s, %s);" % (self.name, val))
             indent(file, "}")
             file.write("\n")
@@ -194,34 +196,8 @@ class int(basetype):
             file.write("\n")
 
     def readenv(self, file):
-        indent(file, "%s = env2int(\"%s\", \"%s\");" %
-            (self.name, self.name, self.default))
-        file.write("\n")
-
-
-class uint64_t(basetype):
-    @staticmethod
-    def utilfns(file):
-        pass
-
-    def unitTest(self, file):
-        for i, val in enumerate(["0", "9999", "UINT64_MAX"]):
-            indent(file, "TEST_F(CvarTest, %s_value_%s) {" % (self.name, i))
-            indent(file, "testIntValue(\"%s\", %s);" % (self.name, val))
-            indent(file, "EXPECT_EQ(%s, %s);" % (self.name, val))
-            indent(file, "}")
-            file.write("\n")
-
-        if self.default:
-            indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
-            indent(file, "EXPECT_EQ(%s, %s);" % (self.name, self.default))
-            indent(file, "}")
-            file.write("\n")
-
-    def readenv(self, file):
-        indent(file, "%s = env2uint64_t(\"%s\", \"%s\");" %
-            (self.name, self.name, self.default))
+        indent(file, "%s = env2num<%s>(\"%s\", \"%s\");" %
+            (self.name, self.type, self.name, self.default))
         file.write("\n")
 
 
@@ -612,10 +588,6 @@ def main():
     for cvar in loadedCvars:
         if (cvar['type'] == "bool"):
             allcvars.append(bool(cvar))
-        elif (cvar['type'] == "int"):
-            allcvars.append(int(cvar))
-        elif (cvar['type'] == "uint64_t"):
-            allcvars.append(uint64_t(cvar))
         elif (cvar['type'] == "string"):
             allcvars.append(string(cvar))
         elif (cvar['type'] == "stringlist"):
@@ -627,8 +599,7 @@ def main():
         elif (cvar['type'] == "prefixed_stringlist"):
             allcvars.append(prefixedStringlist(cvar))
         else:
-            print("UNKNOWN TYPE: %s" % cvar['type'])
-            exit()
+            allcvars.append(numeric(cvar))
 
     populateCCFile(allcvars, "src/misc/nccl_cvars.cc.in", "src/misc/nccl_cvars.cc")
     populateHFile(allcvars, "src/include/nccl_cvars.h.in", "src/include/nccl_cvars.h")

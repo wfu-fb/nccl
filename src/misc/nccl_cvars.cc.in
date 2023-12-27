@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cstring>
+#include <sstream>
 #include "nccl_cvars.h"
 #include "debug.h"
 #include "checks.h"
@@ -114,12 +115,14 @@ static bool env2bool(const char *str_, const char *def) {
   return true;
 }
 
-static int env2int(const char *str, const char *def) {
-  return getenv(str) ? atoi(getenv(str)) : atoi(def);
-}
+template <typename T>
+static T env2num(const char *str, const char *def) {
+  std::string in(getenv(str) ? getenv(str) : def);
+  std::stringstream sstream(in);
+  T ret;
+  sstream >> ret;
 
-static int env2uint64_t(const char *str, const char *def) {
-  return getenv(str) ? std::stoull(getenv(str)) : std::stoull(def);
+  return ret;
 }
 
 static std::string env2str(const char *str, const char *def_) {

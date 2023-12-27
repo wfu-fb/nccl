@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cstring>
+#include <sstream>
 #include "nccl_cvars.h"
 #include "debug.h"
 #include "checks.h"
@@ -114,12 +115,14 @@ static bool env2bool(const char *str_, const char *def) {
   return true;
 }
 
-static int env2int(const char *str, const char *def) {
-  return getenv(str) ? atoi(getenv(str)) : atoi(def);
-}
+template <typename T>
+static T env2num(const char *str, const char *def) {
+  std::string in(getenv(str) ? getenv(str) : def);
+  std::stringstream sstream(in);
+  T ret;
+  sstream >> ret;
 
-static int env2uint64_t(const char *str, const char *def) {
-  return getenv(str) ? std::stoull(getenv(str)) : std::stoull(def);
+  return ret;
 }
 
 static std::string env2str(const char *str, const char *def_) {
@@ -315,7 +318,7 @@ void readCvarEnv() {
     }
   }
 
-  NCCL_ALLGATHER_DIRECT_CUTOFF = env2uint64_t("NCCL_ALLGATHER_DIRECT_CUTOFF", "524288");
+  NCCL_ALLGATHER_DIRECT_CUTOFF = env2num<uint64_t>("NCCL_ALLGATHER_DIRECT_CUTOFF", "524288");
 
   if (getenv("NCCL_ALLREDUCE_ALGO") == nullptr) {
     NCCL_ALLREDUCE_ALGO = NCCL_ALLREDUCE_ALGO::orig;
@@ -343,9 +346,9 @@ void readCvarEnv() {
     }
   }
 
-  NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS = env2int("NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS", "-1");
+  NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS = env2num<int>("NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS", "-1");
 
-  NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE = env2int("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE", "-1");
+  NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE = env2num<int>("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE", "-1");
 
   {
     NCCL_CTRAN_BACKENDS.clear();
@@ -359,9 +362,9 @@ void readCvarEnv() {
     }
   }
 
-  NCCL_CTRAN_IB_MAX_QPS = env2int("NCCL_CTRAN_IB_MAX_QPS", "1");
+  NCCL_CTRAN_IB_MAX_QPS = env2num<int>("NCCL_CTRAN_IB_MAX_QPS", "1");
 
-  NCCL_CTRAN_IB_QP_SCALING_THRESHOLD = env2uint64_t("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", "1048576");
+  NCCL_CTRAN_IB_QP_SCALING_THRESHOLD = env2num<uint64_t>("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", "1048576");
 
   NCCL_CTRAN_IB_TRAFFIC_PROFILNG = env2bool("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "False");
 
@@ -384,7 +387,7 @@ void readCvarEnv() {
     }
   }
 
-  NCCL_CTRAN_PROFILING_REPORT_COUNT = env2int("NCCL_CTRAN_PROFILING_REPORT_COUNT", "100");
+  NCCL_CTRAN_PROFILING_REPORT_COUNT = env2num<int>("NCCL_CTRAN_PROFILING_REPORT_COUNT", "100");
 
   if (getenv("NCCL_CTRAN_REGISTER") == nullptr) {
     NCCL_CTRAN_REGISTER = NCCL_CTRAN_REGISTER::lazy;
@@ -401,34 +404,34 @@ void readCvarEnv() {
     }
   }
 
-  NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT = env2int("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", "-1");
+  NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT = env2num<int>("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", "-1");
 
   NCCL_CTRAN_TOPO_FILE = env2str("NCCL_CTRAN_TOPO_FILE", "");
 
   NCCL_CTRAN_TOPO_FILE_KEYS.clear();
   NCCL_CTRAN_TOPO_FILE_KEYS = env2strlist("NCCL_CTRAN_TOPO_FILE_KEYS", "");
 
-  NCCL_DDA2_ALLREDUCE_MAX_BLOCKS = env2int("NCCL_DDA2_ALLREDUCE_MAX_BLOCKS", "24");
+  NCCL_DDA2_ALLREDUCE_MAX_BLOCKS = env2num<int>("NCCL_DDA2_ALLREDUCE_MAX_BLOCKS", "24");
 
-  NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS = env2uint64_t("NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS", "1048576");
+  NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS = env2num<uint64_t>("NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS", "1048576");
 
-  NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS = env2uint64_t("NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS", "262144");
+  NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS = env2num<uint64_t>("NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS", "262144");
 
-  NCCL_DDA2_TMPBUFF_SIZE = env2uint64_t("NCCL_DDA2_TMPBUFF_SIZE", "33554432");
+  NCCL_DDA2_TMPBUFF_SIZE = env2num<uint64_t>("NCCL_DDA2_TMPBUFF_SIZE", "33554432");
 
   NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM = env2bool("NCCL_DDA_ALLREDUCE_LARGE_MESSAGE_HCM", "False");
 
-  NCCL_DDA_ALLREDUCE_MAX_BLOCKS = env2int("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", "1");
+  NCCL_DDA_ALLREDUCE_MAX_BLOCKS = env2num<int>("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", "1");
 
-  NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE = env2uint64_t("NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE", "33554432");
+  NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE = env2num<uint64_t>("NCCL_DDA_ALLREDUCE_TMPBUFF_SIZE", "33554432");
 
-  NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM = env2uint64_t("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM", "65536");
+  NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM = env2num<uint64_t>("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM", "65536");
 
-  NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS = env2uint64_t("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS", "262144");
+  NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS = env2num<uint64_t>("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS", "262144");
 
   NCCL_DDA_FORCE_P2P_ACCESS = env2bool("NCCL_DDA_FORCE_P2P_ACCESS", "False");
 
-  NCCL_DDA_MAX_RANKS = env2int("NCCL_DDA_MAX_RANKS", "16");
+  NCCL_DDA_MAX_RANKS = env2num<int>("NCCL_DDA_MAX_RANKS", "16");
 
   std::vector<std::string> NCCL_IB_HCA_allPrefixes{"^", "="};
   NCCL_IB_HCA.clear();
