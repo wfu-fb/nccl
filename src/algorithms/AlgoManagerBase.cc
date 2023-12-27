@@ -42,17 +42,18 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
       malloc(sizeof(DdaDeviceState) * comm_->nRanks));
 
   // allocate device memory
-  // we need 3 barriers for Tree Algo
+  // we need 4 barriers for ScatGat Algo
   // 1) [r0, r1, ..., rN-1]
   // 2) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   // 3) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
+  // 4) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   CUDACHECKIGNORE(cudaMalloc(
       &barrierMbox_d_,
-      (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
+      ((1 + 3 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMemset(
       barrierMbox_d_,
       0,
-      (comm_->nRanks + 2 * maxBlocks_ * comm_->nRanks) * sizeof(uintptr_t)));
+      ((1 + 3 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
 
   CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_TMPBUFF_SIZE));
   CUDACHECKIGNORE(

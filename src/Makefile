@@ -38,6 +38,7 @@ LIBSRCFILES += algorithms/AlgoDirector.cc \
                algorithms/allreduce/AlgoAllReduceDdaNvsFlatThreaded.cc \
                algorithms/allreduce/AlgoAllReduceDdaNvsTreeIpc.cc \
                algorithms/allreduce/AlgoAllReduceDdaNvsTreeThreaded.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsScatGatIpc.cc \
                algorithms/allreduce/AlgoManagerAllReduce.cc
 LIBSRCFILES += window.cc
 

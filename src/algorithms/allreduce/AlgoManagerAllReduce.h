@@ -8,6 +8,7 @@
 #include "AlgoAllReduceDdaNvsTreeThreaded.h"
 #include "AlgoAllReduceDdaNvsFlatIpc.h"
 #include "AlgoAllReduceDdaNvsTreeIpc.h"
+#include "AlgoAllReduceDdaNvsScatGatIpc.h"
 
 namespace nccl {
 namespace algorithms {
@@ -67,6 +68,16 @@ class AlgoManagerAllReduce : AlgoManagerBase {
 
   std::unique_ptr<AlgoAllReduceDdaNvsTreeIpc>
   getAlgoAllReduceDdaNvsTreeIpc(
+      const void* sendbuff,
+      void* recvbuff,
+      size_t count,
+      ncclDataType_t datatype,
+      ncclRedOp_t op,
+      ncclComm* comm,
+      cudaStream_t stream);
+
+  std::unique_ptr<AlgoAllReduceDdaNvsScatGatIpc>
+  getAlgoAllReduceDdaNvsScatGatIpc(
       const void* sendbuff,
       void* recvbuff,
       size_t count,

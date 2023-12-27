@@ -21,6 +21,13 @@
      Message size at which DDA Allreduce switches to the tree algorithm.
      Only applies for NVSwitch-based systems.
 
+ - name        : NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS
+   type        : uint64_t
+   default     : 1048576
+   description : |-
+     Message size at which DDA Allreduce switches to the scatter-gather algorithm.
+     Only applies for NVSwitch-based systems.
+
  - name        : NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
    type        : int
    default     : 24
@@ -176,8 +183,11 @@ std::unique_ptr<AlgoAllReduce> AlgoManagerAllReduce::getAlgoAllReduce(
     if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS) {
       return getAlgoAllReduceDdaNvsFlatIpc(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
-    } else {
+    } else if (totalSize < NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS) {
       return getAlgoAllReduceDdaNvsTreeIpc(
+          sendbuff, recvbuff, count, datatype, op, comm, stream);
+    } else {
+      return getAlgoAllReduceDdaNvsScatGatIpc(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
     }
   }
@@ -275,6 +285,33 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsTreeIpc(
   barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AlgoAllReduceDdaNvsTreeIpc>(
       new AlgoAllReduceDdaNvsTreeIpc{
+          sendbuff,
+          recvbuff,
+          count,
+          datatype,
+          op,
+          comm,
+          stream,
+          devStates_,
+          devStates_d_,
+          barrierFlag_,
+          maxBlocks_});
+  return algo;
+}
+
+std::unique_ptr<AlgoAllReduceDdaNvsScatGatIpc>
+AlgoManagerAllReduce::getAlgoAllReduceDdaNvsScatGatIpc(
+    const void* sendbuff,
+    void* recvbuff,
+    size_t count,
+    ncclDataType_t datatype,
+    ncclRedOp_t op,
+    ncclComm* comm,
+    cudaStream_t stream) {
+  // toggle barrier flag
+  barrierFlag_ = !barrierFlag_;
+  auto algo = std::unique_ptr<AlgoAllReduceDdaNvsScatGatIpc>(
+      new AlgoAllReduceDdaNvsScatGatIpc{
           sendbuff,
           recvbuff,
           count,

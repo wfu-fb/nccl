@@ -584,6 +584,93 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
   barrier_onSameBlockIdx<NRANKS>(mbox + (1 + gridDim.x) * NRANKS, barrierFlag, rank);
 }
 
+/*
+ * Scatter-Gather algorithm for large messages.  The general algorithm
+ * flow is as follows:
+ *
+ * barrier
+ * Scatter (using PUT)
+ * barrier
+ * Local Reduce
+ * barrier
+ * Gather (using GET)
+ * barrier
+ *
+ * Primary advantages compared with Tree:
+ * 1. It avoids an extra local copy operation.  This makes a small amount
+ * of difference in performance for medium sized messages.
+ * 2. It uses PUT for at least one of the communication operations,
+ * which is a little bit faster than the GET operations used in the
+ * Tree algorithm.
+ */
+template <typename T, uint32_t NRANKS>
+__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
+    uintptr_t barrierFlag,
+    DdaDeviceState* devStates,
+    int rank,
+    T* sendbuff,
+    T* recvbuff,
+    size_t count) {
+  // always use rank0's barrierMbox as the shared barrier
+  uintptr_t* mbox = devStates[0].barrierMbox;
+  barrier_uponKernelLaunch<NRANKS>(mbox, barrierFlag, rank);
+  mbox += NRANKS;
+
+  const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
+
+  const T* srcs[NRANKS];
+  T* remoteTmpPut[NRANKS];
+  T* remoteTmpGet[NRANKS];
+  T* ltmp[NRANKS];
+  T* dsts[NRANKS];
+  for (int i = 0; i < NRANKS; ++i) {
+    int nbrRank = (rank + i) & (NRANKS - 1);
+    srcs[i] = sendbuff + nbrRank * count / NRANKS;
+    dsts[i] = recvbuff + nbrRank * count / NRANKS;
+    remoteTmpPut[i] = reinterpret_cast<T*>(devStates[nbrRank].tmpbuff) +
+      rank * count / NRANKS;
+    remoteTmpGet[i] = reinterpret_cast<T*>(devStates[nbrRank].tmpbuff) +
+      nbrRank * count / NRANKS;
+    ltmp[i] = reinterpret_cast<T*>(devStates[rank].tmpbuff) +
+      i * count / NRANKS;
+  }
+
+  // direct-access all-to-all with 16-byte stores
+  const size_t countPerThread = 16 / sizeof(T);
+  const size_t idxStart = gtIdx * countPerThread;
+  const size_t idxEnd = count / NRANKS;
+  const size_t idxStride = gridDim.x * blockDim.x * countPerThread;
+
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    for (int i = 0; i < NRANKS; ++i) {
+      reinterpret_cast<uint4*>(&remoteTmpPut[i][idx])[0] =
+        reinterpret_cast<const uint4*>(&srcs[i][idx])[0];
+    }
+  }
+
+  barrier_onSameBlockIdx_releaseAcquire<NRANKS>(mbox, barrierFlag, rank);
+  mbox += gridDim.x * NRANKS;
+
+  // local reduction
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    reinterpret_cast<uint4*>(&ltmp[rank][idx])[0] =
+      vecAdd<T, NRANKS>((const T**) ltmp, idx);
+  }
+
+  barrier_onSameBlockIdx_releaseAcquire<NRANKS>(mbox, barrierFlag, rank);
+  mbox += gridDim.x * NRANKS;
+
+  // direct-access all-gather with 16-byte loads
+  for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
+    for (int i = 0; i < NRANKS; ++i) {
+      reinterpret_cast<uint4*>(&dsts[i][idx])[0] =
+        reinterpret_cast<const uint4*>(&remoteTmpGet[i][idx])[0];
+    }
+  }
+
+  barrier_onSameBlockIdx<NRANKS>(mbox, barrierFlag, rank);
+}
+
 DECL_DDA2_FUNC(char);
 DECL_DDA2_FUNC(uint8_t);
 DECL_DDA2_FUNC(int32_t);
