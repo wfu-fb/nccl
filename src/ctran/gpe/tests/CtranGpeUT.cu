@@ -69,10 +69,7 @@ TEST_F(CtranGpeTest, SubmitOpBadArgs) {
 
   std::vector<std::unique_ptr<struct OpElem>> ops;
   struct OpElem* op;
-  op = new struct OpElem;
-  op->type = OpElem::opType::SEND;
-  op->comm = dummyComm;
-  op->stream = nullptr;
+  op = new struct OpElem(OpElem::opType::SEND, nullptr, dummyComm);
   op->send.sendbuff = nullptr;
   op->send.count = 0;
   op->send.datatype = ncclInt8;
@@ -91,10 +88,7 @@ TEST_F(CtranGpeTest, SubmitOp) {
 
   std::vector<std::unique_ptr<struct OpElem>> ops;
   struct OpElem* op;
-  op = new struct OpElem;
-  op->type = OpElem::opType::RECV;
-  op->comm = dummyComm;
-  op->stream = nullptr;
+  op = new struct OpElem(OpElem::opType::RECV, nullptr, dummyComm);
   op->recv.recvbuff = nullptr;
   op->recv.count = 0;
   op->recv.datatype = ncclInt8;

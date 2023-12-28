@@ -4,6 +4,14 @@
 #include <iostream>
 #include "CtranGpeImpl.h"
 #include "checks.h"
+#include "comm.h"
+
+OpElem::OpElem(enum opType type, cudaStream_t stream, ncclComm_t comm)
+    : type(type), stream(stream), comm(comm) {
+}
+
+OpElem::~OpElem() {
+}
 
 CtranGpe::CtranGpe(int cudaDev) {
   this->pimpl = std::unique_ptr<Impl>(new Impl());

@@ -183,10 +183,7 @@ ncclResult_t ctranSend(
   ncclResult_t res = ncclSuccess;
   struct OpElem* op;
 
-  op = new struct OpElem;
-  op->type = OpElem::opType::SEND;
-  op->comm = comm;
-  op->stream = stream;
+  op = new OpElem(OpElem::opType::SEND, stream, comm);
   op->send.sendbuff = sendbuff;
   op->send.count = count;
   op->send.datatype = datatype;
@@ -209,10 +206,7 @@ ncclResult_t ctranRecv(
   ncclResult_t res = ncclSuccess;
   struct OpElem* op;
 
-  op = new struct OpElem;
-  op->type = OpElem::opType::RECV;
-  op->comm = comm;
-  op->stream = stream;
+  op = new OpElem(OpElem::opType::RECV, stream, comm);
   op->recv.recvbuff = recvbuff;
   op->recv.count = count;
   op->recv.datatype = datatype;

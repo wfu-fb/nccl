@@ -158,10 +158,8 @@ ncclResult_t ctranAllGatherRd(
         &req);
   }
 
-  op = std::unique_ptr<struct OpElem>(new struct OpElem);
-  op->type = OpElem::opType::ALLGATHER;
-  op->comm = comm;
-  op->stream = stream;
+  op = std::unique_ptr<struct OpElem>(
+      new OpElem(OpElem::opType::ALLGATHER, stream, comm));
   op->allgather.sendbuff = sendbuff;
   op->allgather.recvbuff = recvbuff;
   op->allgather.sendcount = sendcount;

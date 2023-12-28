@@ -39,6 +39,10 @@ struct OpElem {
       int peerRank;
     } recv;
   };
+
+ public:
+  OpElem(enum opType type, cudaStream_t stream, ncclComm_t comm);
+  ~OpElem();
 };
 
 class CtranGpe {
