@@ -35,6 +35,7 @@ extern "C" {
 #define NCCL_COMM_SPLIT_TYPE_SUPPORTED
 #define NCCL_REGISTRATION_SUPPORTED
 #define NCCL_RMA_SUPPORTED
+#define NCCL_ALLTOALLV_SUPPORTED
 
 #ifndef __CUDA_FP8_TYPES_EXIST__
 #undef NCCL_ENABLE_FP8
@@ -440,6 +441,31 @@ ncclResult_t  ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcou
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
 ncclResult_t pncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcount,
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
+
+/*
+ * All-To-Allv
+ * Device (i) sends sendcounts[j] of data from offset sdispls[j] to device (j).
+ * At the same time, device (i) receives recvcounts[j] of data from device (j)
+ * to be placed at rdispls[j]. sendcounts, sdispls, recvcounts and rdispls are
+ * all measured in the units of datatype, not bytes. Only out-of-place operation
+ * is allowed (i.e., sendbuff != recvbuff).
+ * Arguments:
+ *    IN  sendbuff    - Data array to send (contains blocks for each other rank)
+ *    IN  sendcounts  - Length of each block in sendbuff
+ *    IN  sdispls     - Offsets into sendbuff for each participating rank
+ *    OUT recvbuff    - Pointer to recvbuf that will receive blocks from other ranks
+ *    IN  recvcounts  - Length of each block in recvbuff
+ *    IN  rdispls     - Offsets into recvbuff for each participating rank
+ *    IN  datatype      - Type of each data element
+ *    IN  ncclComm* comm
+ *    IN  cudaStream_t stream
+ */
+ncclResult_t  ncclAllToAllv(const void *sendbuff, const size_t sendcounts[],
+    const size_t sdispls[], void *recvbuff, const size_t recvcounts[],
+    const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
+ncclResult_t pncclAllToAllv(const void *sendbuff, const size_t sendcounts[],
+    const size_t sdispls[], void *recvbuff, const size_t recvcounts[],
+    const size_t rdispls[], ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
 
 /*
  * Send
