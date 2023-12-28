@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstring>
 #include <sstream>
+#include <limits.h>
 #include "nccl_cvars.h"
 #include "debug.h"
 #include "checks.h"
@@ -27,7 +28,7 @@
 // be OK to use separate logger here and always print to stdout.
 static int pid = getpid();
 static thread_local int tid = syscall(SYS_gettid);
-static char hostname[1024];
+static char hostname[HOST_NAME_MAX];
 static bool enableCvarWarn = true;
 static int cudaDev = -1;
 
@@ -55,7 +56,7 @@ static void initCvarLogger() {
   if (nccl_debug == NULL || strcasecmp(nccl_debug, "VERSION") == 0) {
     enableCvarWarn = false;
   }
-  getHostName(hostname, 1024, '.');
+  getHostName(hostname, HOST_NAME_MAX, '.');
 
   // Used for ncclCvarInit time warning only
   CUDACHECKIGNORE(cudaGetDevice(&cudaDev));
