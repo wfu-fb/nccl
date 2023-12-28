@@ -149,17 +149,15 @@ Description:
 Type: int
 Default: 24
 
-NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD_NVS
+NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD
 Description:
     Message size at which DDA Allreduce switches to the scatter-gather algorithm.
-    Only applies for NVSwitch-based systems.
 Type: uint64_t
 Default: 1048576
 
-NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD_NVS
+NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD
 Description:
     Message size at which DDA Allreduce switches to the tree algorithm.
-    Only applies for NVSwitch-based systems.
 Type: uint64_t
 Default: 262144
 
