@@ -8,9 +8,35 @@
 #include "graph.h"
 #include "topo.h"
 #include "xml.h"
+#include "nccl_cvars.h"
 #include <math.h>
 
-NCCL_PARAM(CrossNic, "CROSS_NIC", 2);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CROSS_NIC
+   type        : int64_t
+   default     : 2
+   description : |-
+     The NCCL_CROSS_NIC variable controls whether NCCL should allow
+     rings/trees to use different NICs, causing inter-node
+     communication to use different NICs on different nodes. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cross-nic
+
+ - name        : NCCL_P2P_PXN_LEVEL
+   type        : int64_t
+   default     : 2
+   description : |-
+     Control in which cases PXN is used for send/receive operations.
+         0: don't use PXN for P2P
+         1: use PXN if needed
+         2: use PXN as much as possible to maximize aggregation
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-pxn-level
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 // Initialize system->maxBw. This is the per-channel (i.e. per-SM)
 // max bw.
@@ -697,7 +723,7 @@ ncclResult_t ncclTopoGetGraphFromXmlSub(struct ncclXmlNode *xmlGraph, struct ncc
 
   int crossNic;
   NCCLCHECK(xmlGetAttrInt(xmlGraph, "crossnic", &crossNic));
-  if (ncclParamCrossNic() == 0 && crossNic == 1) return ncclSuccess;
+  if (NCCL_CROSS_NIC == 0 && crossNic == 1) return ncclSuccess;
   graph->crossNic = crossNic;
 
   NCCLCHECK(xmlGetAttrInt(xmlGraph, "pattern", &graph->pattern));
@@ -798,7 +824,7 @@ float sm90SpeedArrayInter[] = { 48.0, 45.0, 42.0, 40.0, 30.0, 24.0, 20.0, 17.5, 
 
 ncclResult_t ncclTopoCompute(ncclTopoSystem* system, struct ncclTopoGraph* graph) {
   int ngpus = system->nodes[GPU].count;
-  graph->crossNic = ncclParamCrossNic();
+  graph->crossNic = NCCL_CROSS_NIC;
   int crossNic = (system->nodes[NET].count > 1) && graph->crossNic &&
 	 (graph->pattern == NCCL_TOPO_PATTERN_RING ||
 	  graph->pattern == NCCL_TOPO_PATTERN_BALANCED_TREE ||
@@ -1031,9 +1057,6 @@ ncclResult_t getNvlsNetDev(struct ncclComm* comm, struct ncclTopoGraph* graph, i
   return ncclInternalError;
 }
 
-// 0: don't use PXN for P2P, 1: use PXN if needed, 2: use PXN as much as possible to maximize aggregation
-NCCL_PARAM(P2pPxnLevel, "P2P_PXN_LEVEL", 2);
-
 ncclResult_t ncclTopoGetNetDev(struct ncclComm* comm, int rank, struct ncclTopoGraph* graph, int channelId, int peerRank, int* dev, int* proxyRank) {
   if (graph) {
     // Honor the net device in the graph
@@ -1053,9 +1076,9 @@ ncclResult_t ncclTopoGetNetDev(struct ncclComm* comm, int rank, struct ncclTopoG
     NCCLCHECK(ncclTopoGetLocalNet(comm->topo, rank, channelId, dev));
     *proxyRank = rank;
 
-    int pxnLevel = ncclPxnDisable(comm) == 1 ? 0 : ncclParamP2pPxnLevel();
+    int pxnLevel = ncclPxnDisable(comm) == 1 ? 0 : NCCL_P2P_PXN_LEVEL;
     // See whether we can use the remote rank preferred device.
-    if (ncclParamCrossNic() == 0 || (pxnLevel != 0)) {
+    if (NCCL_CROSS_NIC == 0 || (pxnLevel != 0)) {
       // Find local NIC number close to local nvmlDev
       int nvmlDev = comm->peerInfo[peerRank].nvmlDev;
       int localRank;
@@ -1065,7 +1088,7 @@ ncclResult_t ncclTopoGetNetDev(struct ncclComm* comm, int rank, struct ncclTopoG
 
       int n;
       // Check that device exists on our node
-      if (ncclParamCrossNic() == 0) {
+      if (NCCL_CROSS_NIC == 0) {
         if (ncclTopoIdToIndex(comm->topo, NET, netDev, &n) != ncclSuccess) {
           WARN("Rank %d requires NIC %d but that NIC is not available for rank %d", peerRank, netDev, rank);
           return ncclInvalidUsage;

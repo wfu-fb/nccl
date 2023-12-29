@@ -220,6 +220,31 @@ TEST_F(CvarTest, NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE_default_value) {
   EXPECT_EQ(NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE, -1);
 }
 
+TEST_F(CvarTest, NCCL_CROSS_NIC_value_0) {
+  testNumValue<int64_t>("NCCL_CROSS_NIC", 0);
+  EXPECT_EQ(NCCL_CROSS_NIC, 0);
+}
+
+TEST_F(CvarTest, NCCL_CROSS_NIC_value_1) {
+  testNumValue<int64_t>("NCCL_CROSS_NIC", 9999);
+  EXPECT_EQ(NCCL_CROSS_NIC, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CROSS_NIC_value_2) {
+  testNumValue<int64_t>("NCCL_CROSS_NIC", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_CROSS_NIC, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CROSS_NIC_value_3) {
+  testNumValue<int64_t>("NCCL_CROSS_NIC", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_CROSS_NIC, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CROSS_NIC_default_value) {
+  testDefaultValue("NCCL_CROSS_NIC");
+  EXPECT_EQ(NCCL_CROSS_NIC, 2);
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_single_choice_0) {
   setenv("NCCL_CTRAN_BACKENDS", "ib", 1);
   ncclCvarInit();
@@ -1208,6 +1233,31 @@ TEST_F(CvarTest, NCCL_NVB_DISABLE_value_2) {
 TEST_F(CvarTest, NCCL_NVB_DISABLE_value_3) {
   testNumValue<int64_t>("NCCL_NVB_DISABLE", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_NVB_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_value_0) {
+  testNumValue<int64_t>("NCCL_P2P_PXN_LEVEL", 0);
+  EXPECT_EQ(NCCL_P2P_PXN_LEVEL, 0);
+}
+
+TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_value_1) {
+  testNumValue<int64_t>("NCCL_P2P_PXN_LEVEL", 9999);
+  EXPECT_EQ(NCCL_P2P_PXN_LEVEL, 9999);
+}
+
+TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_value_2) {
+  testNumValue<int64_t>("NCCL_P2P_PXN_LEVEL", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_P2P_PXN_LEVEL, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_value_3) {
+  testNumValue<int64_t>("NCCL_P2P_PXN_LEVEL", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_P2P_PXN_LEVEL, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_default_value) {
+  testDefaultValue("NCCL_P2P_PXN_LEVEL");
+  EXPECT_EQ(NCCL_P2P_PXN_LEVEL, 2);
 }
 
 TEST_F(CvarTest, NCCL_PXN_DISABLE_value_0) {

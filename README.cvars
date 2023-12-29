@@ -52,6 +52,16 @@ Description:
 Type: int
 Default: -1
 
+NCCL_CROSS_NIC
+Description:
+    The NCCL_CROSS_NIC variable controls whether NCCL should allow
+    rings/trees to use different NICs, causing inter-node
+    communication to use different NICs on different nodes. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cross-nic
+Type: int64_t
+Default: 2
+
 NCCL_CTRAN_BACKENDS
 Description:
     Backends to enable for ctran
@@ -319,6 +329,17 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvb-disable
 Type: int64_t
 Default: 0
+
+NCCL_P2P_PXN_LEVEL
+Description:
+    Control in which cases PXN is used for send/receive operations.
+        0: don't use PXN for P2P
+        1: use PXN if needed
+        2: use PXN as much as possible to maximize aggregation
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-pxn-level
+Type: int64_t
+Default: 2
 
 NCCL_PXN_DISABLE
 Description:

@@ -35,6 +35,8 @@ extern int NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS;
 
 extern int NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
 
+extern int64_t NCCL_CROSS_NIC;
+
 enum class NCCL_CTRAN_BACKENDS {
   ib,
 };
@@ -119,6 +121,8 @@ extern int64_t NCCL_NET_FORCE_FLUSH;
 extern int64_t NCCL_NET_GDR_READ;
 
 extern int64_t NCCL_NVB_DISABLE;
+
+extern int64_t NCCL_P2P_PXN_LEVEL;
 
 extern int64_t NCCL_PXN_DISABLE;
 
