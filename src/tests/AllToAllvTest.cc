@@ -24,9 +24,9 @@ class MPIEnvironment : public ::testing::Environment {
   ~MPIEnvironment() override {}
 };
 
-class AllToAllTest : public ::testing::Test {
+class AllToAllvTest : public ::testing::Test {
  public:
-  AllToAllTest() = default;
+  AllToAllvTest() = default;
   void SetUp() override {
     std::tie(this->localRank, this->globalRank, this->numRanks) = getMpiInfo();
 
@@ -149,11 +149,11 @@ class AllToAllTest : public ::testing::Test {
   cudaStream_t stream;
 };
 
-TEST_F(AllToAllTest, AllToAll) {
+TEST_F(AllToAllvTest, AllToAllv) {
   run();
 }
 
-TEST_F(AllToAllTest, InvalidSendbuf) {
+TEST_F(AllToAllvTest, InvalidSendbuf) {
 #ifdef NCCL_ALLTOALLV_SUPPORTED
 
   constexpr int count = 1048576;
@@ -182,7 +182,7 @@ TEST_F(AllToAllTest, InvalidSendbuf) {
 #endif
 }
 
-TEST_F(AllToAllTest, InvalidRecvbuf) {
+TEST_F(AllToAllvTest, InvalidRecvbuf) {
 #ifdef NCCL_ALLTOALLV_SUPPORTED
   constexpr int count = 1048576;
   int* buf = nullptr;
@@ -210,7 +210,7 @@ TEST_F(AllToAllTest, InvalidRecvbuf) {
 #endif
 }
 
-TEST_F(AllToAllTest, InvalidInPlace) {
+TEST_F(AllToAllvTest, InvalidInPlace) {
 #ifdef NCCL_ALLTOALLV_SUPPORTED
   constexpr int count = 1048576;
   int* buf = nullptr;
