@@ -216,6 +216,13 @@ Description:
 Type: stringlist
 Default: 
 
+NCCL_CUMEM_ENABLE
+Description:
+    Use CUDA cuMem* functions to allocate memory in NCCL.  This
+    parameter toggles cuMem API usage.
+Type: int64_t
+Default: 0
+
 NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
 Description:
     DDA Allreduce max number of blocks.

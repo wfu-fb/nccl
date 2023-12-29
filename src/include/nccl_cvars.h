@@ -89,6 +89,8 @@ extern std::string NCCL_CTRAN_TOPO_FILE;
 
 extern std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS;
 
+extern int64_t NCCL_CUMEM_ENABLE;
+
 extern int NCCL_DDA2_ALLREDUCE_MAX_BLOCKS;
 
 extern uint64_t NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD;

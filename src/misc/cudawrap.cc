@@ -8,11 +8,22 @@
 #include "debug.h"
 #include "param.h"
 #include "cudawrap.h"
+#include "nccl_cvars.h"
 
 #include <dlfcn.h>
 
-// This env var (NCCL_CUMEM_ENABLE) toggles cuMem API usage
-NCCL_PARAM(CuMemEnable, "CUMEM_ENABLE", 0);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CUMEM_ENABLE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Use CUDA cuMem* functions to allocate memory in NCCL.  This
+     parameter toggles cuMem API usage.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static int ncclCuMemSupported = 0;
 
@@ -43,7 +54,7 @@ error:
 }
 
 int ncclCuMemEnable() {
-  return ((ncclParamCuMemEnable() == -2 && ncclCuMemSupported) || ncclParamCuMemEnable());
+  return ((NCCL_CUMEM_ENABLE == -2 && ncclCuMemSupported) || NCCL_CUMEM_ENABLE);
 }
 
 #define DECLARE_CUDA_PFN(symbol,version) PFN_##symbol##_v##version pfn_##symbol = nullptr
