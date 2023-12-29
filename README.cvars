@@ -237,6 +237,15 @@ Description:
 Type: prefixed_stringlist
 Default: None
 
+NCCL_IGNORE_CPU_AFFINITY
+Description:
+    The NCCL_IGNORE_CPU_AFFINITY variable can be used to cause NCCL
+    to ignore the job’s supplied CPU affinity and instead use the GPU
+    affinity only.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ignore-cpu-affinity
+Type: int64_t
+Default: 0
+
 NCCL_IGNORE_DISABLED_P2P
 Description:
     Ignore disabling P2P.
@@ -356,3 +365,9 @@ Description:
     ctran - Ctran-based communication
 Type: enum
 Default: orig
+
+NCCL_TOPO_DUMP_FILE_RANK
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0

@@ -950,6 +950,26 @@ TEST_F(CvarTest, NCCL_IB_HCA_prefix_2) {
   checkListValues<std::string>(vals, NCCL_IB_HCA);
 }
 
+TEST_F(CvarTest, NCCL_IGNORE_CPU_AFFINITY_value_0) {
+  testNumValue<int64_t>("NCCL_IGNORE_CPU_AFFINITY", 0);
+  EXPECT_EQ(NCCL_IGNORE_CPU_AFFINITY, 0);
+}
+
+TEST_F(CvarTest, NCCL_IGNORE_CPU_AFFINITY_value_1) {
+  testNumValue<int64_t>("NCCL_IGNORE_CPU_AFFINITY", 9999);
+  EXPECT_EQ(NCCL_IGNORE_CPU_AFFINITY, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IGNORE_CPU_AFFINITY_value_2) {
+  testNumValue<int64_t>("NCCL_IGNORE_CPU_AFFINITY", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IGNORE_CPU_AFFINITY, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IGNORE_CPU_AFFINITY_value_3) {
+  testNumValue<int64_t>("NCCL_IGNORE_CPU_AFFINITY", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IGNORE_CPU_AFFINITY, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_0) {
   testNumValue<int64_t>("NCCL_IGNORE_DISABLED_P2P", 0);
   EXPECT_EQ(NCCL_IGNORE_DISABLED_P2P, 0);
@@ -1300,6 +1320,26 @@ TEST_F(CvarTest, NCCL_SENDRECV_ALGO_default_choice) {
 TEST_F(CvarTest, NCCL_SENDRECV_ALGO_warn_unknown_val) {
   setenv("NCCL_SENDRECV_ALGO", "dummy", 1);
   testWarn("NCCL_SENDRECV_ALGO", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_TOPO_DUMP_FILE_RANK_value_0) {
+  testNumValue<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", 0);
+  EXPECT_EQ(NCCL_TOPO_DUMP_FILE_RANK, 0);
+}
+
+TEST_F(CvarTest, NCCL_TOPO_DUMP_FILE_RANK_value_1) {
+  testNumValue<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", 9999);
+  EXPECT_EQ(NCCL_TOPO_DUMP_FILE_RANK, 9999);
+}
+
+TEST_F(CvarTest, NCCL_TOPO_DUMP_FILE_RANK_value_2) {
+  testNumValue<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_TOPO_DUMP_FILE_RANK, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_TOPO_DUMP_FILE_RANK_value_3) {
+  testNumValue<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_TOPO_DUMP_FILE_RANK, std::numeric_limits<int64_t>::min());
 }
 
 

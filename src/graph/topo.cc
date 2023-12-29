@@ -16,6 +16,27 @@
 #include "xml.h"
 #include "cpuset.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_TOPO_DUMP_FILE_RANK
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_IGNORE_CPU_AFFINITY
+   type        : int64_t
+   default     : 0
+   description : |-
+     The NCCL_IGNORE_CPU_AFFINITY variable can be used to cause NCCL
+     to ignore the job’s supplied CPU affinity and instead use the GPU
+     affinity only.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ignore-cpu-affinity
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 #define BUSID_SIZE (sizeof("0000:00:00.0"))
 #define BUSID_REDUCED_SIZE (sizeof("0000:00"))
 
@@ -557,8 +578,6 @@ ncclResult_t ncclTopoGetSystemFromXml(struct ncclXml* xml, struct ncclTopoSystem
   return ncclSuccess;
 }
 
-NCCL_PARAM(TopoDumpFileRank, "TOPO_DUMP_FILE_RANK", 0);
-
 // Only set values if not already set
 static ncclResult_t xmlInitAttrInt(struct ncclXmlNode* node, const char* attrName, const int value) {
   int index;
@@ -669,7 +688,7 @@ ncclResult_t ncclTopoGetSystem(struct ncclComm* comm, struct ncclTopoSystem** sy
   NCCLCHECK(ncclTopoTrimXml(xml));
 
   xmlTopoFile = ncclGetEnv("NCCL_TOPO_DUMP_FILE");
-  if (xmlTopoFile && comm->rank == ncclParamTopoDumpFileRank()) {
+  if (xmlTopoFile && comm->rank == NCCL_TOPO_DUMP_FILE_RANK) {
     INFO(NCCL_ENV, "NCCL_TOPO_DUMP_FILE set by environment to %s", xmlTopoFile);
     NCCLCHECK(ncclTopoDumpXmlToFile(xmlTopoFile, xml));
   }
@@ -812,8 +831,6 @@ ncclResult_t ncclTopoCpuType(struct ncclTopoSystem* system, int* arch, int* vend
   return ncclSuccess;
 }
 
-NCCL_PARAM(IgnoreCpuAffinity, "IGNORE_CPU_AFFINITY", 0);
-
 ncclResult_t ncclTopoGetCpuAffinity(struct ncclTopoSystem* system, int rank, cpu_set_t* affinity) {
   struct ncclTopoNode* cpu = NULL, *gpu = NULL;
   for (int g=0; g<system->nodes[GPU].count; g++) {
@@ -860,7 +877,7 @@ ncclResult_t ncclTopoGetCpuAffinity(struct ncclTopoSystem* system, int rank, cpu
 #endif
 
   cpu_set_t finalMask;
-  if (ncclParamIgnoreCpuAffinity())
+  if (NCCL_IGNORE_CPU_AFFINITY)
     // Ignore the CPU affinity set and use the GPU one instead
     finalMask = cpuMask;
   else

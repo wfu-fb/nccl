@@ -41,6 +41,7 @@ bool NCCL_DDA_FORCE_P2P_ACCESS;
 int NCCL_DDA_MAX_RANKS;
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
+int64_t NCCL_IGNORE_CPU_AFFINITY;
 int64_t NCCL_IGNORE_DISABLED_P2P;
 int64_t NCCL_MAX_NCHANNELS;
 int64_t NCCL_MAX_NRINGS;
@@ -56,6 +57,7 @@ int64_t NCCL_NVB_DISABLE;
 int64_t NCCL_P2P_PXN_LEVEL;
 int64_t NCCL_PXN_DISABLE;
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
+int64_t NCCL_TOPO_DUMP_FILE_RANK;
 
 void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_ALLGATHER_ALGO");
@@ -88,6 +90,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_DDA_MAX_RANKS");
   env.insert("NCCL_IB_HCA");
+  env.insert("NCCL_IGNORE_CPU_AFFINITY");
   env.insert("NCCL_IGNORE_DISABLED_P2P");
   env.insert("NCCL_MAX_NCHANNELS");
   env.insert("NCCL_MAX_NRINGS");
@@ -103,6 +106,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_P2P_PXN_LEVEL");
   env.insert("NCCL_PXN_DISABLE");
   env.insert("NCCL_SENDRECV_ALGO");
+  env.insert("NCCL_TOPO_DUMP_FILE_RANK");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
   env.insert("NCCL_COLLTRACE_LOCAL_SUBDIR");
@@ -278,6 +282,8 @@ void readCvarEnv() {
   NCCL_IB_HCA.clear();
   std::tie(NCCL_IB_HCA_PREFIX, NCCL_IB_HCA) = env2prefixedStrlist("NCCL_IB_HCA", "", NCCL_IB_HCA_allPrefixes);
 
+  NCCL_IGNORE_CPU_AFFINITY = env2num<int64_t>("NCCL_IGNORE_CPU_AFFINITY", "0");
+
   NCCL_IGNORE_DISABLED_P2P = env2num<int64_t>("NCCL_IGNORE_DISABLED_P2P", "0");
 
   NCCL_MAX_NCHANNELS = env2num<int64_t>("NCCL_MAX_NCHANNELS", "-2");
@@ -318,6 +324,8 @@ void readCvarEnv() {
       CVAR_WARN_UNKNOWN_VALUE("NCCL_SENDRECV_ALGO", str.c_str());
     }
   }
+
+  NCCL_TOPO_DUMP_FILE_RANK = env2num<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", "0");
 
 }
 

@@ -98,6 +98,8 @@ extern int NCCL_DDA_MAX_RANKS;
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 
+extern int64_t NCCL_IGNORE_CPU_AFFINITY;
+
 extern int64_t NCCL_IGNORE_DISABLED_P2P;
 
 extern int64_t NCCL_MAX_NCHANNELS;
@@ -131,6 +133,8 @@ enum class NCCL_SENDRECV_ALGO {
   ctran,
 };
 extern enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
+
+extern int64_t NCCL_TOPO_DUMP_FILE_RANK;
 
 
 void ncclCvarInit();
