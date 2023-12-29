@@ -40,6 +40,10 @@ bool NCCL_DDA_FORCE_P2P_ACCESS;
 int NCCL_DDA_MAX_RANKS;
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
+int64_t NCCL_MAX_NCHANNELS;
+int64_t NCCL_MAX_NRINGS;
+int64_t NCCL_MIN_NCHANNELS;
+int64_t NCCL_MIN_NRINGS;
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 
 void initEnvSet(std::unordered_set<std::string>& env) {
@@ -72,6 +76,10 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_DDA_MAX_RANKS");
   env.insert("NCCL_IB_HCA");
+  env.insert("NCCL_MAX_NCHANNELS");
+  env.insert("NCCL_MAX_NRINGS");
+  env.insert("NCCL_MIN_NCHANNELS");
+  env.insert("NCCL_MIN_NRINGS");
   env.insert("NCCL_SENDRECV_ALGO");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
@@ -245,6 +253,14 @@ void readCvarEnv() {
   std::vector<std::string> NCCL_IB_HCA_allPrefixes{"^", "="};
   NCCL_IB_HCA.clear();
   std::tie(NCCL_IB_HCA_PREFIX, NCCL_IB_HCA) = env2prefixedStrlist("NCCL_IB_HCA", "", NCCL_IB_HCA_allPrefixes);
+
+  NCCL_MAX_NCHANNELS = env2num<int64_t>("NCCL_MAX_NCHANNELS", "-2");
+
+  NCCL_MAX_NRINGS = env2num<int64_t>("NCCL_MAX_NRINGS", "-2");
+
+  NCCL_MIN_NCHANNELS = env2num<int64_t>("NCCL_MIN_NCHANNELS", "-2");
+
+  NCCL_MIN_NRINGS = env2num<int64_t>("NCCL_MIN_NRINGS", "-2");
 
   if (getenv("NCCL_SENDRECV_ALGO") == nullptr) {
     NCCL_SENDRECV_ALGO = NCCL_SENDRECV_ALGO::orig;

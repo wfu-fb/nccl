@@ -10,6 +10,47 @@
 #include "rings.h"
 #include "topo.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_MIN_NCHANNELS
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_MIN_NCHANNELS variable controls the minimum number of
+     channels you want NCCL to use. Increasing the number of channels
+     also increases the number of CUDA blocks NCCL uses, which may be
+     useful to improve performance; however, it uses more CUDA compute
+     resources.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-nchannels
+
+ - name        : NCCL_MAX_NCHANNELS
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_MAX_NCHANNELS variable limits the number of channels
+     NCCL can use. Reducing the number of channels also reduces the
+     number of CUDA blocks used for communication, hence the impact on
+     GPU computing resources.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-nchannels
+
+ - name        : NCCL_MIN_NRINGS
+   type        : int64_t
+   default     : -2
+   description : |-
+     Deprecated version of NCCL_MIN_NCHANNELS. Please use
+     NCCL_MIN_NCHANNELS instead.
+
+ - name        : NCCL_MAX_NRINGS
+   type        : int64_t
+   default     : -2
+   description : |-
+     Deprecated version of NCCL_MAX_NCHANNELS. Please use
+     NCCL_MAX_NCHANNELS instead.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 /******************************************************************/
 /********************* Internode connection ***********************/
 /******************************************************************/
@@ -307,17 +348,10 @@ static ncclResult_t connectNvls(struct ncclComm* comm, int* nvlsHeads, struct nc
   return ncclSuccess;
 }
 
-// Legacy naming
-NCCL_PARAM(MinNrings, "MIN_NRINGS", -2);
-NCCL_PARAM(MaxNrings, "MAX_NRINGS", -2);
-// New naming
-NCCL_PARAM(MinNchannels, "MIN_NCHANNELS", -2);
-NCCL_PARAM(MaxNchannels, "MAX_NCHANNELS", -2);
-
 int ncclMinNchannels() {
   int minNchannels = 0;
-  if (ncclParamMinNrings() != -2) minNchannels = ncclParamMinNrings();
-  if (ncclParamMinNchannels() != -2) minNchannels = ncclParamMinNchannels();
+  if (NCCL_MIN_NRINGS != -2) minNchannels = NCCL_MIN_NRINGS;
+  if (NCCL_MIN_NCHANNELS != -2) minNchannels = NCCL_MIN_NCHANNELS;
   if (minNchannels > MAXCHANNELS) {
     WARN("User asked for a minimum of %d channels, limiting to %d", minNchannels, MAXCHANNELS);
     minNchannels = MAXCHANNELS;
@@ -327,8 +361,8 @@ int ncclMinNchannels() {
 }
 int ncclMaxNchannels() {
   int maxNchannels = MAXCHANNELS;
-  if (ncclParamMaxNrings() != -2) maxNchannels = ncclParamMaxNrings();
-  if (ncclParamMaxNchannels() != -2) maxNchannels = ncclParamMaxNchannels();
+  if (NCCL_MAX_NRINGS != -2) maxNchannels = NCCL_MAX_NRINGS;
+  if (NCCL_MAX_NCHANNELS != -2) maxNchannels = NCCL_MAX_NCHANNELS;
   if (maxNchannels > MAXCHANNELS) maxNchannels = MAXCHANNELS;
   if (maxNchannels < 1) {
     WARN("User asked for a maximum of %d channels, setting it to 1", maxNchannels);

@@ -227,6 +227,41 @@ Description:
 Type: prefixed_stringlist
 Default: None
 
+NCCL_MAX_NCHANNELS
+Description:
+    The NCCL_MAX_NCHANNELS variable limits the number of channels
+    NCCL can use. Reducing the number of channels also reduces the
+    number of CUDA blocks used for communication, hence the impact on
+    GPU computing resources.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-nchannels
+Type: int64_t
+Default: -2
+
+NCCL_MAX_NRINGS
+Description:
+    Deprecated version of NCCL_MAX_NCHANNELS. Please use
+    NCCL_MAX_NCHANNELS instead.
+Type: int64_t
+Default: -2
+
+NCCL_MIN_NCHANNELS
+Description:
+    The NCCL_MIN_NCHANNELS variable controls the minimum number of
+    channels you want NCCL to use. Increasing the number of channels
+    also increases the number of CUDA blocks NCCL uses, which may be
+    useful to improve performance; however, it uses more CUDA compute
+    resources.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-nchannels
+Type: int64_t
+Default: -2
+
+NCCL_MIN_NRINGS
+Description:
+    Deprecated version of NCCL_MIN_NCHANNELS. Please use
+    NCCL_MIN_NCHANNELS instead.
+Type: int64_t
+Default: -2
+
 NCCL_SENDRECV_ALGO
 Description:
     The algorithm to use for sendrecv communication

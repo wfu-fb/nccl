@@ -96,6 +96,14 @@ extern int NCCL_DDA_MAX_RANKS;
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 
+extern int64_t NCCL_MAX_NCHANNELS;
+
+extern int64_t NCCL_MAX_NRINGS;
+
+extern int64_t NCCL_MIN_NCHANNELS;
+
+extern int64_t NCCL_MIN_NRINGS;
+
 enum class NCCL_SENDRECV_ALGO {
   orig,
   ctran,
