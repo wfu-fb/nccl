@@ -22,6 +22,7 @@ int64_t NCCL_BUFFSIZE;
 int64_t NCCL_CHECK_POINTERS;
 int64_t NCCL_CHUNK_SIZE;
 int64_t NCCL_COLLNET_NODE_THRESHOLD;
+int64_t NCCL_CONNECT_ROUND_SIZE;
 int64_t NCCL_CREATE_THREAD_CONTEXT;
 int64_t NCCL_CROSS_NIC;
 std::vector<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
@@ -110,6 +111,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_CHECK_POINTERS");
   env.insert("NCCL_CHUNK_SIZE");
   env.insert("NCCL_COLLNET_NODE_THRESHOLD");
+  env.insert("NCCL_CONNECT_ROUND_SIZE");
   env.insert("NCCL_CREATE_THREAD_CONTEXT");
   env.insert("NCCL_CROSS_NIC");
   env.insert("NCCL_CTRAN_BACKENDS");
@@ -280,6 +282,8 @@ void readCvarEnv() {
   NCCL_CHUNK_SIZE = env2num<int64_t>("NCCL_CHUNK_SIZE", "0");
 
   NCCL_COLLNET_NODE_THRESHOLD = env2num<int64_t>("NCCL_COLLNET_NODE_THRESHOLD", "2");
+
+  NCCL_CONNECT_ROUND_SIZE = env2num<int64_t>("NCCL_CONNECT_ROUND_SIZE", "128");
 
   NCCL_CREATE_THREAD_CONTEXT = env2num<int64_t>("NCCL_CREATE_THREAD_CONTEXT", "0");
 

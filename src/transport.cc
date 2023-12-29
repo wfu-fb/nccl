@@ -10,6 +10,18 @@
 #define ENABLE_TIMER 0
 #include "timer.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CONNECT_ROUND_SIZE
+   type        : int64_t
+   default     : 128
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 struct ncclTransport* ncclTransports[NTRANSPORTS] = {
   &p2pTransport,
   &shmTransport,
@@ -64,8 +76,6 @@ void dumpData(struct ncclConnect* data, int ndata) {
     printf("\n");
   }
 }
-
-NCCL_PARAM(ConnectRoundSize, "CONNECT_ROUND_SIZE", 128);
 
 ncclResult_t ncclTransportP2pSetup(struct ncclComm* comm, struct ncclTopoGraph* graph, int connIndex, int* highestTransportType/*=NULL*/) {
   // Stream used during transport setup; need for P2P pre-connect + CUDA Graph
@@ -128,7 +138,7 @@ ncclResult_t ncclTransportP2pSetup(struct ncclComm* comm, struct ncclTopoGraph* 
     }
     TIME_STOP(2);
 
-    if (i-done >= ncclParamConnectRoundSize() || i == comm->nRanks-1) {
+    if (i-done >= NCCL_CONNECT_ROUND_SIZE || i == comm->nRanks-1) {
       // Loop until all channels with all ranks have been connected
       bool allChannelsConnected;
       allChannelsConnected = false;

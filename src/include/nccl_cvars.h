@@ -47,6 +47,8 @@ extern int64_t NCCL_CHUNK_SIZE;
 
 extern int64_t NCCL_COLLNET_NODE_THRESHOLD;
 
+extern int64_t NCCL_CONNECT_ROUND_SIZE;
+
 extern int64_t NCCL_CREATE_THREAD_CONTEXT;
 
 extern int64_t NCCL_CROSS_NIC;
