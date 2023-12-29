@@ -71,6 +71,7 @@ int64_t NCCL_IB_USE_INLINE;
 int64_t NCCL_IGNORE_CPU_AFFINITY;
 int64_t NCCL_IGNORE_DISABLED_P2P;
 int64_t NCCL_LL128_BUFFSIZE;
+int64_t NCCL_LL128_NTHREADS;
 int64_t NCCL_LL_BUFFSIZE;
 int64_t NCCL_LOCAL_REGISTER;
 int64_t NCCL_MAX_NCHANNELS;
@@ -83,6 +84,8 @@ int64_t NCCL_NCHANNELS_PER_NET_PEER;
 int64_t NCCL_NET_DISABLE_INTRA;
 int64_t NCCL_NET_FORCE_FLUSH;
 int64_t NCCL_NET_GDR_READ;
+int64_t NCCL_NET_OVERHEAD;
+int64_t NCCL_NTHREADS;
 int64_t NCCL_NVB_DISABLE;
 int64_t NCCL_NVB_PRECONNECT;
 int64_t NCCL_P2P_NET_CHUNKSIZE;
@@ -159,6 +162,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_IGNORE_CPU_AFFINITY");
   env.insert("NCCL_IGNORE_DISABLED_P2P");
   env.insert("NCCL_LL128_BUFFSIZE");
+  env.insert("NCCL_LL128_NTHREADS");
   env.insert("NCCL_LL_BUFFSIZE");
   env.insert("NCCL_LOCAL_REGISTER");
   env.insert("NCCL_MAX_NCHANNELS");
@@ -171,6 +175,8 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_NET_DISABLE_INTRA");
   env.insert("NCCL_NET_FORCE_FLUSH");
   env.insert("NCCL_NET_GDR_READ");
+  env.insert("NCCL_NET_OVERHEAD");
+  env.insert("NCCL_NTHREADS");
   env.insert("NCCL_NVB_DISABLE");
   env.insert("NCCL_NVB_PRECONNECT");
   env.insert("NCCL_P2P_NET_CHUNKSIZE");
@@ -420,6 +426,8 @@ void readCvarEnv() {
 
   NCCL_LL128_BUFFSIZE = env2num<int64_t>("NCCL_LL128_BUFFSIZE", "-2");
 
+  NCCL_LL128_NTHREADS = env2num<int64_t>("NCCL_LL128_NTHREADS", "-2");
+
   NCCL_LL_BUFFSIZE = env2num<int64_t>("NCCL_LL_BUFFSIZE", "-2");
 
   NCCL_LOCAL_REGISTER = env2num<int64_t>("NCCL_LOCAL_REGISTER", "1");
@@ -443,6 +451,10 @@ void readCvarEnv() {
   NCCL_NET_FORCE_FLUSH = env2num<int64_t>("NCCL_NET_FORCE_FLUSH", "1");
 
   NCCL_NET_GDR_READ = env2num<int64_t>("NCCL_NET_GDR_READ", "-2");
+
+  NCCL_NET_OVERHEAD = env2num<int64_t>("NCCL_NET_OVERHEAD", "-2");
+
+  NCCL_NTHREADS = env2num<int64_t>("NCCL_NTHREADS", "-2");
 
   NCCL_NVB_DISABLE = env2num<int64_t>("NCCL_NVB_DISABLE", "0");
 

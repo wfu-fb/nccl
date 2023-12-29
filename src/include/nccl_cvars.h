@@ -158,6 +158,8 @@ extern int64_t NCCL_IGNORE_DISABLED_P2P;
 
 extern int64_t NCCL_LL128_BUFFSIZE;
 
+extern int64_t NCCL_LL128_NTHREADS;
+
 extern int64_t NCCL_LL_BUFFSIZE;
 
 extern int64_t NCCL_LOCAL_REGISTER;
@@ -181,6 +183,10 @@ extern int64_t NCCL_NET_DISABLE_INTRA;
 extern int64_t NCCL_NET_FORCE_FLUSH;
 
 extern int64_t NCCL_NET_GDR_READ;
+
+extern int64_t NCCL_NET_OVERHEAD;
+
+extern int64_t NCCL_NTHREADS;
 
 extern int64_t NCCL_NVB_DISABLE;
 

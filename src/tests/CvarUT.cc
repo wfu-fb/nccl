@@ -1625,6 +1625,31 @@ TEST_F(CvarTest, NCCL_LL128_BUFFSIZE_default_value) {
   EXPECT_EQ(NCCL_LL128_BUFFSIZE, -2);
 }
 
+TEST_F(CvarTest, NCCL_LL128_NTHREADS_value_0) {
+  testNumValue<int64_t>("NCCL_LL128_NTHREADS", 0);
+  EXPECT_EQ(NCCL_LL128_NTHREADS, 0);
+}
+
+TEST_F(CvarTest, NCCL_LL128_NTHREADS_value_1) {
+  testNumValue<int64_t>("NCCL_LL128_NTHREADS", 9999);
+  EXPECT_EQ(NCCL_LL128_NTHREADS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_LL128_NTHREADS_value_2) {
+  testNumValue<int64_t>("NCCL_LL128_NTHREADS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_LL128_NTHREADS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_LL128_NTHREADS_value_3) {
+  testNumValue<int64_t>("NCCL_LL128_NTHREADS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_LL128_NTHREADS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_LL128_NTHREADS_default_value) {
+  testDefaultValue("NCCL_LL128_NTHREADS");
+  EXPECT_EQ(NCCL_LL128_NTHREADS, -2);
+}
+
 TEST_F(CvarTest, NCCL_LL_BUFFSIZE_value_0) {
   testNumValue<int64_t>("NCCL_LL_BUFFSIZE", 0);
   EXPECT_EQ(NCCL_LL_BUFFSIZE, 0);
@@ -1918,6 +1943,56 @@ TEST_F(CvarTest, NCCL_NET_GDR_READ_value_3) {
 TEST_F(CvarTest, NCCL_NET_GDR_READ_default_value) {
   testDefaultValue("NCCL_NET_GDR_READ");
   EXPECT_EQ(NCCL_NET_GDR_READ, -2);
+}
+
+TEST_F(CvarTest, NCCL_NET_OVERHEAD_value_0) {
+  testNumValue<int64_t>("NCCL_NET_OVERHEAD", 0);
+  EXPECT_EQ(NCCL_NET_OVERHEAD, 0);
+}
+
+TEST_F(CvarTest, NCCL_NET_OVERHEAD_value_1) {
+  testNumValue<int64_t>("NCCL_NET_OVERHEAD", 9999);
+  EXPECT_EQ(NCCL_NET_OVERHEAD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NET_OVERHEAD_value_2) {
+  testNumValue<int64_t>("NCCL_NET_OVERHEAD", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NET_OVERHEAD, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NET_OVERHEAD_value_3) {
+  testNumValue<int64_t>("NCCL_NET_OVERHEAD", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NET_OVERHEAD, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NET_OVERHEAD_default_value) {
+  testDefaultValue("NCCL_NET_OVERHEAD");
+  EXPECT_EQ(NCCL_NET_OVERHEAD, -2);
+}
+
+TEST_F(CvarTest, NCCL_NTHREADS_value_0) {
+  testNumValue<int64_t>("NCCL_NTHREADS", 0);
+  EXPECT_EQ(NCCL_NTHREADS, 0);
+}
+
+TEST_F(CvarTest, NCCL_NTHREADS_value_1) {
+  testNumValue<int64_t>("NCCL_NTHREADS", 9999);
+  EXPECT_EQ(NCCL_NTHREADS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NTHREADS_value_2) {
+  testNumValue<int64_t>("NCCL_NTHREADS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NTHREADS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NTHREADS_value_3) {
+  testNumValue<int64_t>("NCCL_NTHREADS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NTHREADS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NTHREADS_default_value) {
+  testDefaultValue("NCCL_NTHREADS");
+  EXPECT_EQ(NCCL_NTHREADS, -2);
 }
 
 TEST_F(CvarTest, NCCL_NVB_DISABLE_value_0) {

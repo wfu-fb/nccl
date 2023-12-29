@@ -9,8 +9,33 @@
 #include "comm.h"
 #include "topo.h"
 
-NCCL_PARAM(Nthreads, "NTHREADS", -2);
-NCCL_PARAM(Ll128Nthreads, "LL128_NTHREADS", -2);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NTHREADS
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_NTHREADS variable sets the number of CUDA threads per
+     CUDA block. NCCL will launch one CUDA block per communication
+     channel. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nthreads
+
+ - name        : NCCL_LL128_NTHREADS
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_NET_OVERHEAD
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+     Network post overhead in ns (1000 = 1 us)
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static int getNthreads(const char* name, int env, int min, int max, int def) {
   int nt = env;
@@ -105,11 +130,8 @@ static const double perChMaxTreeBws[3][3] = {
   /* Hopper (N1/N2/N4) */ {38.7, 41.4, 36.0},
 };
 
-// Network post overhead in ns (1000 = 1 us)
-NCCL_PARAM(NetOverhead, "NET_OVERHEAD", -2);
-
 static float getNetOverhead(struct ncclComm* comm) {
-  if (ncclParamNetOverhead() != -2) return ncclParamNetOverhead() * .001;
+  if (NCCL_NET_OVERHEAD != -2) return NCCL_NET_OVERHEAD * .001;
   int cpuArch, cpuVendor, cpuModel;
   NCCLCHECK(ncclTopoCpuType(comm->topo, &cpuArch, &cpuVendor, &cpuModel));
   if (cpuArch == NCCL_TOPO_CPU_ARCH_X86 && cpuVendor == NCCL_TOPO_CPU_VENDOR_INTEL) return 1.0;
@@ -120,17 +142,17 @@ static float getNetOverhead(struct ncclComm* comm) {
 ncclResult_t ncclTopoTuneModel(struct ncclComm* comm, int minCompCap, int maxCompCap, struct ncclTopoGraph** graphs) {
   int simpleDefaultThreads = (graphs[NCCL_ALGO_RING]->bwIntra*graphs[NCCL_ALGO_RING]->nChannels <= PCI_BW) ? 256 : NCCL_SIMPLE_MAX_NTHREADS;
   comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_SIMPLE] =
-    getNthreads("NCCL_NTHREADS", ncclParamNthreads(), 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, simpleDefaultThreads);
+    getNthreads("NCCL_NTHREADS", NCCL_NTHREADS, 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, simpleDefaultThreads);
   comm->maxThreads[NCCL_ALGO_TREE][NCCL_PROTO_SIMPLE] =
-    getNthreads("NCCL_NTHREADS", ncclParamNthreads(), 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, NCCL_SIMPLE_MAX_NTHREADS);
+    getNthreads("NCCL_NTHREADS", NCCL_NTHREADS, 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, NCCL_SIMPLE_MAX_NTHREADS);
   comm->maxThreads[NCCL_ALGO_COLLNET_DIRECT][NCCL_PROTO_SIMPLE] =
     comm->maxThreads[NCCL_ALGO_COLLNET_CHAIN][NCCL_PROTO_SIMPLE] =
     comm->maxThreads[NCCL_ALGO_NVLS][NCCL_PROTO_SIMPLE] =
     comm->maxThreads[NCCL_ALGO_NVLS_TREE][NCCL_PROTO_SIMPLE] = NCCL_MAX_NTHREADS;
   comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_LL] = comm->maxThreads[NCCL_ALGO_TREE][NCCL_PROTO_LL] =
-    getNthreads("NCCL_NTHREADS", ncclParamNthreads(), 2*WARP_SIZE, NCCL_LL_MAX_NTHREADS, NCCL_LL_MAX_NTHREADS);
+    getNthreads("NCCL_NTHREADS", NCCL_NTHREADS, 2*WARP_SIZE, NCCL_LL_MAX_NTHREADS, NCCL_LL_MAX_NTHREADS);
   comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_LL128] = comm->maxThreads[NCCL_ALGO_TREE][NCCL_PROTO_LL128] =
-    getNthreads("NCCL_LL128_NTHREADS", ncclParamLl128Nthreads(), NCCL_LL128_MAX_NTHREADS/4, NCCL_LL128_MAX_NTHREADS, NCCL_LL128_MAX_NTHREADS);
+    getNthreads("NCCL_LL128_NTHREADS", NCCL_LL128_NTHREADS, NCCL_LL128_MAX_NTHREADS/4, NCCL_LL128_MAX_NTHREADS, NCCL_LL128_MAX_NTHREADS);
 
   int nNodes = comm->nNodes;
   int nRanks = comm->nRanks;
