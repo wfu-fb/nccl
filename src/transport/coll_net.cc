@@ -10,9 +10,6 @@
 #include "proxy.h"
 #include "gdrwrap.h"
 
-int64_t ncclParamGdrCopySyncEnable();
-int64_t ncclParamGdrCopyFlushEnable();
-
 struct collNetRecvConnectInfo {
   int rank;
   int nranks;
@@ -447,7 +444,7 @@ static ncclResult_t sendProxyConnect(struct ncclProxyConnection* connection, str
 
   NCCLCHECK(ncclCudaHostCalloc(&map->mems[NCCL_NET_MAP_HOSTMEM].cpuPtr, map->mems[NCCL_NET_MAP_HOSTMEM].size));
   map->mems[NCCL_NET_MAP_HOSTMEM].gpuPtr = map->mems[NCCL_NET_MAP_HOSTMEM].cpuPtr;
-  if (ncclGdrCopy && ncclParamGdrCopySyncEnable()) {
+  if (ncclGdrCopy && NCCL_GDRCOPY_SYNC_ENABLE) {
     uint64_t *cpuPtr, *gpuPtr;
     NCCLCHECK(ncclGdrCudaCalloc(&cpuPtr, &gpuPtr, 1, &resources->gdrDesc));
 
@@ -519,14 +516,14 @@ static ncclResult_t recvProxyConnect(struct ncclProxyConnection* connection, str
     uint64_t *cpuPtr, *gpuPtr;
     NCCLCHECK(ncclGdrCudaCalloc(&cpuPtr, &gpuPtr, 2, &resources->gdrDesc));
 
-    if (ncclParamGdrCopySyncEnable()) {
+    if (NCCL_GDRCOPY_SYNC_ENABLE) {
       resources->gdcSync = cpuPtr;
       struct connectMapMem* gdcMem = map->mems+NCCL_NET_MAP_GDCMEM;
       gdcMem->cpuPtr = (char*)cpuPtr;
       gdcMem->gpuPtr = (char*)gpuPtr;
       gdcMem->size = sizeof(uint64_t);
     }
-    if (ncclParamGdrCopyFlushEnable()) resources->gdcFlush = cpuPtr + 1;
+    if (NCCL_GDRCOPY_FLUSH_ENABLE) resources->gdcFlush = cpuPtr + 1;
   }
 
   resources->sendMem = (struct ncclSendMem*) NCCL_NET_MAP_GET_POINTER(map, cpu, sendMem);

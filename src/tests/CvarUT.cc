@@ -1158,6 +1158,51 @@ TEST_F(CvarTest, NCCL_GDRCOPY_FIFO_ENABLE_default_value) {
   EXPECT_EQ(NCCL_GDRCOPY_FIFO_ENABLE, -2);
 }
 
+TEST_F(CvarTest, NCCL_GDRCOPY_FLUSH_ENABLE_value_0) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_FLUSH_ENABLE", 0);
+  EXPECT_EQ(NCCL_GDRCOPY_FLUSH_ENABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_FLUSH_ENABLE_value_1) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_FLUSH_ENABLE", 9999);
+  EXPECT_EQ(NCCL_GDRCOPY_FLUSH_ENABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_FLUSH_ENABLE_value_2) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_FLUSH_ENABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_GDRCOPY_FLUSH_ENABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_FLUSH_ENABLE_value_3) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_FLUSH_ENABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_GDRCOPY_FLUSH_ENABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_SYNC_ENABLE_value_0) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_SYNC_ENABLE", 0);
+  EXPECT_EQ(NCCL_GDRCOPY_SYNC_ENABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_SYNC_ENABLE_value_1) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_SYNC_ENABLE", 9999);
+  EXPECT_EQ(NCCL_GDRCOPY_SYNC_ENABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_SYNC_ENABLE_value_2) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_SYNC_ENABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_GDRCOPY_SYNC_ENABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_SYNC_ENABLE_value_3) {
+  testNumValue<int64_t>("NCCL_GDRCOPY_SYNC_ENABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_GDRCOPY_SYNC_ENABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_GDRCOPY_SYNC_ENABLE_default_value) {
+  testDefaultValue("NCCL_GDRCOPY_SYNC_ENABLE");
+  EXPECT_EQ(NCCL_GDRCOPY_SYNC_ENABLE, 1);
+}
+
 TEST_F(CvarTest, NCCL_GDR_FLUSH_DISABLE_value_0) {
   testNumValue<int64_t>("NCCL_GDR_FLUSH_DISABLE", 0);
   EXPECT_EQ(NCCL_GDR_FLUSH_DISABLE, 0);
@@ -2013,6 +2058,56 @@ TEST_F(CvarTest, NCCL_NET_OVERHEAD_value_3) {
 TEST_F(CvarTest, NCCL_NET_OVERHEAD_default_value) {
   testDefaultValue("NCCL_NET_OVERHEAD");
   EXPECT_EQ(NCCL_NET_OVERHEAD, -2);
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_BUFFERS_value_0) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_BUFFERS", 0);
+  EXPECT_EQ(NCCL_NET_SHARED_BUFFERS, 0);
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_BUFFERS_value_1) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_BUFFERS", 9999);
+  EXPECT_EQ(NCCL_NET_SHARED_BUFFERS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_BUFFERS_value_2) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_BUFFERS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NET_SHARED_BUFFERS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_BUFFERS_value_3) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_BUFFERS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NET_SHARED_BUFFERS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_BUFFERS_default_value) {
+  testDefaultValue("NCCL_NET_SHARED_BUFFERS");
+  EXPECT_EQ(NCCL_NET_SHARED_BUFFERS, -2);
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_COMMS_value_0) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_COMMS", 0);
+  EXPECT_EQ(NCCL_NET_SHARED_COMMS, 0);
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_COMMS_value_1) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_COMMS", 9999);
+  EXPECT_EQ(NCCL_NET_SHARED_COMMS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_COMMS_value_2) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_COMMS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NET_SHARED_COMMS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_COMMS_value_3) {
+  testNumValue<int64_t>("NCCL_NET_SHARED_COMMS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NET_SHARED_COMMS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NET_SHARED_COMMS_default_value) {
+  testDefaultValue("NCCL_NET_SHARED_COMMS");
+  EXPECT_EQ(NCCL_NET_SHARED_COMMS, 1);
 }
 
 TEST_F(CvarTest, NCCL_NTHREADS_value_0) {

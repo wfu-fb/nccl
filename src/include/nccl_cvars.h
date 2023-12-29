@@ -119,6 +119,10 @@ extern int64_t NCCL_GDRCOPY_ENABLE;
 
 extern int64_t NCCL_GDRCOPY_FIFO_ENABLE;
 
+extern int64_t NCCL_GDRCOPY_FLUSH_ENABLE;
+
+extern int64_t NCCL_GDRCOPY_SYNC_ENABLE;
+
 extern int64_t NCCL_GDR_FLUSH_DISABLE;
 
 extern int64_t NCCL_GRAPH_DUMP_FILE_RANK;
@@ -189,6 +193,10 @@ extern int64_t NCCL_NET_FORCE_FLUSH;
 extern int64_t NCCL_NET_GDR_READ;
 
 extern int64_t NCCL_NET_OVERHEAD;
+
+extern int64_t NCCL_NET_SHARED_BUFFERS;
+
+extern int64_t NCCL_NET_SHARED_COMMS;
 
 extern int64_t NCCL_NTHREADS;
 

@@ -314,6 +314,18 @@ Description:
 Type: int64_t
 Default: -2
 
+NCCL_GDRCOPY_FLUSH_ENABLE
+Description:
+    When enabled uses a PCI-E read to flush GDRDMA buffers.
+Type: int64_t
+Default: 0
+
+NCCL_GDRCOPY_SYNC_ENABLE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
 NCCL_GDR_FLUSH_DISABLE
 Description:
     Hidden variable. No description provided.
@@ -601,6 +613,25 @@ Description:
     Network post overhead in ns (1000 = 1 us)
 Type: int64_t
 Default: -2
+
+NCCL_NET_SHARED_BUFFERS
+Description:
+    Allows the usage of shared buffers for inter-node point-to-point
+    communication. This will use a single large pool for all remote
+    peers, having a constant memory usage instead of increasing
+    linearly with the number of remote peers. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-shared-buffers
+Type: int64_t
+Default: -2
+
+NCCL_NET_SHARED_COMMS
+Description:
+    Reuse the same connections in the context of PXN. This allows for
+    message aggregation but can also decrease the entropy of network
+    packets. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-shared-comms
+Type: int64_t
+Default: 1
 
 NCCL_NTHREADS
 Description:

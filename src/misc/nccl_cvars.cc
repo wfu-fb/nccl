@@ -51,6 +51,8 @@ int NCCL_DDA_MAX_RANKS;
 int64_t NCCL_DMABUF_ENABLE;
 int64_t NCCL_GDRCOPY_ENABLE;
 int64_t NCCL_GDRCOPY_FIFO_ENABLE;
+int64_t NCCL_GDRCOPY_FLUSH_ENABLE;
+int64_t NCCL_GDRCOPY_SYNC_ENABLE;
 int64_t NCCL_GDR_FLUSH_DISABLE;
 int64_t NCCL_GRAPH_DUMP_FILE_RANK;
 int64_t NCCL_GRAPH_MIXING_SUPPORT;
@@ -87,6 +89,8 @@ int64_t NCCL_NET_DISABLE_INTRA;
 int64_t NCCL_NET_FORCE_FLUSH;
 int64_t NCCL_NET_GDR_READ;
 int64_t NCCL_NET_OVERHEAD;
+int64_t NCCL_NET_SHARED_BUFFERS;
+int64_t NCCL_NET_SHARED_COMMS;
 int64_t NCCL_NTHREADS;
 int64_t NCCL_NVB_DISABLE;
 int64_t NCCL_NVB_PRECONNECT;
@@ -145,6 +149,8 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DMABUF_ENABLE");
   env.insert("NCCL_GDRCOPY_ENABLE");
   env.insert("NCCL_GDRCOPY_FIFO_ENABLE");
+  env.insert("NCCL_GDRCOPY_FLUSH_ENABLE");
+  env.insert("NCCL_GDRCOPY_SYNC_ENABLE");
   env.insert("NCCL_GDR_FLUSH_DISABLE");
   env.insert("NCCL_GRAPH_DUMP_FILE_RANK");
   env.insert("NCCL_GRAPH_MIXING_SUPPORT");
@@ -180,6 +186,8 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_NET_FORCE_FLUSH");
   env.insert("NCCL_NET_GDR_READ");
   env.insert("NCCL_NET_OVERHEAD");
+  env.insert("NCCL_NET_SHARED_BUFFERS");
+  env.insert("NCCL_NET_SHARED_COMMS");
   env.insert("NCCL_NTHREADS");
   env.insert("NCCL_NVB_DISABLE");
   env.insert("NCCL_NVB_PRECONNECT");
@@ -390,6 +398,10 @@ void readCvarEnv() {
 
   NCCL_GDRCOPY_FIFO_ENABLE = env2num<int64_t>("NCCL_GDRCOPY_FIFO_ENABLE", "-2");
 
+  NCCL_GDRCOPY_FLUSH_ENABLE = env2num<int64_t>("NCCL_GDRCOPY_FLUSH_ENABLE", "0");
+
+  NCCL_GDRCOPY_SYNC_ENABLE = env2num<int64_t>("NCCL_GDRCOPY_SYNC_ENABLE", "1");
+
   NCCL_GDR_FLUSH_DISABLE = env2num<int64_t>("NCCL_GDR_FLUSH_DISABLE", "0");
 
   NCCL_GRAPH_DUMP_FILE_RANK = env2num<int64_t>("NCCL_GRAPH_DUMP_FILE_RANK", "0");
@@ -461,6 +473,10 @@ void readCvarEnv() {
   NCCL_NET_GDR_READ = env2num<int64_t>("NCCL_NET_GDR_READ", "-2");
 
   NCCL_NET_OVERHEAD = env2num<int64_t>("NCCL_NET_OVERHEAD", "-2");
+
+  NCCL_NET_SHARED_BUFFERS = env2num<int64_t>("NCCL_NET_SHARED_BUFFERS", "-2");
+
+  NCCL_NET_SHARED_COMMS = env2num<int64_t>("NCCL_NET_SHARED_COMMS", "1");
 
   NCCL_NTHREADS = env2num<int64_t>("NCCL_NTHREADS", "-2");
 
