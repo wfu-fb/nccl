@@ -82,8 +82,6 @@ DECL_TYPED_KERNS(double);
 } while(0)
 
 void initializeMpi(int argc, char **argv) {
-  int localRank, globalRank, numRanks = 0;
-
   //initializing MPI
   MPICHECK_TEST(MPI_Init(&argc, &argv));
 }
