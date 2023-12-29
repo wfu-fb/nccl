@@ -4,6 +4,12 @@ Automatically generated
   by ./maint/extractcvars.py
 DO NOT EDIT!!!
 
+NCCL_AGG_CHANNEL_SIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
 NCCL_ALLGATHER_ALGO
 Description:
     The algorithm to use for Allgather communication
@@ -19,6 +25,19 @@ Description:
     Message size up to which we use the direct algorithm for Allgather.
 Type: uint64_t
 Default: 524288
+
+NCCL_ALLOC_P2P_NET_LL_BUFFERS
+Description:
+    NCCL_ALLOC_P2P_NET_LL_BUFFERS instructs communicators to allocate
+    dedicated LL buffers for all P2P network connections. This
+    enables all ranks to use LL for latency-bound send and receive
+    operations below NCCL_P2P_LL_THRESHOLD sizes. Intranode P2P
+    transfers always have dedicated LL buffers allocated. If running
+    all-to-all workloads with high numbers of ranks, this will result
+    in a high scaling memory overhead. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-alloc-p2p-net-ll-buffers
+Type: int64_t
+Default: 0
 
 NCCL_ALLREDUCE_ALGO
 Description:
@@ -51,6 +70,32 @@ Description:
     pick a value.
 Type: int
 Default: -1
+
+NCCL_BUFFSIZE
+Description:
+    The NCCL_BUFFSIZE variable controls the size of the buffer used
+    by NCCL when communicating data between pairs of GPUs. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-buffsize
+Type: int64_t
+Default: -2
+
+NCCL_CHECK_POINTERS
+Description:
+    The NCCL_CHECK_POINTERS variable enables checking of the CUDA
+    memory pointers on each collective call. Checks are useful during
+    development but can increase the latency. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-check-pointers
+Type: int64_t
+Default: 0
+
+NCCL_COLLNET_NODE_THRESHOLD
+Description:
+    A threshold for number of nodes below which CollNet will not be
+    enabled. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-node-threshold
+Type: int64_t
+Default: 2
 
 NCCL_CROSS_NIC
 Description:
@@ -223,7 +268,34 @@ Description:
 Type: int
 Default: 16
 
+NCCL_DMABUF_ENABLE
+Description:
+    Enable GPU Direct RDMA buffer registration using the Linux
+    dma-buf subsystem. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-dmabuf-enable
+Type: int64_t
+Default: 1
+
+NCCL_GDRCOPY_ENABLE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_GDRCOPY_FIFO_ENABLE
+Description:
+    Hidden variable. No description provided.
+    When enabled locates a workFifo in CUDA memory
+Type: int64_t
+Default: -2
+
 NCCL_GDR_FLUSH_DISABLE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_GRAPH_DUMP_FILE_RANK
 Description:
     Hidden variable. No description provided.
 Type: int64_t
@@ -377,6 +449,26 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_LL128_BUFFSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
+NCCL_LL_BUFFSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
+NCCL_LOCAL_REGISTER
+Description:
+    Enable user local buffer registration when users explicitly call
+    ncclCommRegister. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-local-register
+Type: int64_t
+Default: 1
+
 NCCL_MAX_NCHANNELS
 Description:
     The NCCL_MAX_NCHANNELS variable limits the number of channels
@@ -464,6 +556,33 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_NVB_PRECONNECT
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
+NCCL_P2P_NET_CHUNKSIZE
+Description:
+    The NCCL_P2P_NET_CHUNKSIZE controls the size of messages sent
+    through the network for ncclSend/ncclRecv operations. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-net-chunksize
+Type: int64_t
+Default: 131072
+
+NCCL_P2P_NVL_CHUNKSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 524288
+
+NCCL_P2P_PCI_CHUNKSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 131072
+
 NCCL_P2P_PXN_LEVEL
 Description:
     Control in which cases PXN is used for send/receive operations.
@@ -491,8 +610,22 @@ Description:
 Type: enum
 Default: orig
 
+NCCL_SET_STACK_SIZE
+Description:
+    Set CUDA kernel stack size to the maximum stack size amongst all
+    NCCL kernels. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-stack-size
+Type: int64_t
+Default: 0
+
 NCCL_TOPO_DUMP_FILE_RANK
 Description:
     Hidden variable. No description provided.
 Type: int64_t
 Default: 0
+
+NCCL_WORK_FIFO_DEPTH
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 65536

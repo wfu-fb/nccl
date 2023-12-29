@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+extern int64_t NCCL_AGG_CHANNEL_SIZE;
+
 enum class NCCL_ALLGATHER_ALGO {
   orig,
   ctdirect,
@@ -18,6 +20,8 @@ enum class NCCL_ALLGATHER_ALGO {
 extern enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
 
 extern uint64_t NCCL_ALLGATHER_DIRECT_CUTOFF;
+
+extern int64_t NCCL_ALLOC_P2P_NET_LL_BUFFERS;
 
 enum class NCCL_ALLREDUCE_ALGO {
   orig,
@@ -34,6 +38,12 @@ extern enum NCCL_ALLREDUCE_ALGO2 NCCL_ALLREDUCE_ALGO2;
 extern int NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS;
 
 extern int NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
+
+extern int64_t NCCL_BUFFSIZE;
+
+extern int64_t NCCL_CHECK_POINTERS;
+
+extern int64_t NCCL_COLLNET_NODE_THRESHOLD;
 
 extern int64_t NCCL_CROSS_NIC;
 
@@ -95,7 +105,15 @@ extern bool NCCL_DDA_FORCE_P2P_ACCESS;
 
 extern int NCCL_DDA_MAX_RANKS;
 
+extern int64_t NCCL_DMABUF_ENABLE;
+
+extern int64_t NCCL_GDRCOPY_ENABLE;
+
+extern int64_t NCCL_GDRCOPY_FIFO_ENABLE;
+
 extern int64_t NCCL_GDR_FLUSH_DISABLE;
+
+extern int64_t NCCL_GRAPH_DUMP_FILE_RANK;
 
 extern int64_t NCCL_IB_ADAPTIVE_ROUTING;
 
@@ -132,6 +150,12 @@ extern int64_t NCCL_IGNORE_CPU_AFFINITY;
 
 extern int64_t NCCL_IGNORE_DISABLED_P2P;
 
+extern int64_t NCCL_LL128_BUFFSIZE;
+
+extern int64_t NCCL_LL_BUFFSIZE;
+
+extern int64_t NCCL_LOCAL_REGISTER;
+
 extern int64_t NCCL_MAX_NCHANNELS;
 
 extern int64_t NCCL_MAX_NRINGS;
@@ -154,6 +178,14 @@ extern int64_t NCCL_NET_GDR_READ;
 
 extern int64_t NCCL_NVB_DISABLE;
 
+extern int64_t NCCL_NVB_PRECONNECT;
+
+extern int64_t NCCL_P2P_NET_CHUNKSIZE;
+
+extern int64_t NCCL_P2P_NVL_CHUNKSIZE;
+
+extern int64_t NCCL_P2P_PCI_CHUNKSIZE;
+
 extern int64_t NCCL_P2P_PXN_LEVEL;
 
 extern int64_t NCCL_PXN_DISABLE;
@@ -164,7 +196,11 @@ enum class NCCL_SENDRECV_ALGO {
 };
 extern enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 
+extern int64_t NCCL_SET_STACK_SIZE;
+
 extern int64_t NCCL_TOPO_DUMP_FILE_RANK;
+
+extern int64_t NCCL_WORK_FIFO_DEPTH;
 
 
 void ncclCvarInit();

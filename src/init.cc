@@ -29,6 +29,145 @@
 #include <unistd.h>
 #include <cstdlib>
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CHECK_POINTERS
+   type        : int64_t
+   default     : 0
+   description : |-
+     The NCCL_CHECK_POINTERS variable enables checking of the CUDA
+     memory pointers on each collective call. Checks are useful during
+     development but can increase the latency. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-check-pointers
+
+ - name        : NCCL_GDRCOPY_ENABLE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_AGG_CHANNEL_SIZE
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_GDRCOPY_FIFO_ENABLE
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+     When enabled locates a workFifo in CUDA memory
+
+ - name        : NCCL_WORK_FIFO_DEPTH
+   type        : int64_t
+   default     : 65536
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_DMABUF_ENABLE
+   type        : int64_t
+   default     : 1
+   description : |-
+     Enable GPU Direct RDMA buffer registration using the Linux
+     dma-buf subsystem. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-dmabuf-enable
+
+ - name        : NCCL_BUFFSIZE
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_BUFFSIZE variable controls the size of the buffer used
+     by NCCL when communicating data between pairs of GPUs. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-buffsize
+
+ - name        : NCCL_LL_BUFFSIZE
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_LL128_BUFFSIZE
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_P2P_NET_CHUNKSIZE
+   type        : int64_t
+   default     : 131072
+   description : |-
+     The NCCL_P2P_NET_CHUNKSIZE controls the size of messages sent
+     through the network for ncclSend/ncclRecv operations. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-net-chunksize
+
+ - name        : NCCL_P2P_PCI_CHUNKSIZE
+   type        : int64_t
+   default     : 131072
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_P2P_NVL_CHUNKSIZE
+   type        : int64_t
+   default     : 524288
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_GRAPH_DUMP_FILE_RANK
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_COLLNET_NODE_THRESHOLD
+   type        : int64_t
+   default     : 2
+   description : |-
+     A threshold for number of nodes below which CollNet will not be
+     enabled. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-node-threshold
+
+ - name        : NCCL_NVB_PRECONNECT
+   type        : int64_t
+   default     : 1
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_ALLOC_P2P_NET_LL_BUFFERS
+   type        : int64_t
+   default     : 0
+   description : |-
+     NCCL_ALLOC_P2P_NET_LL_BUFFERS instructs communicators to allocate
+     dedicated LL buffers for all P2P network connections. This
+     enables all ranks to use LL for latency-bound send and receive
+     operations below NCCL_P2P_LL_THRESHOLD sizes. Intranode P2P
+     transfers always have dedicated LL buffers allocated. If running
+     all-to-all workloads with high numbers of ranks, this will result
+     in a high scaling memory overhead. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-alloc-p2p-net-ll-buffers
+
+ - name        : NCCL_SET_STACK_SIZE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Set CUDA kernel stack size to the maximum stack size amongst all
+     NCCL kernels. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-stack-size
+
+ - name        : NCCL_LOCAL_REGISTER
+   type        : int64_t
+   default     : 1
+   description : |-
+     Enable user local buffer registration when users explicitly call
+     ncclCommRegister. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-local-register
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 #define STR2(v) #v
 #define STR(v) STR2(v)
 
@@ -44,7 +183,6 @@ const char* ncclFuncStr[NCCL_NUM_FUNCTIONS] = { "Broadcast", "Reduce", "AllGathe
 const char* ncclAlgoStr[NCCL_NUM_ALGORITHMS] = { "Tree", "Ring", "CollNetDirect", "CollNetChain", "NVLS", "NVLSTree" };
 const char* ncclProtoStr[NCCL_NUM_PROTOCOLS] = { "LL", "LL128", "Simple" };
 
-NCCL_PARAM(CheckPointers, "CHECK_POINTERS", 0);
 NCCL_PARAM(CommBlocking, "COMM_BLOCKING", NCCL_CONFIG_UNDEF_INT);
 
 static ncclResult_t ncclCommInitWorld(const ncclComm_t comm);
@@ -61,14 +199,11 @@ static uint64_t hashUniqueId(ncclUniqueId const &id) {
   return h;
 }
 
-// GDRCOPY support: Off by default
-NCCL_PARAM(GdrCopyEnable, "GDRCOPY_ENABLE", 0);
-
 // GDRCOPY support
 gdr_t ncclGdrCopy = NULL;
 
 ncclResult_t initGdrCopy() {
-  if (ncclParamGdrCopyEnable() == 1) {
+  if (NCCL_GDRCOPY_ENABLE == 1) {
     ncclGdrCopy = ncclGdrInit();
   }
   return ncclSuccess;
@@ -252,17 +387,11 @@ static ncclResult_t commFree(ncclComm_t comm) {
   return ncclSuccess;
 }
 
-NCCL_PARAM(AggChannelSize, "AGG_CHANNEL_SIZE", -2);
-// GDRCOPY support: FIFO_ENABLE when enabled locates a workFifo in CUDA memory
-NCCL_PARAM(GdrCopyFifoEnable, "GDRCOPY_FIFO_ENABLE", 1);
-NCCL_PARAM(WorkFifoDepth, "WORK_FIFO_DEPTH", 64<<10);
 enum ncclLaunchMode ncclParamLaunchMode;
-
-NCCL_PARAM(DmaBufEnable, "DMABUF_ENABLE", 1);
 
 // Detect DMA-BUF support
 static ncclResult_t dmaBufSupported(struct ncclComm* comm) {
-  if (ncclParamDmaBufEnable() == 0 || comm->ncclNet->regMrDmaBuf == NULL || ncclCudaLibraryInit() != ncclSuccess) return ncclInternalError;
+  if (NCCL_DMABUF_ENABLE == 0 || comm->ncclNet->regMrDmaBuf == NULL || ncclCudaLibraryInit() != ncclSuccess) return ncclInternalError;
 #if CUDA_VERSION >= 11070
   int flag = 0;
   CUdevice dev;
@@ -338,7 +467,7 @@ static ncclResult_t commAlloc(struct ncclComm* comm, struct ncclComm* parent, in
   comm->compCap = ncclCudaCompCap();
   TRACE(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d busId %lx compCap %d", comm, rank, ndev, comm->cudaDev, comm->busId, comm->compCap);
 
-  comm->checkPointers = ncclParamCheckPointers() == 1 ? true : false;
+  comm->checkPointers = NCCL_CHECK_POINTERS == 1 ? true : false;
   comm->dmaBufSupport = (dmaBufSupported(comm) == ncclSuccess) ? true : false;
 
   comm->collNetSupport = 0;
@@ -350,7 +479,7 @@ static ncclResult_t commAlloc(struct ncclComm* comm, struct ncclComm* parent, in
 
   comm->groupNext = reinterpret_cast<struct ncclComm*>(0x1);
   comm->preconnectNext = reinterpret_cast<struct ncclComm*>(0x1);
-  comm->channelSize = ncclParamAggChannelSize();
+  comm->channelSize = NCCL_AGG_CHANNEL_SIZE;
 
   static_assert(MAXCHANNELS <= sizeof(*comm->connectSend)*8, "comm->connectSend must have enough bits for all channels");
   static_assert(MAXCHANNELS <= sizeof(*comm->connectRecv)*8, "comm->connectRecv must have enough bits for all channels");
@@ -404,14 +533,14 @@ static ncclResult_t devCommSetup(ncclComm_t comm) {
   }
   tmpCommAndChans.comm.channels = &devCommAndChans->channels[0];
 
-  comm->workFifoDepth = ncclParamWorkFifoDepth();
+  comm->workFifoDepth = NCCL_WORK_FIFO_DEPTH;
   if (0 != (comm->workFifoDepth & (comm->workFifoDepth-1))) {
     WARN("NCCL_WORK_FIFO_DEPTH=%d is being ignored because it is not a power of 2.", comm->workFifoDepth);
     comm->workFifoDepth = 64<<10;
   }
   tmpCommAndChans.comm.workFifoDepth = comm->workFifoDepth;
 
-  if (ncclGdrCopy != NULL && ncclParamGdrCopyFifoEnable() == 1) {
+  if (ncclGdrCopy != NULL && NCCL_GDRCOPY_FIFO_ENABLE == 1) {
     // The workFifoHeap lives in GDR mapped CUDA memory.
     NCCLCHECKGOTO(ncclGdrCudaCalloc(&comm->workFifoHeap, &comm->devWorkFifoHeap, comm->workFifoDepth, &comm->workFifoHeapGdrHandle), ret, fail);
     ncclCommPushCudaGdrFree(comm, comm->workFifoHeapGdrHandle);
@@ -510,19 +639,12 @@ static ncclResult_t setupChannel(struct ncclComm* comm, int channelId, int rank,
 #define DEFAULT_LL128_BUFFSIZE (NCCL_LL128_ELEMS_PER_THREAD*NCCL_LL128_MAX_NTHREADS*NCCL_STEPS*sizeof(uint64_t))
 #define DEFAULT_BUFFSIZE (1 << 22) /* 4MiB */
 #define DEFAULT_BUFFSIZE_ARM (1 << 20) /* 1MiB */
-NCCL_PARAM(BuffSize, "BUFFSIZE", -2);
-NCCL_PARAM(LlBuffSize, "LL_BUFFSIZE", -2);
-NCCL_PARAM(Ll128BuffSize, "LL128_BUFFSIZE", -2);
-
-NCCL_PARAM(P2pNetChunkSize, "P2P_NET_CHUNKSIZE", (1 << 17)); /* 128 kB */
-NCCL_PARAM(P2pPciChunkSize, "P2P_PCI_CHUNKSIZE", (1 << 17)); /* 128 kB */
-NCCL_PARAM(P2pNvlChunkSize, "P2P_NVL_CHUNKSIZE", (1 << 19)); /* 512 kB */
 
 static ncclResult_t computeBuffSizes(struct ncclComm* comm) {
   int cpuArch, cpuVendor, cpuModel;
   NCCLCHECK(ncclTopoCpuType(comm->topo, &cpuArch, &cpuVendor, &cpuModel));
 
-  int64_t envs[NCCL_NUM_PROTOCOLS] = { ncclParamLlBuffSize(), ncclParamLl128BuffSize(), ncclParamBuffSize() };
+  int64_t envs[NCCL_NUM_PROTOCOLS] = { NCCL_LL_BUFFSIZE, NCCL_LL128_BUFFSIZE, NCCL_BUFFSIZE };
   int defaults[NCCL_NUM_PROTOCOLS] = { DEFAULT_LL_BUFFSIZE, DEFAULT_LL128_BUFFSIZE, DEFAULT_BUFFSIZE };
 
   if (cpuArch == NCCL_TOPO_CPU_ARCH_ARM) defaults[NCCL_PROTO_SIMPLE] = DEFAULT_BUFFSIZE_ARM;
@@ -531,9 +653,9 @@ static ncclResult_t computeBuffSizes(struct ncclComm* comm) {
     comm->buffSizes[p] = envs[p] != -2 ? envs[p] : defaults[p];
   }
 
-  if (comm->nNodes > 1) comm->p2pChunkSize = ncclParamP2pNetChunkSize();
-  else if (ncclTopoPathAllNVLink(comm->topo)) comm->p2pChunkSize = ncclParamP2pNvlChunkSize();
-  else comm->p2pChunkSize = ncclParamP2pPciChunkSize();
+  if (comm->nNodes > 1) comm->p2pChunkSize = NCCL_P2P_NET_CHUNKSIZE;
+  else if (ncclTopoPathAllNVLink(comm->topo)) comm->p2pChunkSize = NCCL_P2P_NVL_CHUNKSIZE;
+  else comm->p2pChunkSize = NCCL_P2P_PCI_CHUNKSIZE;
   if (comm->sharedRes->owner != comm) {
     /* make sure split comm p2pChunkSize won't exceed shared p2pChunkSize. */
     comm->p2pChunkSize = std::min(comm->p2pChunkSize, comm->sharedRes->tpP2pChunkSize);
@@ -544,11 +666,6 @@ static ncclResult_t computeBuffSizes(struct ncclComm* comm) {
   INFO(NCCL_INIT, "P2P Chunksize set to %d", comm->p2pChunkSize);
   return ncclSuccess;
 }
-
-NCCL_PARAM(GraphDumpFileRank, "GRAPH_DUMP_FILE_RANK", 0);
-NCCL_PARAM(CollNetNodeThreshold, "COLLNET_NODE_THRESHOLD", 2);
-NCCL_PARAM(NvbPreconnect, "NVB_PRECONNECT", 1);
-NCCL_PARAM(AllocP2pNetLLBuffers, "ALLOC_P2P_NET_LL_BUFFERS", 0);
 
 static ncclResult_t collNetTrySetup(ncclComm_t comm, ncclComm_t parent, struct ncclTopoGraph* collNetGraph) {
   ncclResult_t ret = ncclSuccess;
@@ -921,9 +1038,9 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
   }
 
   // Initialize num P2P LL buffers for this communicator
-  comm->allocP2pNetLLBuffers = ncclParamAllocP2pNetLLBuffers() == 1;
+  comm->allocP2pNetLLBuffers = NCCL_ALLOC_P2P_NET_LL_BUFFERS == 1;
 
-  if (comm->rank == ncclParamGraphDumpFileRank()) {
+  if (comm->rank == NCCL_GRAPH_DUMP_FILE_RANK) {
     struct ncclTopoGraph* dumpGraphs[4] = { &ringGraph, &treeGraph, &collNetGraph, &nvlsGraph };
     NCCLCHECKGOTO(ncclTopoDumpGraphs(comm->topo, 4, dumpGraphs), ret, fail);
   }
@@ -1022,7 +1139,7 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
 
   // Determine CollNet support after all-gather now that we know nNodes and each node localRanks
   if (comm->collNetSupport == 1) {
-    int collNetNodeThreshold = ncclParamCollNetNodeThreshold();
+    int collNetNodeThreshold = NCCL_COLLNET_NODE_THRESHOLD;
     if (comm->nNodes < collNetNodeThreshold) {
       INFO(NCCL_INIT, "Communicator has %d nodes which is less than CollNet node threshold %d, disabling CollNet", comm->nNodes, collNetNodeThreshold);
       comm->collNetSupport = 0;
@@ -1165,7 +1282,7 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
     assert(i == tasks->p2pOrderSteps);
   } while (0);
 
-  if (ncclParamNvbPreconnect()) {
+  if (NCCL_NVB_PRECONNECT) {
     // Connect p2p when using NVB path
     int nvbNpeers;
     NCCLCHECKGOTO(ncclTopoGetNvbGpus(comm->topo, comm->rank, &nvbNpeers, &nvbPeers), ret, fail);
@@ -1250,7 +1367,6 @@ fail:
   goto exit;
 }
 
-NCCL_PARAM(SetStackSize, "SET_STACK_SIZE", 0);
 NCCL_PARAM(CGAClusterSize, "CGA_CLUSTER_SIZE", NCCL_CONFIG_UNDEF_INT);
 // Match config max/minCTAs
 NCCL_PARAM(MaxCTAs, "MAX_CTAS", NCCL_CONFIG_UNDEF_INT);
@@ -1345,7 +1461,7 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   NCCLCHECK(ncclInitKernelsForDevice(cudaArch, &maxLocalSizeBytes));
   // Set the maximum kernel stack size of all kernels to avoid
   // a CUDA memory reconfig on load (c.f. NVSHMEM issue)
-  if (maxLocalSizeBytes > 0 && ncclParamSetStackSize() == 1) {
+  if (maxLocalSizeBytes > 0 && NCCL_SET_STACK_SIZE == 1) {
     TRACE(NCCL_INIT, "Setting cudaLimitStackSize to %zi", maxLocalSizeBytes);
     CUDACHECKIGNORE(cudaDeviceSetLimit(cudaLimitStackSize, maxLocalSizeBytes));
   }
@@ -2195,14 +2311,12 @@ ncclResult_t ncclCommUserRank(const ncclComm_t comm, int* rank) {
   return ncclSuccess;
 }
 
-NCCL_PARAM(LocalRegister, "LOCAL_REGISTER", 1);
-
 NCCL_API(ncclResult_t, ncclCommRegister, const ncclComm_t comm, void* buff, size_t size, void** handle);
 ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, void** handle) {
   NVTX3_FUNC_RANGE_IN(nccl_domain);
   ncclResult_t ret = ncclSuccess;
 
-  if (ncclParamLocalRegister()) {
+  if (NCCL_LOCAL_REGISTER) {
     if(ctranInitialized(comm)) {
       return comm->ctran->commRegister(buff, size, handle);
     } else {
@@ -2218,7 +2332,7 @@ NCCL_API(ncclResult_t, ncclCommDeregister, const ncclComm_t comm, void* handle);
 ncclResult_t ncclCommDeregister(const ncclComm_t comm, void* handle) {
   ncclResult_t ret = ncclSuccess;
 
-  if (ncclParamLocalRegister()) {
+  if (NCCL_LOCAL_REGISTER) {
     if(ctranInitialized(comm)) {
       return comm->ctran->commDeregister(handle);
     } else {

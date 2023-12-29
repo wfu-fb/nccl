@@ -10,12 +10,17 @@
 #include "nccl_cvars.h"
 #include "nccl_cvars_base.h"
 
+int64_t NCCL_AGG_CHANNEL_SIZE;
 enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
 uint64_t NCCL_ALLGATHER_DIRECT_CUTOFF;
+int64_t NCCL_ALLOC_P2P_NET_LL_BUFFERS;
 enum NCCL_ALLREDUCE_ALGO NCCL_ALLREDUCE_ALGO;
 enum NCCL_ALLREDUCE_ALGO2 NCCL_ALLREDUCE_ALGO2;
 int NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS;
 int NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE;
+int64_t NCCL_BUFFSIZE;
+int64_t NCCL_CHECK_POINTERS;
+int64_t NCCL_COLLNET_NODE_THRESHOLD;
 int64_t NCCL_CROSS_NIC;
 std::vector<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
 int NCCL_CTRAN_IB_MAX_QPS;
@@ -39,7 +44,11 @@ uint64_t NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM;
 uint64_t NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS;
 bool NCCL_DDA_FORCE_P2P_ACCESS;
 int NCCL_DDA_MAX_RANKS;
+int64_t NCCL_DMABUF_ENABLE;
+int64_t NCCL_GDRCOPY_ENABLE;
+int64_t NCCL_GDRCOPY_FIFO_ENABLE;
 int64_t NCCL_GDR_FLUSH_DISABLE;
+int64_t NCCL_GRAPH_DUMP_FILE_RANK;
 int64_t NCCL_IB_ADAPTIVE_ROUTING;
 int64_t NCCL_IB_AR_THRESHOLD;
 int64_t NCCL_IB_DISABLE;
@@ -58,6 +67,9 @@ int64_t NCCL_IB_TIMEOUT;
 int64_t NCCL_IB_USE_INLINE;
 int64_t NCCL_IGNORE_CPU_AFFINITY;
 int64_t NCCL_IGNORE_DISABLED_P2P;
+int64_t NCCL_LL128_BUFFSIZE;
+int64_t NCCL_LL_BUFFSIZE;
+int64_t NCCL_LOCAL_REGISTER;
 int64_t NCCL_MAX_NCHANNELS;
 int64_t NCCL_MAX_NRINGS;
 int64_t NCCL_MAX_P2P_NCHANNELS;
@@ -69,18 +81,29 @@ int64_t NCCL_NET_DISABLE_INTRA;
 int64_t NCCL_NET_FORCE_FLUSH;
 int64_t NCCL_NET_GDR_READ;
 int64_t NCCL_NVB_DISABLE;
+int64_t NCCL_NVB_PRECONNECT;
+int64_t NCCL_P2P_NET_CHUNKSIZE;
+int64_t NCCL_P2P_NVL_CHUNKSIZE;
+int64_t NCCL_P2P_PCI_CHUNKSIZE;
 int64_t NCCL_P2P_PXN_LEVEL;
 int64_t NCCL_PXN_DISABLE;
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
+int64_t NCCL_SET_STACK_SIZE;
 int64_t NCCL_TOPO_DUMP_FILE_RANK;
+int64_t NCCL_WORK_FIFO_DEPTH;
 
 void initEnvSet(std::unordered_set<std::string>& env) {
+  env.insert("NCCL_AGG_CHANNEL_SIZE");
   env.insert("NCCL_ALLGATHER_ALGO");
   env.insert("NCCL_ALLGATHER_DIRECT_CUTOFF");
+  env.insert("NCCL_ALLOC_P2P_NET_LL_BUFFERS");
   env.insert("NCCL_ALLREDUCE_ALGO");
   env.insert("NCCL_ALLREDUCE_ALGO2");
   env.insert("NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS");
   env.insert("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE");
+  env.insert("NCCL_BUFFSIZE");
+  env.insert("NCCL_CHECK_POINTERS");
+  env.insert("NCCL_COLLNET_NODE_THRESHOLD");
   env.insert("NCCL_CROSS_NIC");
   env.insert("NCCL_CTRAN_BACKENDS");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
@@ -104,7 +127,11 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS");
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_DDA_MAX_RANKS");
+  env.insert("NCCL_DMABUF_ENABLE");
+  env.insert("NCCL_GDRCOPY_ENABLE");
+  env.insert("NCCL_GDRCOPY_FIFO_ENABLE");
   env.insert("NCCL_GDR_FLUSH_DISABLE");
+  env.insert("NCCL_GRAPH_DUMP_FILE_RANK");
   env.insert("NCCL_IB_ADAPTIVE_ROUTING");
   env.insert("NCCL_IB_AR_THRESHOLD");
   env.insert("NCCL_IB_DISABLE");
@@ -122,6 +149,9 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_IB_USE_INLINE");
   env.insert("NCCL_IGNORE_CPU_AFFINITY");
   env.insert("NCCL_IGNORE_DISABLED_P2P");
+  env.insert("NCCL_LL128_BUFFSIZE");
+  env.insert("NCCL_LL_BUFFSIZE");
+  env.insert("NCCL_LOCAL_REGISTER");
   env.insert("NCCL_MAX_NCHANNELS");
   env.insert("NCCL_MAX_NRINGS");
   env.insert("NCCL_MAX_P2P_NCHANNELS");
@@ -133,10 +163,16 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_NET_FORCE_FLUSH");
   env.insert("NCCL_NET_GDR_READ");
   env.insert("NCCL_NVB_DISABLE");
+  env.insert("NCCL_NVB_PRECONNECT");
+  env.insert("NCCL_P2P_NET_CHUNKSIZE");
+  env.insert("NCCL_P2P_NVL_CHUNKSIZE");
+  env.insert("NCCL_P2P_PCI_CHUNKSIZE");
   env.insert("NCCL_P2P_PXN_LEVEL");
   env.insert("NCCL_PXN_DISABLE");
   env.insert("NCCL_SENDRECV_ALGO");
+  env.insert("NCCL_SET_STACK_SIZE");
   env.insert("NCCL_TOPO_DUMP_FILE_RANK");
+  env.insert("NCCL_WORK_FIFO_DEPTH");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
   env.insert("NCCL_COLLTRACE_LOCAL_SUBDIR");
@@ -174,6 +210,8 @@ void initEnvSet(std::unordered_set<std::string>& env) {
 }
 
 void readCvarEnv() {
+  NCCL_AGG_CHANNEL_SIZE = env2num<int64_t>("NCCL_AGG_CHANNEL_SIZE", "-2");
+
   if (getenv("NCCL_ALLGATHER_ALGO") == nullptr) {
     NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::orig;
   } else {
@@ -192,6 +230,8 @@ void readCvarEnv() {
   }
 
   NCCL_ALLGATHER_DIRECT_CUTOFF = env2num<uint64_t>("NCCL_ALLGATHER_DIRECT_CUTOFF", "524288");
+
+  NCCL_ALLOC_P2P_NET_LL_BUFFERS = env2num<int64_t>("NCCL_ALLOC_P2P_NET_LL_BUFFERS", "0");
 
   if (getenv("NCCL_ALLREDUCE_ALGO") == nullptr) {
     NCCL_ALLREDUCE_ALGO = NCCL_ALLREDUCE_ALGO::orig;
@@ -222,6 +262,12 @@ void readCvarEnv() {
   NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS = env2num<int>("NCCL_ALLREDUCE_SPARSE_BLOCK_NUM_THREAD_BLOCKS", "-1");
 
   NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE = env2num<int>("NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE", "-1");
+
+  NCCL_BUFFSIZE = env2num<int64_t>("NCCL_BUFFSIZE", "-2");
+
+  NCCL_CHECK_POINTERS = env2num<int64_t>("NCCL_CHECK_POINTERS", "0");
+
+  NCCL_COLLNET_NODE_THRESHOLD = env2num<int64_t>("NCCL_COLLNET_NODE_THRESHOLD", "2");
 
   NCCL_CROSS_NIC = env2num<int64_t>("NCCL_CROSS_NIC", "2");
 
@@ -308,7 +354,15 @@ void readCvarEnv() {
 
   NCCL_DDA_MAX_RANKS = env2num<int>("NCCL_DDA_MAX_RANKS", "16");
 
+  NCCL_DMABUF_ENABLE = env2num<int64_t>("NCCL_DMABUF_ENABLE", "1");
+
+  NCCL_GDRCOPY_ENABLE = env2num<int64_t>("NCCL_GDRCOPY_ENABLE", "0");
+
+  NCCL_GDRCOPY_FIFO_ENABLE = env2num<int64_t>("NCCL_GDRCOPY_FIFO_ENABLE", "-2");
+
   NCCL_GDR_FLUSH_DISABLE = env2num<int64_t>("NCCL_GDR_FLUSH_DISABLE", "0");
+
+  NCCL_GRAPH_DUMP_FILE_RANK = env2num<int64_t>("NCCL_GRAPH_DUMP_FILE_RANK", "0");
 
   NCCL_IB_ADAPTIVE_ROUTING = env2num<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", "-2");
 
@@ -346,6 +400,12 @@ void readCvarEnv() {
 
   NCCL_IGNORE_DISABLED_P2P = env2num<int64_t>("NCCL_IGNORE_DISABLED_P2P", "0");
 
+  NCCL_LL128_BUFFSIZE = env2num<int64_t>("NCCL_LL128_BUFFSIZE", "-2");
+
+  NCCL_LL_BUFFSIZE = env2num<int64_t>("NCCL_LL_BUFFSIZE", "-2");
+
+  NCCL_LOCAL_REGISTER = env2num<int64_t>("NCCL_LOCAL_REGISTER", "1");
+
   NCCL_MAX_NCHANNELS = env2num<int64_t>("NCCL_MAX_NCHANNELS", "-2");
 
   NCCL_MAX_NRINGS = env2num<int64_t>("NCCL_MAX_NRINGS", "-2");
@@ -368,6 +428,14 @@ void readCvarEnv() {
 
   NCCL_NVB_DISABLE = env2num<int64_t>("NCCL_NVB_DISABLE", "0");
 
+  NCCL_NVB_PRECONNECT = env2num<int64_t>("NCCL_NVB_PRECONNECT", "1");
+
+  NCCL_P2P_NET_CHUNKSIZE = env2num<int64_t>("NCCL_P2P_NET_CHUNKSIZE", "131072");
+
+  NCCL_P2P_NVL_CHUNKSIZE = env2num<int64_t>("NCCL_P2P_NVL_CHUNKSIZE", "524288");
+
+  NCCL_P2P_PCI_CHUNKSIZE = env2num<int64_t>("NCCL_P2P_PCI_CHUNKSIZE", "131072");
+
   NCCL_P2P_PXN_LEVEL = env2num<int64_t>("NCCL_P2P_PXN_LEVEL", "2");
 
   NCCL_PXN_DISABLE = env2num<int64_t>("NCCL_PXN_DISABLE", "0");
@@ -385,7 +453,11 @@ void readCvarEnv() {
     }
   }
 
+  NCCL_SET_STACK_SIZE = env2num<int64_t>("NCCL_SET_STACK_SIZE", "0");
+
   NCCL_TOPO_DUMP_FILE_RANK = env2num<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", "0");
+
+  NCCL_WORK_FIFO_DEPTH = env2num<int64_t>("NCCL_WORK_FIFO_DEPTH", "65536");
 
 }
 
