@@ -30,7 +30,7 @@ AlgoAllReduceDdaNvsScatGatIpc::AlgoAllReduceDdaNvsScatGatIpc(
       stream_(stream),
       devStates_(devStates),
       devStates_d_(devStates_d),
-      barrierFlag_(barrierFlag),
+      ipcBarrierFlag_(barrierFlag),
       maxBlocks_(maxBlocks) {}
 
 AlgoAllReduceDdaNvsScatGatIpc::~AlgoAllReduceDdaNvsScatGatIpc() {}
@@ -46,7 +46,7 @@ ncclResult_t AlgoAllReduceDdaNvsScatGatIpc::launchKernel() {
   const auto& block = gridBlock.second;
 
   void* args[] = {
-      &barrierFlag_,
+      &ipcBarrierFlag_,
       &devStates_d_,
       &comm_->rank,
       &sendbuff_,

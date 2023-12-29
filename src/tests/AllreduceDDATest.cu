@@ -18,7 +18,7 @@ class GpuAgent {
       : rank_(rank),
         totalRank_(totalRank),
         count_(count),
-        barrierMbox_d_(barrierMbox_d) {}
+        threadedBarrierMbox_d_(barrierMbox_d) {}
 
   ~GpuAgent() {
     if (not initialized_) {
@@ -113,7 +113,7 @@ class GpuAgent {
   float* sendbuf_d_{nullptr};
   float* recvbuf_d_{nullptr};
   float* tmpbuf_d_{nullptr};
-  uintptr_t* barrierMbox_d_{nullptr};
+  uintptr_t* threadedBarrierMbox_d_{nullptr};
 };
 
 TEST(AllreduceDDATest, NVSFlat) {

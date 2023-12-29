@@ -25,10 +25,12 @@ class AlgoManagerBase {
 
   // host memory
   DdaDeviceState* devStates_{nullptr};
-  uintptr_t barrierFlag_{0};
+  uintptr_t threadedBarrierFlag_{0};
+  uintptr_t ipcBarrierFlag_{1};
 
   // device memory
-  uintptr_t* barrierMbox_d_{nullptr};
+  uintptr_t* threadedBarrierMbox_d_{nullptr};
+  uintptr_t* ipcBarrierMbox_d_{nullptr};
   void* tmpbuff_d_{nullptr};
   DdaDeviceState* devStates_d_{nullptr};
 };

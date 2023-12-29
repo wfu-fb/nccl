@@ -30,7 +30,7 @@ AlgoAllReduceDdaNvsFlatIpc::AlgoAllReduceDdaNvsFlatIpc(
       stream_(stream),
       devStates_(devStates),
       devStates_d_(devStates_d),
-      barrierFlag_(barrierFlag),
+      ipcBarrierFlag_(barrierFlag),
       maxBlocks_(maxBlocks) {}
 
 AlgoAllReduceDdaNvsFlatIpc::~AlgoAllReduceDdaNvsFlatIpc() {}
@@ -46,7 +46,7 @@ ncclResult_t AlgoAllReduceDdaNvsFlatIpc::launchKernel() {
   const auto& block = gridBlock.second;
 
   void* args[] = {
-      &barrierFlag_,
+      &ipcBarrierFlag_,
       &devStates_d_,
       &comm_->rank,
       &recvbuff_,

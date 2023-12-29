@@ -26,7 +26,8 @@ struct commMd {
 };
 
 struct DdaDeviceState {
-  uintptr_t* barrierMbox;
+  uintptr_t* threadedBarrierMbox;
+  uintptr_t* ipcBarrierMbox;
   void* tmpbuff;
 };
 

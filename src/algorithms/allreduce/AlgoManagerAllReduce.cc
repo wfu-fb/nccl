@@ -201,7 +201,7 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsFlatThreaded(
     ncclComm* comm,
     cudaStream_t stream) {
   // toggle barrier flag
-  barrierFlag_ = !barrierFlag_;
+  threadedBarrierFlag_ = !threadedBarrierFlag_;
   auto algo = std::unique_ptr<AlgoAllReduceDdaNvsFlatThreaded>(
       new AlgoAllReduceDdaNvsFlatThreaded{
           sendbuff,
@@ -212,7 +212,7 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsFlatThreaded(
           comm,
           stream,
           devStates_d_,
-          barrierFlag_,
+          threadedBarrierFlag_,
           maxBlocks_});
   return algo;
 }
@@ -227,7 +227,7 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsTreeThreaded(
     ncclComm* comm,
     cudaStream_t stream) {
   // toggle barrier flag
-  barrierFlag_ = !barrierFlag_;
+  threadedBarrierFlag_ = !threadedBarrierFlag_;
   auto algo = std::unique_ptr<AlgoAllReduceDdaNvsTreeThreaded>(
       new AlgoAllReduceDdaNvsTreeThreaded{
           sendbuff,
@@ -238,7 +238,7 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsTreeThreaded(
           comm,
           stream,
           devStates_d_,
-          barrierFlag_,
+          threadedBarrierFlag_,
           maxBlocks_});
   return algo;
 }
@@ -252,8 +252,6 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsFlatIpc(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream) {
-  // toggle barrier flag
-  barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AlgoAllReduceDdaNvsFlatIpc>(
       new AlgoAllReduceDdaNvsFlatIpc{
           sendbuff,
@@ -265,8 +263,12 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsFlatIpc(
           stream,
           devStates_,
           devStates_d_,
-          barrierFlag_,
+          ipcBarrierFlag_,
           maxBlocks_});
+
+  // increment barrier flag (FlatIpc uses two barriers)
+  ipcBarrierFlag_ += 2;
+
   return algo;
 }
 
@@ -279,8 +281,6 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsTreeIpc(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream) {
-  // toggle barrier flag
-  barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AlgoAllReduceDdaNvsTreeIpc>(
       new AlgoAllReduceDdaNvsTreeIpc{
           sendbuff,
@@ -292,8 +292,12 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsTreeIpc(
           stream,
           devStates_,
           devStates_d_,
-          barrierFlag_,
+          ipcBarrierFlag_,
           maxBlocks_});
+
+  // increment barrier flag (TreeIpc uses three barriers)
+  ipcBarrierFlag_ += 3;
+
   return algo;
 }
 
@@ -306,8 +310,6 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsScatGatIpc(
     ncclRedOp_t op,
     ncclComm* comm,
     cudaStream_t stream) {
-  // toggle barrier flag
-  barrierFlag_ = !barrierFlag_;
   auto algo = std::unique_ptr<AlgoAllReduceDdaNvsScatGatIpc>(
       new AlgoAllReduceDdaNvsScatGatIpc{
           sendbuff,
@@ -319,8 +321,12 @@ AlgoManagerAllReduce::getAlgoAllReduceDdaNvsScatGatIpc(
           stream,
           devStates_,
           devStates_d_,
-          barrierFlag_,
+          ipcBarrierFlag_,
           maxBlocks_});
+
+  // increment barrier flag (ScatGatIpc uses four barriers)
+  ipcBarrierFlag_ += 4;
+
   return algo;
 }
 

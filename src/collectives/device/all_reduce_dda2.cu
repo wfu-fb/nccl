@@ -222,6 +222,29 @@ barrier_uponKernelLaunch(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank
   __syncthreads();
 }
 
+// IPC version of the barrier just wants to make sure that we have
+// crossed the barrier flag
+template <uint32_t NRANKS>
+static inline __device__ void
+barrier_uponKernelLaunch_ipc(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
+  volatile uintptr_t* barrier_d = barrierMbox;
+
+  if (threadIdx.x < NRANKS) {
+    // 1st block notify other ranks that kernel got launched (data
+    // is ready to be consumed)
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+      barrier_d[rank] = barrierFlag;
+    }
+
+    // wait until all other ranks are ready
+    while (barrier_d[threadIdx.x] < barrierFlag) {
+    }
+  }
+
+  // sync remaining threads in this block
+  __syncthreads();
+}
+
 // release and acquire pattern
 // ensure prior operations (e.g reduce-scatter) from the current thread visible
 // to operations (e.g all-gather) from other threads.
@@ -279,6 +302,31 @@ barrier_onSameBlockIdx_releaseAcquire(
   __syncthreads();
 }
 
+// IPC version of the barrier just wants to make sure that we have
+// crossed the barrier flag
+template <uint32_t NRANKS>
+static inline __device__ void
+barrier_onSameBlockIdx_releaseAcquire_ipc(
+    uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
+  __syncthreads();
+
+  if (threadIdx.x < NRANKS) {
+    // mark this block on this rank as ready
+    if (threadIdx.x == 0) {
+      st_flag_release(barrierFlag, barrierMbox + blockIdx.x * NRANKS + rank);
+    }
+
+    // wait until all other ranks with the same blockId are ready
+    uintptr_t otherRankFlag = 0;
+    do {
+      ld_flag_acquire(otherRankFlag, barrierMbox + blockIdx.x * NRANKS + threadIdx.x);
+    } while (otherRankFlag < barrierFlag);
+  }
+
+  // sync remaining threads in this block
+  __syncthreads();
+}
+
 // barrier_onSameBlockIdx
 // similar as barrier_onSameBlockIdx_releaseAcquire except that it doesn't add
 // release/acquire constraint on memory ordering.
@@ -306,6 +354,30 @@ barrier_onSameBlockIdx(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) 
   __syncthreads();
 }
 
+// IPC version of the barrier just wants to make sure that we have
+// crossed the barrier flag
+template <uint32_t NRANKS>
+static inline __device__ void
+barrier_onSameBlockIdx_ipc(uintptr_t* barrierMbox, uintptr_t barrierFlag, int rank) {
+  volatile uintptr_t* barrier_d = barrierMbox;
+
+  __syncthreads();
+
+  if (threadIdx.x < NRANKS) {
+    // mark this block on this rank as ready
+    if (threadIdx.x == 0) {
+      barrier_d[blockIdx.x * NRANKS + rank] = barrierFlag;
+    }
+
+    // wait until all other ranks with the same blockId are ready
+    while (barrier_d[blockIdx.x * NRANKS + threadIdx.x] < barrierFlag) {
+    }
+  }
+
+  // sync remaining threads in this block
+  __syncthreads();
+}
+
 /*
  * We use a simple Allgather + local reduce algorithm here.  For small
  * messages, we are mostly latency bound on fast networks such as
@@ -325,7 +397,7 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat(
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // always use rank0's barrierMbox as the shared barrier
-  uintptr_t* mbox = devStates[0].barrierMbox;
+  uintptr_t* mbox = devStates[0].threadedBarrierMbox;
   barrier_uponKernelLaunch<NRANKS>(
       mbox,
       (reinterpret_cast<uintptr_t>(sendbuff)) | barrierFlag,
@@ -363,8 +435,10 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
   // always use rank0's barrierMbox as the shared barrier
-  uintptr_t* mbox = devStates[0].barrierMbox;
-  barrier_uponKernelLaunch<NRANKS>(mbox, barrierFlag, rank);
+  uintptr_t* mbox = devStates[0].ipcBarrierMbox;
+  uintptr_t flag = barrierFlag;
+  barrier_uponKernelLaunch_ipc<NRANKS>(mbox, flag, rank);
+  flag++;
 
   const T* srcs[NRANKS];
   for (int i = 0; i < NRANKS; i++) {
@@ -382,7 +456,7 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
       vecAdd<T, NRANKS>(srcs, idx);
   }
 
-  barrier_onSameBlockIdx<NRANKS>(mbox + NRANKS, barrierFlag, rank);
+  barrier_onSameBlockIdx_ipc<NRANKS>(mbox, flag, rank);
 }
 
 template <typename T, uint32_t NRANKS>
@@ -461,7 +535,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree(
     T* recvbuff,
     size_t count) {
   // always use rank0's barrierMbox as the shared barrier
-  uintptr_t* mbox = devStates[0].barrierMbox;
+  uintptr_t* mbox = devStates[0].threadedBarrierMbox;
 
   // barrier to ensure every rank's sendbuff is ready to read
   barrier_uponKernelLaunch<NRANKS>(
@@ -561,9 +635,11 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
     T* recvbuff,
     size_t count) {
   // always use rank0's barrierMbox as the shared barrier
-  uintptr_t* mbox = devStates[0].barrierMbox;
+  uintptr_t* mbox = devStates[0].ipcBarrierMbox;
+  uintptr_t flag = barrierFlag;
 
-  barrier_uponKernelLaunch<NRANKS>(mbox, barrierFlag, rank);
+  barrier_uponKernelLaunch_ipc<NRANKS>(mbox, flag, rank);
+  flag++;
 
   T* rsRecvbuff =
       reinterpret_cast<T*>(devStates[rank].tmpbuff) + rank * count / NRANKS;
@@ -573,7 +649,8 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
     rsRecvbuff,
     count / NRANKS);
 
-  barrier_onSameBlockIdx_releaseAcquire<NRANKS>(mbox + NRANKS, barrierFlag, rank);
+  barrier_onSameBlockIdx_releaseAcquire_ipc<NRANKS>(mbox, flag, rank);
+  flag++;
 
   allGather_ipc<T, NRANKS>(
     devStates,
@@ -581,7 +658,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
     recvbuff,
     count / NRANKS);
 
-  barrier_onSameBlockIdx<NRANKS>(mbox + (1 + gridDim.x) * NRANKS, barrierFlag, rank);
+  barrier_onSameBlockIdx_ipc<NRANKS>(mbox, flag, rank);
 }
 
 /*
@@ -612,9 +689,10 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
     T* recvbuff,
     size_t count) {
   // always use rank0's barrierMbox as the shared barrier
-  uintptr_t* mbox = devStates[0].barrierMbox;
-  barrier_uponKernelLaunch<NRANKS>(mbox, barrierFlag, rank);
-  mbox += NRANKS;
+  uintptr_t* mbox = devStates[0].ipcBarrierMbox;
+  uintptr_t flag = barrierFlag;
+  barrier_uponKernelLaunch_ipc<NRANKS>(mbox, flag, rank);
+  flag++;
 
   const int gtIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -648,8 +726,8 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
     }
   }
 
-  barrier_onSameBlockIdx_releaseAcquire<NRANKS>(mbox, barrierFlag, rank);
-  mbox += gridDim.x * NRANKS;
+  barrier_onSameBlockIdx_releaseAcquire_ipc<NRANKS>(mbox, flag, rank);
+  flag++;
 
   // local reduction
   for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
@@ -657,8 +735,8 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
       vecAdd<T, NRANKS>((const T**) ltmp, idx);
   }
 
-  barrier_onSameBlockIdx_releaseAcquire<NRANKS>(mbox, barrierFlag, rank);
-  mbox += gridDim.x * NRANKS;
+  barrier_onSameBlockIdx_releaseAcquire_ipc<NRANKS>(mbox, flag, rank);
+  flag++;
 
   // direct-access all-gather with 16-byte loads
   for (size_t idx = idxStart; idx < idxEnd; idx += idxStride) {
@@ -668,7 +746,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
     }
   }
 
-  barrier_onSameBlockIdx<NRANKS>(mbox, barrierFlag, rank);
+  barrier_onSameBlockIdx_ipc<NRANKS>(mbox, flag, rank);
 }
 
 DECL_DDA2_FUNC(char);

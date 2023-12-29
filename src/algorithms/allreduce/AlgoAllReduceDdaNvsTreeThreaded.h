@@ -36,7 +36,7 @@ class AlgoAllReduceDdaNvsTreeThreaded : public AlgoAllReduce {
   ncclComm* comm_{nullptr};
   cudaStream_t stream_{nullptr};
   const DdaDeviceState* devStates_d_{nullptr};
-  uintptr_t barrierFlag_{0};
+  uintptr_t threadedBarrierFlag_{0};
   const size_t maxBlocks_{0};
 };
 

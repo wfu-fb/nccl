@@ -28,7 +28,7 @@ AlgoAllReduceDdaNvsFlatThreaded::AlgoAllReduceDdaNvsFlatThreaded(
       comm_(comm),
       stream_(stream),
       devStates_d_(devStates_d),
-      barrierFlag_(barrierFlag),
+      threadedBarrierFlag_(barrierFlag),
       maxBlocks_(maxBlocks) {}
 
 AlgoAllReduceDdaNvsFlatThreaded::~AlgoAllReduceDdaNvsFlatThreaded() {}
@@ -44,7 +44,7 @@ ncclResult_t AlgoAllReduceDdaNvsFlatThreaded::launchKernel() {
   const auto& block = gridBlock.second;
 
   void* args[] = {
-      &barrierFlag_,
+      &threadedBarrierFlag_,
       &devStates_d_,
       &comm_->rank,
       &sendbuff_,

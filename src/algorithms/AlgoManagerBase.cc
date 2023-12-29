@@ -42,31 +42,43 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
       malloc(sizeof(DdaDeviceState) * comm_->nRanks));
 
   // allocate device memory
-  // we need 4 barriers for ScatGat Algo
+  // we need 3 barriers for Tree Algo
   // 1) [r0, r1, ..., rN-1]
   // 2) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   // 3) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
-  // 4) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   CUDACHECKIGNORE(cudaMalloc(
-      &barrierMbox_d_,
-      ((1 + 3 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
+      &threadedBarrierMbox_d_,
+      ((1 + 2 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
   CUDACHECKIGNORE(cudaMemset(
-      barrierMbox_d_,
+      threadedBarrierMbox_d_,
       0,
-      ((1 + 3 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
+      ((1 + 2 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
+
+  // For IPC, we can reuse the same mbox across barrier operations by
+  // incrementing the barrierFlag.
+  CUDACHECKIGNORE(cudaMalloc(
+      &ipcBarrierMbox_d_,
+      maxBlocks_ * comm_->nRanks * sizeof(uintptr_t)));
+  CUDACHECKIGNORE(cudaMemset(
+      ipcBarrierMbox_d_,
+      0,
+      maxBlocks_ * comm_->nRanks * sizeof(uintptr_t)));
 
   CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
       cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
 
   // exchange handles
-  memHandler_.add(barrierMbox_d_);
+  memHandler_.add(threadedBarrierMbox_d_);
+  memHandler_.add(ipcBarrierMbox_d_);
   memHandler_.add(tmpbuff_d_);
   memHandler_.exchangeMemHandles();
   for (int rank = 0; rank < comm_->nRanks; ++rank) {
-    devStates_[rank].barrierMbox =
+    devStates_[rank].threadedBarrierMbox =
         static_cast<uintptr_t*>(memHandler_.get(rank, 0));
-    devStates_[rank].tmpbuff = memHandler_.get(rank, 1);
+    devStates_[rank].ipcBarrierMbox =
+        static_cast<uintptr_t*>(memHandler_.get(rank, 1));
+    devStates_[rank].tmpbuff = memHandler_.get(rank, 2);
   }
 
   CUDACHECKIGNORE(cudaMemcpy(
@@ -80,7 +92,8 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
 
 AlgoManagerBase::~AlgoManagerBase() {
   // free device memory
-  CUDACHECKIGNORE(cudaFree(barrierMbox_d_));
+  CUDACHECKIGNORE(cudaFree(threadedBarrierMbox_d_));
+  CUDACHECKIGNORE(cudaFree(ipcBarrierMbox_d_));
   CUDACHECKIGNORE(cudaFree(tmpbuff_d_));
   CUDACHECKIGNORE(cudaFree(devStates_d_));
 
