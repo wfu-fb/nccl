@@ -40,7 +40,7 @@ LIBSRCFILES += algorithms/AlgoDirector.cc \
                algorithms/allreduce/AlgoAllReduceDdaNvsTreeThreaded.cc \
                algorithms/allreduce/AlgoAllReduceDdaNvsScatGatIpc.cc \
                algorithms/allreduce/AlgoManagerAllReduce.cc
-LIBSRCFILES += collectives/all_to_allv.cc
+LIBSRCFILES += collectives/all_to_allv.cc collectives/all_to_all.cc
 LIBSRCFILES += window.cc
 
 INCLUDES := -Iinclude
