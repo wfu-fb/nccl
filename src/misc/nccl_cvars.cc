@@ -40,10 +40,19 @@ bool NCCL_DDA_FORCE_P2P_ACCESS;
 int NCCL_DDA_MAX_RANKS;
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
+int64_t NCCL_IGNORE_DISABLED_P2P;
 int64_t NCCL_MAX_NCHANNELS;
 int64_t NCCL_MAX_NRINGS;
+int64_t NCCL_MAX_P2P_NCHANNELS;
 int64_t NCCL_MIN_NCHANNELS;
 int64_t NCCL_MIN_NRINGS;
+int64_t NCCL_MIN_P2P_NCHANNELS;
+int64_t NCCL_NCHANNELS_PER_NET_PEER;
+int64_t NCCL_NET_DISABLE_INTRA;
+int64_t NCCL_NET_FORCE_FLUSH;
+int64_t NCCL_NET_GDR_READ;
+int64_t NCCL_NVB_DISABLE;
+int64_t NCCL_PXN_DISABLE;
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 
 void initEnvSet(std::unordered_set<std::string>& env) {
@@ -76,10 +85,19 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_DDA_MAX_RANKS");
   env.insert("NCCL_IB_HCA");
+  env.insert("NCCL_IGNORE_DISABLED_P2P");
   env.insert("NCCL_MAX_NCHANNELS");
   env.insert("NCCL_MAX_NRINGS");
+  env.insert("NCCL_MAX_P2P_NCHANNELS");
   env.insert("NCCL_MIN_NCHANNELS");
   env.insert("NCCL_MIN_NRINGS");
+  env.insert("NCCL_MIN_P2P_NCHANNELS");
+  env.insert("NCCL_NCHANNELS_PER_NET_PEER");
+  env.insert("NCCL_NET_DISABLE_INTRA");
+  env.insert("NCCL_NET_FORCE_FLUSH");
+  env.insert("NCCL_NET_GDR_READ");
+  env.insert("NCCL_NVB_DISABLE");
+  env.insert("NCCL_PXN_DISABLE");
   env.insert("NCCL_SENDRECV_ALGO");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
@@ -254,13 +272,31 @@ void readCvarEnv() {
   NCCL_IB_HCA.clear();
   std::tie(NCCL_IB_HCA_PREFIX, NCCL_IB_HCA) = env2prefixedStrlist("NCCL_IB_HCA", "", NCCL_IB_HCA_allPrefixes);
 
+  NCCL_IGNORE_DISABLED_P2P = env2num<int64_t>("NCCL_IGNORE_DISABLED_P2P", "0");
+
   NCCL_MAX_NCHANNELS = env2num<int64_t>("NCCL_MAX_NCHANNELS", "-2");
 
   NCCL_MAX_NRINGS = env2num<int64_t>("NCCL_MAX_NRINGS", "-2");
 
+  NCCL_MAX_P2P_NCHANNELS = env2num<int64_t>("NCCL_MAX_P2P_NCHANNELS", "32");
+
   NCCL_MIN_NCHANNELS = env2num<int64_t>("NCCL_MIN_NCHANNELS", "-2");
 
   NCCL_MIN_NRINGS = env2num<int64_t>("NCCL_MIN_NRINGS", "-2");
+
+  NCCL_MIN_P2P_NCHANNELS = env2num<int64_t>("NCCL_MIN_P2P_NCHANNELS", "1");
+
+  NCCL_NCHANNELS_PER_NET_PEER = env2num<int64_t>("NCCL_NCHANNELS_PER_NET_PEER", "2");
+
+  NCCL_NET_DISABLE_INTRA = env2num<int64_t>("NCCL_NET_DISABLE_INTRA", "0");
+
+  NCCL_NET_FORCE_FLUSH = env2num<int64_t>("NCCL_NET_FORCE_FLUSH", "1");
+
+  NCCL_NET_GDR_READ = env2num<int64_t>("NCCL_NET_GDR_READ", "-2");
+
+  NCCL_NVB_DISABLE = env2num<int64_t>("NCCL_NVB_DISABLE", "0");
+
+  NCCL_PXN_DISABLE = env2num<int64_t>("NCCL_PXN_DISABLE", "0");
 
   if (getenv("NCCL_SENDRECV_ALGO") == nullptr) {
     NCCL_SENDRECV_ALGO = NCCL_SENDRECV_ALGO::orig;

@@ -96,13 +96,31 @@ extern int NCCL_DDA_MAX_RANKS;
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
 
+extern int64_t NCCL_IGNORE_DISABLED_P2P;
+
 extern int64_t NCCL_MAX_NCHANNELS;
 
 extern int64_t NCCL_MAX_NRINGS;
 
+extern int64_t NCCL_MAX_P2P_NCHANNELS;
+
 extern int64_t NCCL_MIN_NCHANNELS;
 
 extern int64_t NCCL_MIN_NRINGS;
+
+extern int64_t NCCL_MIN_P2P_NCHANNELS;
+
+extern int64_t NCCL_NCHANNELS_PER_NET_PEER;
+
+extern int64_t NCCL_NET_DISABLE_INTRA;
+
+extern int64_t NCCL_NET_FORCE_FLUSH;
+
+extern int64_t NCCL_NET_GDR_READ;
+
+extern int64_t NCCL_NVB_DISABLE;
+
+extern int64_t NCCL_PXN_DISABLE;
 
 enum class NCCL_SENDRECV_ALGO {
   orig,

@@ -11,6 +11,78 @@
 #include "net.h"
 #include "channel.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NVB_DISABLE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Disable intra-node communication through NVLink via an
+     intermediate GPU.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvb-disable
+
+ - name        : NCCL_IGNORE_DISABLED_P2P
+   type        : int64_t
+   default     : 0
+   description : |-
+     Ignore disabling P2P.
+
+ - name        : NCCL_NET_GDR_READ
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_NET_GDR_READ variable enables GPU Direct RDMA when
+     sending data as long as the GPU-NIC distance is within the
+     distance specified by NCCL_NET_GDR_LEVEL. Before 2.4.2, GDR read
+     is disabled by default, i.e. when sending data, the data is first
+     stored in CPU memory, then goes to the InfiniBand card. Since
+     2.4.2, GDR read is enabled by default for NVLink-based platforms.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-gdr-read
+
+ - name        : NCCL_NET_FORCE_FLUSH
+   type        : int64_t
+   default     : 1
+   description : |-
+     Hidden variable. No description provided.  Set to 0 to disable
+     the flush on Hopper when using GDR.
+
+ - name        : NCCL_NET_DISABLE_INTRA
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_PXN_DISABLE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Disable inter-node communication using a non-local NIC, using
+     NVLink and an intermediate GPU.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-pxn-disable
+
+ - name        : NCCL_NCHANNELS_PER_NET_PEER
+   type        : int64_t
+   default     : 2
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_MIN_P2P_NCHANNELS
+   type        : int64_t
+   default     : 1
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_MAX_P2P_NCHANNELS
+   type        : int64_t
+   default     : 32
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 // Pre-compute GPU->NIC, GPU->GPU and NIC->GPU paths
 
 struct ncclTopoNodeList {
@@ -28,8 +100,6 @@ static ncclResult_t getPath(struct ncclTopoSystem* system, struct ncclTopoNode* 
   WARN("Could not find node of type %d id %lx", t, id);
   return ncclInternalError;
 }
-
-NCCL_PARAM(NvbDisable, "NVB_DISABLE", 0);
 
 static ncclResult_t ncclTopoSetPaths(struct ncclTopoNode* baseNode, struct ncclTopoSystem* system) {
   if (baseNode->paths[baseNode->type] == NULL) {
@@ -65,7 +135,7 @@ static ncclResult_t ncclTopoSetPaths(struct ncclTopoNode* baseNode, struct ncclT
 
         // allow routing through a GPU only as 1 hop
         if (node != baseNode && node->type == GPU &&
-            (ncclParamNvbDisable() || link->type != LINK_NVL || remNode->type != GPU || path->count > 1)) continue;
+            (NCCL_NVB_DISABLE || link->type != LINK_NVL || remNode->type != GPU || path->count > 1)) continue;
 
         if ((remPath->bw == 0 || remPath->count > path->count) && remPath->bw < bw) {
           // Find reverse link
@@ -245,8 +315,6 @@ ncclResult_t ncclGetLevel(int* level, const char* disableEnv, const char* levelE
   return ncclSuccess;
 }
 
-NCCL_PARAM(IgnoreDisabledP2p, "IGNORE_DISABLED_P2P", 0);
-
 int ncclTopoUserP2pLevel = -1;
 ncclResult_t ncclTopoCheckP2p(struct ncclTopoSystem* system, int64_t id1, int64_t id2, int* p2p, int *read, int* intermediateRank) {
   *p2p = 0;
@@ -302,7 +370,7 @@ compare:
   if (*p2p == 1) {
     // NCCL_IGNORE_DISABLED_P2P=2 is used by unit tests that don't want to
     // validate against NVML at all since they are pretending to be on other hw.
-    if (g1 != g2 && ncclParamIgnoreDisabledP2p() != 2) {
+    if (g1 != g2 && NCCL_IGNORE_DISABLED_P2P != 2) {
       int indexes[3] = {-1,-1,-1};
       int verticeN = 0;
       NCCLCHECK(ncclNvmlEnsureInitialized());
@@ -318,7 +386,7 @@ compare:
         status = ncclNvmlDevicePairs[indexes[i-1]][indexes[i-0]].p2pStatusWrite;
         good &= status == NVML_P2P_STATUS_OK;
         if (!good) {
-          if (ncclParamIgnoreDisabledP2p()) {
+          if (NCCL_IGNORE_DISABLED_P2P) {
             *p2p = 0;
           } else if (path->type <= PATH_NVB) {
             WARN("P2P is disabled between NVLINK connected GPUs %d and %d. This should not be the case given their connectivity, and is probably due to a hardware issue. If you still want to proceed, you can set NCCL_IGNORE_DISABLED_P2P=1.", indexes[i-1], indexes[i-0]);
@@ -340,7 +408,6 @@ compare:
   return ncclSuccess;
 }
 
-NCCL_PARAM(NetGdrRead, "NET_GDR_READ", -2);
 int ncclTopoUserGdrLevel = -1;
 
 ncclResult_t ncclTopoCheckGdr(struct ncclTopoSystem* system, int64_t busId, int netDev, int read, int* useGdr) {
@@ -358,7 +425,7 @@ ncclResult_t ncclTopoCheckGdr(struct ncclTopoSystem* system, int64_t busId, int 
   if (gpu->gpu.gdrSupport == 0) return ncclSuccess;
 
   if (read) { // For reads (sends) only enable under certain conditions
-    int gdrReadParam = ncclParamNetGdrRead();
+    int gdrReadParam = NCCL_NET_GDR_READ;
     if (gdrReadParam == 0) return ncclSuccess;
     if (gdrReadParam < 0) {
       int nvlink = 0;
@@ -399,24 +466,19 @@ ncclResult_t ncclTopoCheckGdr(struct ncclTopoSystem* system, int64_t busId, int 
   return ncclSuccess;
 }
 
-// Set to 0 to disable the flush on Hopper when using GDR
-NCCL_PARAM(NetForceFlush, "NET_FORCE_FLUSH", 1);
-
 // Determine whether we need to flush the GDR recv buffers
 ncclResult_t ncclTopoNeedFlush(struct ncclTopoSystem* system, int64_t busId, int* flush) {
   int g;
   NCCLCHECK(ncclTopoIdToIndex(system, GPU, busId, &g));
   struct ncclTopoNode* gpu = system->nodes[GPU].nodes+g;
   // Flush is required on Ampere and earlier
-  *flush = gpu->gpu.cudaCompCap < 90 ? 1 : ncclParamNetForceFlush();
+  *flush = gpu->gpu.cudaCompCap < 90 ? 1 : NCCL_NET_FORCE_FLUSH;
   return ncclSuccess;
 }
 
-NCCL_PARAM(NetDisableIntra, "NET_DISABLE_INTRA", 0);
-
 // Check whether going through the network would be faster than going through P2P/SHM.
 ncclResult_t ncclTopoCheckNet(struct ncclTopoSystem* system, int64_t id1, int64_t id2, int* net) {
-  if (ncclParamNetDisableIntra() == 1) {
+  if (NCCL_NET_DISABLE_INTRA == 1) {
     *net = 0;
     return ncclSuccess;
   }
@@ -471,8 +533,6 @@ ncclResult_t ncclTopoGetIntermediateRank(struct ncclTopoSystem* system, int rank
   return ncclSuccess;
 }
 
-NCCL_PARAM(PxnDisable, "PXN_DISABLE", 0);
-
 // Net v4 plugins don't have non-blocking connect/accept. We can't therefore use
 // remote proxies without risking deadlocks
 int ncclPxnDisable(struct ncclComm* comm) {
@@ -482,7 +542,7 @@ int ncclPxnDisable(struct ncclComm* comm) {
       INFO(NCCL_INIT, "PXN Disabled as plugin is v4");
       pxnDisable = 1;
     } else {
-      pxnDisable = ncclParamPxnDisable();
+      pxnDisable = NCCL_PXN_DISABLE;
     }
   }
   return pxnDisable;
@@ -664,8 +724,6 @@ void ncclTopoFree(struct ncclTopoSystem* system) {
   free(system);
 }
 
-NCCL_PARAM(NChannelsPerNetPeer, "NCHANNELS_PER_NET_PEER", 2);
-
 static ncclResult_t ncclTopoGetNchannels(struct ncclTopoSystem* system, int g /*local gpu index*/, int peerRank, int* nChannels) {
   int peer;
   struct ncclTopoLinkList* path = NULL;
@@ -685,13 +743,10 @@ static ncclResult_t ncclTopoGetNchannels(struct ncclTopoSystem* system, int g /*
     }
   } else {
     // Remote rank, use network
-    *nChannels = ncclParamNChannelsPerNetPeer();
+    *nChannels = NCCL_NCHANNELS_PER_NET_PEER;
   }
   return ncclSuccess;
 }
-
-NCCL_PARAM(MinP2pNChannels, "MIN_P2P_NCHANNELS", 1);
-NCCL_PARAM(MaxP2pNChannels, "MAX_P2P_NCHANNELS", MAXCHANNELS);
 
 static int nextPow2(int v) {
   int pow2 = 1;
@@ -702,11 +757,11 @@ static int nextPow2(int v) {
 ncclResult_t ncclTopoComputeP2pChannels(struct ncclComm* comm) {
   /* here we already honor comm->max/minCTAs for p2pnChannels. */
   if (comm->sharedRes->owner != comm) {
-    comm->p2pnChannels = std::min(comm->nChannels, (int)ncclParamMaxP2pNChannels());
-    comm->p2pnChannels = std::min(std::max(comm->p2pnChannels, (int)ncclParamMinP2pNChannels()), comm->sharedRes->tpP2pNChannels);
+    comm->p2pnChannels = std::min(comm->nChannels, (int)NCCL_MAX_P2P_NCHANNELS);
+    comm->p2pnChannels = std::min(std::max(comm->p2pnChannels, (int)NCCL_MIN_P2P_NCHANNELS), comm->sharedRes->tpP2pNChannels);
   } else {
-    comm->p2pnChannels = std::min(comm->nChannels, (int)ncclParamMaxP2pNChannels());
-    comm->p2pnChannels = std::max(comm->p2pnChannels, (int)ncclParamMinP2pNChannels());
+    comm->p2pnChannels = std::min(comm->nChannels, (int)NCCL_MAX_P2P_NCHANNELS);
+    comm->p2pnChannels = std::max(comm->p2pnChannels, (int)NCCL_MIN_P2P_NCHANNELS);
   }
 
   int minChannels = comm->p2pnChannels;

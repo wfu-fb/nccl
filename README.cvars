@@ -227,6 +227,12 @@ Description:
 Type: prefixed_stringlist
 Default: None
 
+NCCL_IGNORE_DISABLED_P2P
+Description:
+    Ignore disabling P2P.
+Type: int64_t
+Default: 0
+
 NCCL_MAX_NCHANNELS
 Description:
     The NCCL_MAX_NCHANNELS variable limits the number of channels
@@ -243,6 +249,12 @@ Description:
     NCCL_MAX_NCHANNELS instead.
 Type: int64_t
 Default: -2
+
+NCCL_MAX_P2P_NCHANNELS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 32
 
 NCCL_MIN_NCHANNELS
 Description:
@@ -261,6 +273,60 @@ Description:
     NCCL_MIN_NCHANNELS instead.
 Type: int64_t
 Default: -2
+
+NCCL_MIN_P2P_NCHANNELS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
+NCCL_NCHANNELS_PER_NET_PEER
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 2
+
+NCCL_NET_DISABLE_INTRA
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_NET_FORCE_FLUSH
+Description:
+    Hidden variable. No description provided.  Set to 0 to disable
+    the flush on Hopper when using GDR.
+Type: int64_t
+Default: 1
+
+NCCL_NET_GDR_READ
+Description:
+    The NCCL_NET_GDR_READ variable enables GPU Direct RDMA when
+    sending data as long as the GPU-NIC distance is within the
+    distance specified by NCCL_NET_GDR_LEVEL. Before 2.4.2, GDR read
+    is disabled by default, i.e. when sending data, the data is first
+    stored in CPU memory, then goes to the InfiniBand card. Since
+    2.4.2, GDR read is enabled by default for NVLink-based platforms.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-gdr-read
+Type: int64_t
+Default: -2
+
+NCCL_NVB_DISABLE
+Description:
+    Disable intra-node communication through NVLink via an
+    intermediate GPU.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvb-disable
+Type: int64_t
+Default: 0
+
+NCCL_PXN_DISABLE
+Description:
+    Disable inter-node communication using a non-local NIC, using
+    NVLink and an intermediate GPU.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-pxn-disable
+Type: int64_t
+Default: 0
 
 NCCL_SENDRECV_ALGO
 Description:

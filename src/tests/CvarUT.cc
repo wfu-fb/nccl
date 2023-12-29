@@ -925,6 +925,26 @@ TEST_F(CvarTest, NCCL_IB_HCA_prefix_2) {
   checkListValues<std::string>(vals, NCCL_IB_HCA);
 }
 
+TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_0) {
+  testNumValue<int64_t>("NCCL_IGNORE_DISABLED_P2P", 0);
+  EXPECT_EQ(NCCL_IGNORE_DISABLED_P2P, 0);
+}
+
+TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_1) {
+  testNumValue<int64_t>("NCCL_IGNORE_DISABLED_P2P", 9999);
+  EXPECT_EQ(NCCL_IGNORE_DISABLED_P2P, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_2) {
+  testNumValue<int64_t>("NCCL_IGNORE_DISABLED_P2P", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IGNORE_DISABLED_P2P, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_3) {
+  testNumValue<int64_t>("NCCL_IGNORE_DISABLED_P2P", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IGNORE_DISABLED_P2P, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_MAX_NCHANNELS_value_0) {
   testNumValue<int64_t>("NCCL_MAX_NCHANNELS", 0);
   EXPECT_EQ(NCCL_MAX_NCHANNELS, 0);
@@ -975,6 +995,31 @@ TEST_F(CvarTest, NCCL_MAX_NRINGS_default_value) {
   EXPECT_EQ(NCCL_MAX_NRINGS, -2);
 }
 
+TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_value_0) {
+  testNumValue<int64_t>("NCCL_MAX_P2P_NCHANNELS", 0);
+  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, 0);
+}
+
+TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_value_1) {
+  testNumValue<int64_t>("NCCL_MAX_P2P_NCHANNELS", 9999);
+  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_value_2) {
+  testNumValue<int64_t>("NCCL_MAX_P2P_NCHANNELS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_value_3) {
+  testNumValue<int64_t>("NCCL_MAX_P2P_NCHANNELS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_default_value) {
+  testDefaultValue("NCCL_MAX_P2P_NCHANNELS");
+  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, 32);
+}
+
 TEST_F(CvarTest, NCCL_MIN_NCHANNELS_value_0) {
   testNumValue<int64_t>("NCCL_MIN_NCHANNELS", 0);
   EXPECT_EQ(NCCL_MIN_NCHANNELS, 0);
@@ -1023,6 +1068,166 @@ TEST_F(CvarTest, NCCL_MIN_NRINGS_value_3) {
 TEST_F(CvarTest, NCCL_MIN_NRINGS_default_value) {
   testDefaultValue("NCCL_MIN_NRINGS");
   EXPECT_EQ(NCCL_MIN_NRINGS, -2);
+}
+
+TEST_F(CvarTest, NCCL_MIN_P2P_NCHANNELS_value_0) {
+  testNumValue<int64_t>("NCCL_MIN_P2P_NCHANNELS", 0);
+  EXPECT_EQ(NCCL_MIN_P2P_NCHANNELS, 0);
+}
+
+TEST_F(CvarTest, NCCL_MIN_P2P_NCHANNELS_value_1) {
+  testNumValue<int64_t>("NCCL_MIN_P2P_NCHANNELS", 9999);
+  EXPECT_EQ(NCCL_MIN_P2P_NCHANNELS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_MIN_P2P_NCHANNELS_value_2) {
+  testNumValue<int64_t>("NCCL_MIN_P2P_NCHANNELS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_MIN_P2P_NCHANNELS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_MIN_P2P_NCHANNELS_value_3) {
+  testNumValue<int64_t>("NCCL_MIN_P2P_NCHANNELS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_MIN_P2P_NCHANNELS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_MIN_P2P_NCHANNELS_default_value) {
+  testDefaultValue("NCCL_MIN_P2P_NCHANNELS");
+  EXPECT_EQ(NCCL_MIN_P2P_NCHANNELS, 1);
+}
+
+TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_value_0) {
+  testNumValue<int64_t>("NCCL_NCHANNELS_PER_NET_PEER", 0);
+  EXPECT_EQ(NCCL_NCHANNELS_PER_NET_PEER, 0);
+}
+
+TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_value_1) {
+  testNumValue<int64_t>("NCCL_NCHANNELS_PER_NET_PEER", 9999);
+  EXPECT_EQ(NCCL_NCHANNELS_PER_NET_PEER, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_value_2) {
+  testNumValue<int64_t>("NCCL_NCHANNELS_PER_NET_PEER", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NCHANNELS_PER_NET_PEER, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_value_3) {
+  testNumValue<int64_t>("NCCL_NCHANNELS_PER_NET_PEER", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NCHANNELS_PER_NET_PEER, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_default_value) {
+  testDefaultValue("NCCL_NCHANNELS_PER_NET_PEER");
+  EXPECT_EQ(NCCL_NCHANNELS_PER_NET_PEER, 2);
+}
+
+TEST_F(CvarTest, NCCL_NET_DISABLE_INTRA_value_0) {
+  testNumValue<int64_t>("NCCL_NET_DISABLE_INTRA", 0);
+  EXPECT_EQ(NCCL_NET_DISABLE_INTRA, 0);
+}
+
+TEST_F(CvarTest, NCCL_NET_DISABLE_INTRA_value_1) {
+  testNumValue<int64_t>("NCCL_NET_DISABLE_INTRA", 9999);
+  EXPECT_EQ(NCCL_NET_DISABLE_INTRA, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NET_DISABLE_INTRA_value_2) {
+  testNumValue<int64_t>("NCCL_NET_DISABLE_INTRA", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NET_DISABLE_INTRA, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NET_DISABLE_INTRA_value_3) {
+  testNumValue<int64_t>("NCCL_NET_DISABLE_INTRA", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NET_DISABLE_INTRA, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NET_FORCE_FLUSH_value_0) {
+  testNumValue<int64_t>("NCCL_NET_FORCE_FLUSH", 0);
+  EXPECT_EQ(NCCL_NET_FORCE_FLUSH, 0);
+}
+
+TEST_F(CvarTest, NCCL_NET_FORCE_FLUSH_value_1) {
+  testNumValue<int64_t>("NCCL_NET_FORCE_FLUSH", 9999);
+  EXPECT_EQ(NCCL_NET_FORCE_FLUSH, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NET_FORCE_FLUSH_value_2) {
+  testNumValue<int64_t>("NCCL_NET_FORCE_FLUSH", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NET_FORCE_FLUSH, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NET_FORCE_FLUSH_value_3) {
+  testNumValue<int64_t>("NCCL_NET_FORCE_FLUSH", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NET_FORCE_FLUSH, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NET_FORCE_FLUSH_default_value) {
+  testDefaultValue("NCCL_NET_FORCE_FLUSH");
+  EXPECT_EQ(NCCL_NET_FORCE_FLUSH, 1);
+}
+
+TEST_F(CvarTest, NCCL_NET_GDR_READ_value_0) {
+  testNumValue<int64_t>("NCCL_NET_GDR_READ", 0);
+  EXPECT_EQ(NCCL_NET_GDR_READ, 0);
+}
+
+TEST_F(CvarTest, NCCL_NET_GDR_READ_value_1) {
+  testNumValue<int64_t>("NCCL_NET_GDR_READ", 9999);
+  EXPECT_EQ(NCCL_NET_GDR_READ, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NET_GDR_READ_value_2) {
+  testNumValue<int64_t>("NCCL_NET_GDR_READ", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NET_GDR_READ, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NET_GDR_READ_value_3) {
+  testNumValue<int64_t>("NCCL_NET_GDR_READ", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NET_GDR_READ, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NET_GDR_READ_default_value) {
+  testDefaultValue("NCCL_NET_GDR_READ");
+  EXPECT_EQ(NCCL_NET_GDR_READ, -2);
+}
+
+TEST_F(CvarTest, NCCL_NVB_DISABLE_value_0) {
+  testNumValue<int64_t>("NCCL_NVB_DISABLE", 0);
+  EXPECT_EQ(NCCL_NVB_DISABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_NVB_DISABLE_value_1) {
+  testNumValue<int64_t>("NCCL_NVB_DISABLE", 9999);
+  EXPECT_EQ(NCCL_NVB_DISABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NVB_DISABLE_value_2) {
+  testNumValue<int64_t>("NCCL_NVB_DISABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NVB_DISABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NVB_DISABLE_value_3) {
+  testNumValue<int64_t>("NCCL_NVB_DISABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NVB_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_PXN_DISABLE_value_0) {
+  testNumValue<int64_t>("NCCL_PXN_DISABLE", 0);
+  EXPECT_EQ(NCCL_PXN_DISABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_PXN_DISABLE_value_1) {
+  testNumValue<int64_t>("NCCL_PXN_DISABLE", 9999);
+  EXPECT_EQ(NCCL_PXN_DISABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_PXN_DISABLE_value_2) {
+  testNumValue<int64_t>("NCCL_PXN_DISABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_PXN_DISABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_PXN_DISABLE_value_3) {
+  testNumValue<int64_t>("NCCL_PXN_DISABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_PXN_DISABLE, std::numeric_limits<int64_t>::min());
 }
 
 TEST_F(CvarTest, NCCL_SENDRECV_ALGO_single_choice_0) {
