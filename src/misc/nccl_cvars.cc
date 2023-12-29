@@ -39,8 +39,23 @@ uint64_t NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_HCM;
 uint64_t NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS;
 bool NCCL_DDA_FORCE_P2P_ACCESS;
 int NCCL_DDA_MAX_RANKS;
+int64_t NCCL_GDR_FLUSH_DISABLE;
+int64_t NCCL_IB_ADAPTIVE_ROUTING;
+int64_t NCCL_IB_AR_THRESHOLD;
+int64_t NCCL_IB_DISABLE;
+int64_t NCCL_IB_GID_INDEX;
 std::string NCCL_IB_HCA_PREFIX;
 std::vector<std::string> NCCL_IB_HCA;
+int64_t NCCL_IB_MERGE_VFS;
+int64_t NCCL_IB_PCI_RELAXED_ORDERING;
+int64_t NCCL_IB_PKEY;
+int64_t NCCL_IB_QPS_PER_CONNECTION;
+int64_t NCCL_IB_RETRY_CNT;
+int64_t NCCL_IB_SL;
+int64_t NCCL_IB_SPLIT_DATA_ON_QPS;
+int64_t NCCL_IB_TC;
+int64_t NCCL_IB_TIMEOUT;
+int64_t NCCL_IB_USE_INLINE;
 int64_t NCCL_IGNORE_CPU_AFFINITY;
 int64_t NCCL_IGNORE_DISABLED_P2P;
 int64_t NCCL_MAX_NCHANNELS;
@@ -89,7 +104,22 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS");
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_DDA_MAX_RANKS");
+  env.insert("NCCL_GDR_FLUSH_DISABLE");
+  env.insert("NCCL_IB_ADAPTIVE_ROUTING");
+  env.insert("NCCL_IB_AR_THRESHOLD");
+  env.insert("NCCL_IB_DISABLE");
+  env.insert("NCCL_IB_GID_INDEX");
   env.insert("NCCL_IB_HCA");
+  env.insert("NCCL_IB_MERGE_VFS");
+  env.insert("NCCL_IB_PCI_RELAXED_ORDERING");
+  env.insert("NCCL_IB_PKEY");
+  env.insert("NCCL_IB_QPS_PER_CONNECTION");
+  env.insert("NCCL_IB_RETRY_CNT");
+  env.insert("NCCL_IB_SL");
+  env.insert("NCCL_IB_SPLIT_DATA_ON_QPS");
+  env.insert("NCCL_IB_TC");
+  env.insert("NCCL_IB_TIMEOUT");
+  env.insert("NCCL_IB_USE_INLINE");
   env.insert("NCCL_IGNORE_CPU_AFFINITY");
   env.insert("NCCL_IGNORE_DISABLED_P2P");
   env.insert("NCCL_MAX_NCHANNELS");
@@ -278,9 +308,39 @@ void readCvarEnv() {
 
   NCCL_DDA_MAX_RANKS = env2num<int>("NCCL_DDA_MAX_RANKS", "16");
 
+  NCCL_GDR_FLUSH_DISABLE = env2num<int64_t>("NCCL_GDR_FLUSH_DISABLE", "0");
+
+  NCCL_IB_ADAPTIVE_ROUTING = env2num<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", "-2");
+
+  NCCL_IB_AR_THRESHOLD = env2num<int64_t>("NCCL_IB_AR_THRESHOLD", "8192");
+
+  NCCL_IB_DISABLE = env2num<int64_t>("NCCL_IB_DISABLE", "0");
+
+  NCCL_IB_GID_INDEX = env2num<int64_t>("NCCL_IB_GID_INDEX", "0");
+
   std::vector<std::string> NCCL_IB_HCA_allPrefixes{"^", "="};
   NCCL_IB_HCA.clear();
   std::tie(NCCL_IB_HCA_PREFIX, NCCL_IB_HCA) = env2prefixedStrlist("NCCL_IB_HCA", "", NCCL_IB_HCA_allPrefixes);
+
+  NCCL_IB_MERGE_VFS = env2num<int64_t>("NCCL_IB_MERGE_VFS", "1");
+
+  NCCL_IB_PCI_RELAXED_ORDERING = env2num<int64_t>("NCCL_IB_PCI_RELAXED_ORDERING", "2");
+
+  NCCL_IB_PKEY = env2num<int64_t>("NCCL_IB_PKEY", "0");
+
+  NCCL_IB_QPS_PER_CONNECTION = env2num<int64_t>("NCCL_IB_QPS_PER_CONNECTION", "1");
+
+  NCCL_IB_RETRY_CNT = env2num<int64_t>("NCCL_IB_RETRY_CNT", "7");
+
+  NCCL_IB_SL = env2num<int64_t>("NCCL_IB_SL", "0");
+
+  NCCL_IB_SPLIT_DATA_ON_QPS = env2num<int64_t>("NCCL_IB_SPLIT_DATA_ON_QPS", "1");
+
+  NCCL_IB_TC = env2num<int64_t>("NCCL_IB_TC", "0");
+
+  NCCL_IB_TIMEOUT = env2num<int64_t>("NCCL_IB_TIMEOUT", "18");
+
+  NCCL_IB_USE_INLINE = env2num<int64_t>("NCCL_IB_USE_INLINE", "0");
 
   NCCL_IGNORE_CPU_AFFINITY = env2num<int64_t>("NCCL_IGNORE_CPU_AFFINITY", "0");
 

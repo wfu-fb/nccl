@@ -12,13 +12,6 @@
 #include "CtranIbImpl.h"
 #include "CtranIbVc.h"
 
-uint64_t ncclParamIbPkey();
-uint64_t ncclParamIbGidIndex();
-uint64_t ncclParamIbTc();
-uint64_t ncclParamIbSl();
-uint64_t ncclParamIbTimeout();
-uint64_t ncclParamIbRetryCnt();
-
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
@@ -164,7 +157,7 @@ ncclResult_t CtranIb::Impl::VirtualConn::getLocalBusCard(void *localBusCard) {
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_INIT;
-  qpAttr.pkey_index = ncclParamIbPkey();
+  qpAttr.pkey_index = NCCL_IB_PKEY;
   qpAttr.port_num = this->port_;
   qpAttr.qp_access_flags = IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ;
   NCCLCHECKGOTO(
@@ -189,7 +182,7 @@ ncclResult_t CtranIb::Impl::VirtualConn::getLocalBusCard(void *localBusCard) {
 
   if (this->linkLayer_ == IBV_LINK_LAYER_ETHERNET) {
     union ibv_gid gid;
-    NCCLCHECKGOTO(wrap_ibv_query_gid(this->context_, this->port_, ncclParamIbGidIndex(), &gid), res, exit);
+    NCCLCHECKGOTO(wrap_ibv_query_gid(this->context_, this->port_, NCCL_IB_GID_INDEX, &gid), res, exit);
     busCard->u.eth.spn = gid.global.subnet_prefix;
     busCard->u.eth.iid = gid.global.interface_id;
   } else {
@@ -224,14 +217,14 @@ ncclResult_t CtranIb::Impl::VirtualConn::setupVc(void *remoteBusCard, uint32_t *
     qpAttr.ah_attr.grh.dgid.global.subnet_prefix = remoteBusCardStruct->u.eth.spn;
     qpAttr.ah_attr.grh.dgid.global.interface_id = remoteBusCardStruct->u.eth.iid;
     qpAttr.ah_attr.grh.flow_label = 0;
-    qpAttr.ah_attr.grh.sgid_index = ncclParamIbGidIndex();
+    qpAttr.ah_attr.grh.sgid_index = NCCL_IB_GID_INDEX;
     qpAttr.ah_attr.grh.hop_limit = 255;
-    qpAttr.ah_attr.grh.traffic_class = ncclParamIbTc();
+    qpAttr.ah_attr.grh.traffic_class = NCCL_IB_TC;
   } else {
     qpAttr.ah_attr.is_global = 0;
     qpAttr.ah_attr.dlid = remoteBusCardStruct->u.ib.lid;
   }
-  qpAttr.ah_attr.sl = ncclParamIbSl();
+  qpAttr.ah_attr.sl = NCCL_IB_SL;
   qpAttr.ah_attr.src_path_bits = 0;
   qpAttr.ah_attr.port_num = remoteBusCardStruct->port;
 
@@ -252,8 +245,8 @@ ncclResult_t CtranIb::Impl::VirtualConn::setupVc(void *remoteBusCard, uint32_t *
   /* set QP to RTS state */
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_RTS;
-  qpAttr.timeout = ncclParamIbTimeout();
-  qpAttr.retry_cnt = ncclParamIbRetryCnt();
+  qpAttr.timeout = NCCL_IB_TIMEOUT;
+  qpAttr.retry_cnt = NCCL_IB_RETRY_CNT;
   qpAttr.rnr_retry = 7;
   qpAttr.sq_psn = 0;
   qpAttr.max_rd_atomic = 1;

@@ -223,6 +223,50 @@ Description:
 Type: int
 Default: 16
 
+NCCL_GDR_FLUSH_DISABLE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_IB_ADAPTIVE_ROUTING
+Description:
+    Enable use of Adaptive Routing capable data transfers for the IB
+    Verbs transport. Adaptive routing can improve the performance of
+    communications at scale. A system defined Adaptive Routing
+    enabled SL has to be selected accordingly (cf. NCCL_IB_SL). For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-adaptive-routing
+Type: int64_t
+Default: -2
+
+NCCL_IB_AR_THRESHOLD
+Description:
+    Threshold after which we send InfiniBand data in a separate
+    message which can leverage adaptive routing. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-ar-threshold
+Type: int64_t
+Default: 8192
+
+NCCL_IB_DISABLE
+Description:
+    The NCCL_IB_DISABLE variable disables the IB/RoCE transport that
+    is to be used by NCCL. Instead, NCCL will fallback to using IP
+    sockets. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-disable
+Type: int64_t
+Default: 0
+
+NCCL_IB_GID_INDEX
+Description:
+    The NCCL_IB_GID_INDEX variable defines the Global ID index used
+    in RoCE mode. See the InfiniBand show_gids command in order to
+    set this value.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-gid-index
+Type: int64_t
+Default: 0
+
 NCCL_IB_HCA
 Description:
     List of IB HCAs available for NCCL to use. The list is comma-separated;
@@ -236,6 +280,87 @@ Description:
     (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
 Type: prefixed_stringlist
 Default: None
+
+NCCL_IB_MERGE_VFS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
+NCCL_IB_PCI_RELAXED_ORDERING
+Description:
+    Enable use of Relaxed Ordering for the IB Verbs transport.
+    Relaxed Ordering can greatly help the performance of InfiniBand
+    networks in virtualized environments. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-pci-relaxed-ordering
+Type: int64_t
+Default: 2
+
+NCCL_IB_PKEY
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_IB_QPS_PER_CONNECTION
+Description:
+    Number of IB queue pairs to use for each connection between two
+    ranks. This can be useful on multi-level fabrics which need
+    multiple queue pairs to have good routing entropy. See
+    NCCL_IB_SPLIT_DATA_ON_QPS for different ways to split data on
+    multiple QPs, as it can affect performance. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-qps-per-connection
+Type: int64_t
+Default: 1
+
+NCCL_IB_RETRY_CNT
+Description:
+    The NCCL_IB_RETRY_CNT variable controls the InfiniBand retry
+    count. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-retry-cnt
+Type: int64_t
+Default: 7
+
+NCCL_IB_SL
+Description:
+    Defines the InfiniBand Service Level. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-sl
+Type: int64_t
+Default: 0
+
+NCCL_IB_SPLIT_DATA_ON_QPS
+Description:
+    This parameter controls how we use the queue pairs when we create
+    more than one. Set to 1 (split mode, default), each message will
+    be split evenly on each queue pair. This may cause a visible
+    latency degradation if we use many QPs. Set to 0 (round-robin
+    mode), queue pairs will be used in round-robin mode for each
+    message we send. Operations which do not send multiple messages
+    will not use all QPs. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-split-data-on-qps
+Type: int64_t
+Default: 1
+
+NCCL_IB_TC
+Description:
+    Defines the InfiniBand traffic class field. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-tc
+Type: int64_t
+Default: 0
+
+NCCL_IB_TIMEOUT
+Description:
+    The NCCL_IB_TIMEOUT variable controls the InfiniBand Verbs
+    Timeout.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-timeout
+Type: int64_t
+Default: 18
+
+NCCL_IB_USE_INLINE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
 
 NCCL_IGNORE_CPU_AFFINITY
 Description:

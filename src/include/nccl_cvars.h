@@ -95,8 +95,38 @@ extern bool NCCL_DDA_FORCE_P2P_ACCESS;
 
 extern int NCCL_DDA_MAX_RANKS;
 
+extern int64_t NCCL_GDR_FLUSH_DISABLE;
+
+extern int64_t NCCL_IB_ADAPTIVE_ROUTING;
+
+extern int64_t NCCL_IB_AR_THRESHOLD;
+
+extern int64_t NCCL_IB_DISABLE;
+
+extern int64_t NCCL_IB_GID_INDEX;
+
 extern std::string NCCL_IB_HCA_PREFIX;
 extern std::vector<std::string> NCCL_IB_HCA;
+
+extern int64_t NCCL_IB_MERGE_VFS;
+
+extern int64_t NCCL_IB_PCI_RELAXED_ORDERING;
+
+extern int64_t NCCL_IB_PKEY;
+
+extern int64_t NCCL_IB_QPS_PER_CONNECTION;
+
+extern int64_t NCCL_IB_RETRY_CNT;
+
+extern int64_t NCCL_IB_SL;
+
+extern int64_t NCCL_IB_SPLIT_DATA_ON_QPS;
+
+extern int64_t NCCL_IB_TC;
+
+extern int64_t NCCL_IB_TIMEOUT;
+
+extern int64_t NCCL_IB_USE_INLINE;
 
 extern int64_t NCCL_IGNORE_CPU_AFFINITY;
 

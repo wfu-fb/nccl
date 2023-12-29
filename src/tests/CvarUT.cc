@@ -888,6 +888,116 @@ TEST_F(CvarTest, NCCL_DDA_MAX_RANKS_default_value) {
   EXPECT_EQ(NCCL_DDA_MAX_RANKS, 16);
 }
 
+TEST_F(CvarTest, NCCL_GDR_FLUSH_DISABLE_value_0) {
+  testNumValue<int64_t>("NCCL_GDR_FLUSH_DISABLE", 0);
+  EXPECT_EQ(NCCL_GDR_FLUSH_DISABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_GDR_FLUSH_DISABLE_value_1) {
+  testNumValue<int64_t>("NCCL_GDR_FLUSH_DISABLE", 9999);
+  EXPECT_EQ(NCCL_GDR_FLUSH_DISABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_GDR_FLUSH_DISABLE_value_2) {
+  testNumValue<int64_t>("NCCL_GDR_FLUSH_DISABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_GDR_FLUSH_DISABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_GDR_FLUSH_DISABLE_value_3) {
+  testNumValue<int64_t>("NCCL_GDR_FLUSH_DISABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_GDR_FLUSH_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_0) {
+  testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", 0);
+  EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_1) {
+  testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", 9999);
+  EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_2) {
+  testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_3) {
+  testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_default_value) {
+  testDefaultValue("NCCL_IB_ADAPTIVE_ROUTING");
+  EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, -2);
+}
+
+TEST_F(CvarTest, NCCL_IB_AR_THRESHOLD_value_0) {
+  testNumValue<int64_t>("NCCL_IB_AR_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_IB_AR_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_AR_THRESHOLD_value_1) {
+  testNumValue<int64_t>("NCCL_IB_AR_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_IB_AR_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_AR_THRESHOLD_value_2) {
+  testNumValue<int64_t>("NCCL_IB_AR_THRESHOLD", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_AR_THRESHOLD, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_AR_THRESHOLD_value_3) {
+  testNumValue<int64_t>("NCCL_IB_AR_THRESHOLD", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_AR_THRESHOLD, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_AR_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_IB_AR_THRESHOLD");
+  EXPECT_EQ(NCCL_IB_AR_THRESHOLD, 8192);
+}
+
+TEST_F(CvarTest, NCCL_IB_DISABLE_value_0) {
+  testNumValue<int64_t>("NCCL_IB_DISABLE", 0);
+  EXPECT_EQ(NCCL_IB_DISABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_DISABLE_value_1) {
+  testNumValue<int64_t>("NCCL_IB_DISABLE", 9999);
+  EXPECT_EQ(NCCL_IB_DISABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_DISABLE_value_2) {
+  testNumValue<int64_t>("NCCL_IB_DISABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_DISABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_DISABLE_value_3) {
+  testNumValue<int64_t>("NCCL_IB_DISABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_GID_INDEX_value_0) {
+  testNumValue<int64_t>("NCCL_IB_GID_INDEX", 0);
+  EXPECT_EQ(NCCL_IB_GID_INDEX, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_GID_INDEX_value_1) {
+  testNumValue<int64_t>("NCCL_IB_GID_INDEX", 9999);
+  EXPECT_EQ(NCCL_IB_GID_INDEX, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_GID_INDEX_value_2) {
+  testNumValue<int64_t>("NCCL_IB_GID_INDEX", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_GID_INDEX, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_GID_INDEX_value_3) {
+  testNumValue<int64_t>("NCCL_IB_GID_INDEX", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_GID_INDEX, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
   setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
   std::vector<std::string> vals{"val1","val2","val3"};
@@ -948,6 +1058,236 @@ TEST_F(CvarTest, NCCL_IB_HCA_prefix_2) {
   ncclCvarInit();
   EXPECT_EQ(NCCL_IB_HCA_PREFIX, "");
   checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_MERGE_VFS_value_0) {
+  testNumValue<int64_t>("NCCL_IB_MERGE_VFS", 0);
+  EXPECT_EQ(NCCL_IB_MERGE_VFS, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_MERGE_VFS_value_1) {
+  testNumValue<int64_t>("NCCL_IB_MERGE_VFS", 9999);
+  EXPECT_EQ(NCCL_IB_MERGE_VFS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_MERGE_VFS_value_2) {
+  testNumValue<int64_t>("NCCL_IB_MERGE_VFS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_MERGE_VFS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_MERGE_VFS_value_3) {
+  testNumValue<int64_t>("NCCL_IB_MERGE_VFS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_MERGE_VFS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_MERGE_VFS_default_value) {
+  testDefaultValue("NCCL_IB_MERGE_VFS");
+  EXPECT_EQ(NCCL_IB_MERGE_VFS, 1);
+}
+
+TEST_F(CvarTest, NCCL_IB_PCI_RELAXED_ORDERING_value_0) {
+  testNumValue<int64_t>("NCCL_IB_PCI_RELAXED_ORDERING", 0);
+  EXPECT_EQ(NCCL_IB_PCI_RELAXED_ORDERING, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_PCI_RELAXED_ORDERING_value_1) {
+  testNumValue<int64_t>("NCCL_IB_PCI_RELAXED_ORDERING", 9999);
+  EXPECT_EQ(NCCL_IB_PCI_RELAXED_ORDERING, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_PCI_RELAXED_ORDERING_value_2) {
+  testNumValue<int64_t>("NCCL_IB_PCI_RELAXED_ORDERING", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_PCI_RELAXED_ORDERING, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_PCI_RELAXED_ORDERING_value_3) {
+  testNumValue<int64_t>("NCCL_IB_PCI_RELAXED_ORDERING", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_PCI_RELAXED_ORDERING, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_PCI_RELAXED_ORDERING_default_value) {
+  testDefaultValue("NCCL_IB_PCI_RELAXED_ORDERING");
+  EXPECT_EQ(NCCL_IB_PCI_RELAXED_ORDERING, 2);
+}
+
+TEST_F(CvarTest, NCCL_IB_PKEY_value_0) {
+  testNumValue<int64_t>("NCCL_IB_PKEY", 0);
+  EXPECT_EQ(NCCL_IB_PKEY, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_PKEY_value_1) {
+  testNumValue<int64_t>("NCCL_IB_PKEY", 9999);
+  EXPECT_EQ(NCCL_IB_PKEY, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_PKEY_value_2) {
+  testNumValue<int64_t>("NCCL_IB_PKEY", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_PKEY, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_PKEY_value_3) {
+  testNumValue<int64_t>("NCCL_IB_PKEY", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_PKEY, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_QPS_PER_CONNECTION_value_0) {
+  testNumValue<int64_t>("NCCL_IB_QPS_PER_CONNECTION", 0);
+  EXPECT_EQ(NCCL_IB_QPS_PER_CONNECTION, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_QPS_PER_CONNECTION_value_1) {
+  testNumValue<int64_t>("NCCL_IB_QPS_PER_CONNECTION", 9999);
+  EXPECT_EQ(NCCL_IB_QPS_PER_CONNECTION, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_QPS_PER_CONNECTION_value_2) {
+  testNumValue<int64_t>("NCCL_IB_QPS_PER_CONNECTION", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_QPS_PER_CONNECTION, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_QPS_PER_CONNECTION_value_3) {
+  testNumValue<int64_t>("NCCL_IB_QPS_PER_CONNECTION", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_QPS_PER_CONNECTION, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_QPS_PER_CONNECTION_default_value) {
+  testDefaultValue("NCCL_IB_QPS_PER_CONNECTION");
+  EXPECT_EQ(NCCL_IB_QPS_PER_CONNECTION, 1);
+}
+
+TEST_F(CvarTest, NCCL_IB_RETRY_CNT_value_0) {
+  testNumValue<int64_t>("NCCL_IB_RETRY_CNT", 0);
+  EXPECT_EQ(NCCL_IB_RETRY_CNT, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_RETRY_CNT_value_1) {
+  testNumValue<int64_t>("NCCL_IB_RETRY_CNT", 9999);
+  EXPECT_EQ(NCCL_IB_RETRY_CNT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_RETRY_CNT_value_2) {
+  testNumValue<int64_t>("NCCL_IB_RETRY_CNT", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_RETRY_CNT, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_RETRY_CNT_value_3) {
+  testNumValue<int64_t>("NCCL_IB_RETRY_CNT", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_RETRY_CNT, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_RETRY_CNT_default_value) {
+  testDefaultValue("NCCL_IB_RETRY_CNT");
+  EXPECT_EQ(NCCL_IB_RETRY_CNT, 7);
+}
+
+TEST_F(CvarTest, NCCL_IB_SL_value_0) {
+  testNumValue<int64_t>("NCCL_IB_SL", 0);
+  EXPECT_EQ(NCCL_IB_SL, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_SL_value_1) {
+  testNumValue<int64_t>("NCCL_IB_SL", 9999);
+  EXPECT_EQ(NCCL_IB_SL, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_SL_value_2) {
+  testNumValue<int64_t>("NCCL_IB_SL", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_SL, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_SL_value_3) {
+  testNumValue<int64_t>("NCCL_IB_SL", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_SL, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_SPLIT_DATA_ON_QPS_value_0) {
+  testNumValue<int64_t>("NCCL_IB_SPLIT_DATA_ON_QPS", 0);
+  EXPECT_EQ(NCCL_IB_SPLIT_DATA_ON_QPS, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_SPLIT_DATA_ON_QPS_value_1) {
+  testNumValue<int64_t>("NCCL_IB_SPLIT_DATA_ON_QPS", 9999);
+  EXPECT_EQ(NCCL_IB_SPLIT_DATA_ON_QPS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_SPLIT_DATA_ON_QPS_value_2) {
+  testNumValue<int64_t>("NCCL_IB_SPLIT_DATA_ON_QPS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_SPLIT_DATA_ON_QPS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_SPLIT_DATA_ON_QPS_value_3) {
+  testNumValue<int64_t>("NCCL_IB_SPLIT_DATA_ON_QPS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_SPLIT_DATA_ON_QPS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_SPLIT_DATA_ON_QPS_default_value) {
+  testDefaultValue("NCCL_IB_SPLIT_DATA_ON_QPS");
+  EXPECT_EQ(NCCL_IB_SPLIT_DATA_ON_QPS, 1);
+}
+
+TEST_F(CvarTest, NCCL_IB_TC_value_0) {
+  testNumValue<int64_t>("NCCL_IB_TC", 0);
+  EXPECT_EQ(NCCL_IB_TC, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_TC_value_1) {
+  testNumValue<int64_t>("NCCL_IB_TC", 9999);
+  EXPECT_EQ(NCCL_IB_TC, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_TC_value_2) {
+  testNumValue<int64_t>("NCCL_IB_TC", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_TC, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_TC_value_3) {
+  testNumValue<int64_t>("NCCL_IB_TC", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_TC, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_TIMEOUT_value_0) {
+  testNumValue<int64_t>("NCCL_IB_TIMEOUT", 0);
+  EXPECT_EQ(NCCL_IB_TIMEOUT, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_TIMEOUT_value_1) {
+  testNumValue<int64_t>("NCCL_IB_TIMEOUT", 9999);
+  EXPECT_EQ(NCCL_IB_TIMEOUT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_TIMEOUT_value_2) {
+  testNumValue<int64_t>("NCCL_IB_TIMEOUT", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_TIMEOUT, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_TIMEOUT_value_3) {
+  testNumValue<int64_t>("NCCL_IB_TIMEOUT", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_TIMEOUT, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_IB_TIMEOUT_default_value) {
+  testDefaultValue("NCCL_IB_TIMEOUT");
+  EXPECT_EQ(NCCL_IB_TIMEOUT, 18);
+}
+
+TEST_F(CvarTest, NCCL_IB_USE_INLINE_value_0) {
+  testNumValue<int64_t>("NCCL_IB_USE_INLINE", 0);
+  EXPECT_EQ(NCCL_IB_USE_INLINE, 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_USE_INLINE_value_1) {
+  testNumValue<int64_t>("NCCL_IB_USE_INLINE", 9999);
+  EXPECT_EQ(NCCL_IB_USE_INLINE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_IB_USE_INLINE_value_2) {
+  testNumValue<int64_t>("NCCL_IB_USE_INLINE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_IB_USE_INLINE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_IB_USE_INLINE_value_3) {
+  testNumValue<int64_t>("NCCL_IB_USE_INLINE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_IB_USE_INLINE, std::numeric_limits<int64_t>::min());
 }
 
 TEST_F(CvarTest, NCCL_IGNORE_CPU_AFFINITY_value_0) {
