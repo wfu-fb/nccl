@@ -1198,6 +1198,31 @@ TEST_F(CvarTest, NCCL_GRAPH_DUMP_FILE_RANK_value_3) {
   EXPECT_EQ(NCCL_GRAPH_DUMP_FILE_RANK, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_GRAPH_MIXING_SUPPORT_value_0) {
+  testNumValue<int64_t>("NCCL_GRAPH_MIXING_SUPPORT", 0);
+  EXPECT_EQ(NCCL_GRAPH_MIXING_SUPPORT, 0);
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_MIXING_SUPPORT_value_1) {
+  testNumValue<int64_t>("NCCL_GRAPH_MIXING_SUPPORT", 9999);
+  EXPECT_EQ(NCCL_GRAPH_MIXING_SUPPORT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_MIXING_SUPPORT_value_2) {
+  testNumValue<int64_t>("NCCL_GRAPH_MIXING_SUPPORT", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_GRAPH_MIXING_SUPPORT, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_MIXING_SUPPORT_value_3) {
+  testNumValue<int64_t>("NCCL_GRAPH_MIXING_SUPPORT", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_GRAPH_MIXING_SUPPORT, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_MIXING_SUPPORT_default_value) {
+  testDefaultValue("NCCL_GRAPH_MIXING_SUPPORT");
+  EXPECT_EQ(NCCL_GRAPH_MIXING_SUPPORT, 1);
+}
+
 TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_0) {
   testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", 0);
   EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, 0);

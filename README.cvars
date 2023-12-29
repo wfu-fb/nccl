@@ -326,6 +326,22 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_GRAPH_MIXING_SUPPORT
+Description:
+    Enable/disable support for co-occurring outstanding NCCL launches
+    from multiple CUDA graphs or a CUDA graph and non-captured NCCL
+    calls. With support disabled, correctness is only guaranteed if
+    the communicator always avoids both of the following cases:
+    1. Has outstanding parallel graph launches, where parallel
+    means on different streams without dependencies that would
+    otherwise serialize their execution.
+    2. An outstanding graph launch followed by a non-captured
+    launch.  Stream dependencies are irrelevant.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-mixing-support
+Type: int64_t
+Default: 1
+
 NCCL_IB_ADAPTIVE_ROUTING
 Description:
     Enable use of Adaptive Routing capable data transfers for the IB
