@@ -11,6 +11,43 @@
 #include "shm.h"
 #include "profiler.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CHUNK_SIZE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_PROXY_APPEND_BATCH_SIZE
+   type        : int64_t
+   default     : 16
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_CREATE_THREAD_CONTEXT
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_PROXY_DUMP_SIGNAL
+   type        : int64_t
+   default     : -1
+   description : |-
+     Hidden variable. No description provided.
+     Set to SIGUSR1 or SIGUSR2 to help debug proxy state during hangs.
+
+ - name        : NCCL_PROGRESS_APPENDOP_FREQ
+   type        : int64_t
+   default     : 8
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 // when build NCCL with ntrace_rt.h, we ensure ntrace_rt.h is always
 // referenced via ibvwrap.h after verbs type definition, to obtain type
 // definition while avoiding cross-reference issues.
@@ -594,8 +631,6 @@ ncclResult_t ncclProxySaveOp(struct ncclComm* comm, struct ncclProxyOp* op, bool
   return ncclSuccess;
 }
 
-NCCL_PARAM(ChunkSize, "CHUNK_SIZE", 0);
-
 ncclResult_t ncclProxyComputeP2p(struct ncclInfo* info, struct ncclProxyOp* op) {
   memset(op, 0, sizeof(struct ncclProxyOp));
   int channelId = info->channelId;
@@ -631,8 +666,8 @@ ncclResult_t ncclProxyComputeP2p(struct ncclInfo* info, struct ncclProxyOp* op) 
     WARN("P2p operation is neither send or recv");
     return ncclInternalError;
   }
-  if (ncclParamChunkSize() != 0) {
-    info->chunkSize = ncclParamChunkSize();
+  if (NCCL_CHUNK_SIZE != 0) {
+    info->chunkSize = NCCL_CHUNK_SIZE;
   }
   op->chunkSize = info->chunkSize;
 
@@ -702,8 +737,6 @@ static ncclResult_t progressOps(struct ncclProxyState* proxyState, struct ncclPr
   return ncclSuccess;
 }
 
-NCCL_PARAM(ProxyAppendBatchSize, "PROXY_APPEND_BATCH_SIZE", 16);
-
 static ncclResult_t ncclProxyGetPostedOps(struct ncclProxyState* proxyState, int* added) {
   struct ncclProxyProgressState* state = &proxyState->progressState;
   if (state->opsPool == NULL) return ncclInternalError;
@@ -749,7 +782,7 @@ process_nextops:
     struct ncclProxyOp* peerOp = pool->ops+opIndex;
     int peer = opIndex / MAX_OPS_PER_PEER;
     if ((lastOpCount && peerOp->opCount != lastOpCount) || ((lastPeer != -1) && peer != lastPeer)) count++;
-    if (count == ncclParamProxyAppendBatchSize()+1) break;
+    if (count == NCCL_PROXY_APPEND_BATCH_SIZE+1) break;
     lastOpCount = peerOp->opCount;
     lastPeer = peer;
     if (peerOp->connection == NULL) return ncclInternalError;
@@ -799,13 +832,12 @@ void ncclDumpProxyState(int signal) {
   dumpProxyState(ncclLastProxyState);
 }
 
-NCCL_PARAM(CreateThreadContext, "CREATE_THREAD_CONTEXT", 0);
 static int setProxyThreadContext(struct ncclProxyState* proxyState) {
 #if CUDART_VERSION >= 11030
   static int createThreadContext = -1;
 
   if (createThreadContext == -1) {
-    createThreadContext = ncclParamCreateThreadContext();
+    createThreadContext = NCCL_CREATE_THREAD_CONTEXT;
     if (createThreadContext) {
       if (CUPFN(cuCtxCreate) == nullptr || CUPFN(cuCtxDestroy) == nullptr || CUPFN(cuCtxSetCurrent) == nullptr) {
         WARN("Unable to create thread context due to old driver, disabling.");
@@ -832,10 +864,6 @@ static int setProxyThreadContext(struct ncclProxyState* proxyState) {
   return 0;
 }
 
-// Set to SIGUSR1 or SIGUSR2 to help debug proxy state during hangs
-NCCL_PARAM(ProxyDumpSignal, "PROXY_DUMP_SIGNAL", -1);
-NCCL_PARAM(ProgressAppendOpFreq, "PROGRESS_APPENDOP_FREQ", 8);
-
 void* ncclProxyProgress(void *proxyState_) {
   struct ncclProxyState* proxyState = (struct ncclProxyState*)proxyState_;
   if (setProxyThreadContext(proxyState)) {
@@ -847,7 +875,7 @@ void* ncclProxyProgress(void *proxyState_) {
 
   struct ncclProxyProgressState* state = &proxyState->progressState;
   state->nextOps = -1;
-  const int sig = ncclParamProxyDumpSignal();
+  const int sig = NCCL_PROXY_DUMP_SIGNAL;
   if (sig != -1) signal(sig, ncclDumpProxyState);
   ncclLastProxyState = state;
   char threadName[NCCL_THREAD_NAMELEN];
@@ -858,7 +886,7 @@ void* ncclProxyProgress(void *proxyState_) {
   /* Too frequent call of ncclProxyGetPostedOps() will result in perf regression for small message
    * communication. proxyOpAppendCounter is a counter that helps us decide if we need to append proxy ops.
    * After each progress, proxyOpAppendCounter will increase by 1 and compare with environment variable
-   * ncclParamProgressAppendOpFreq(). If they are equal, we will append proxy ops. This will decrease the
+   * NCCL_PROGRESS_APPENDOP_FREQ. If they are equal, we will append proxy ops. This will decrease the
    * frequency of calling ncclProxyGetPostedOps() and reduce the perf impact. */
   int proxyOpAppendCounter = 0;
   struct ncclProxyArgs profArgs; // Only used for profiling purposes
@@ -871,7 +899,7 @@ void* ncclProxyProgress(void *proxyState_) {
     }
     if (lastIdle == 0 && idle == 1) ncclProfilingRecord(&profArgs, 0, 0, ncclProxyProfileIdle);
     if (lastIdle == 1 && idle == 0) ncclProfilingRecord(&profArgs, 0, 0, ncclProxyProfileActive);
-    if (idle || (++proxyOpAppendCounter == ncclParamProgressAppendOpFreq())) {
+    if (idle || (++proxyOpAppendCounter == NCCL_PROGRESS_APPENDOP_FREQ)) {
       int added = 0;
       proxyOpAppendCounter = 0;
       TIME_START(3);

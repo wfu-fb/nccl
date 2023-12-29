@@ -310,6 +310,26 @@ TEST_F(CvarTest, NCCL_CHECK_POINTERS_value_3) {
   EXPECT_EQ(NCCL_CHECK_POINTERS, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_CHUNK_SIZE_value_0) {
+  testNumValue<int64_t>("NCCL_CHUNK_SIZE", 0);
+  EXPECT_EQ(NCCL_CHUNK_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CHUNK_SIZE_value_1) {
+  testNumValue<int64_t>("NCCL_CHUNK_SIZE", 9999);
+  EXPECT_EQ(NCCL_CHUNK_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CHUNK_SIZE_value_2) {
+  testNumValue<int64_t>("NCCL_CHUNK_SIZE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_CHUNK_SIZE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CHUNK_SIZE_value_3) {
+  testNumValue<int64_t>("NCCL_CHUNK_SIZE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_CHUNK_SIZE, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_value_0) {
   testNumValue<int64_t>("NCCL_COLLNET_NODE_THRESHOLD", 0);
   EXPECT_EQ(NCCL_COLLNET_NODE_THRESHOLD, 0);
@@ -333,6 +353,26 @@ TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_value_3) {
 TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_default_value) {
   testDefaultValue("NCCL_COLLNET_NODE_THRESHOLD");
   EXPECT_EQ(NCCL_COLLNET_NODE_THRESHOLD, 2);
+}
+
+TEST_F(CvarTest, NCCL_CREATE_THREAD_CONTEXT_value_0) {
+  testNumValue<int64_t>("NCCL_CREATE_THREAD_CONTEXT", 0);
+  EXPECT_EQ(NCCL_CREATE_THREAD_CONTEXT, 0);
+}
+
+TEST_F(CvarTest, NCCL_CREATE_THREAD_CONTEXT_value_1) {
+  testNumValue<int64_t>("NCCL_CREATE_THREAD_CONTEXT", 9999);
+  EXPECT_EQ(NCCL_CREATE_THREAD_CONTEXT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CREATE_THREAD_CONTEXT_value_2) {
+  testNumValue<int64_t>("NCCL_CREATE_THREAD_CONTEXT", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_CREATE_THREAD_CONTEXT, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CREATE_THREAD_CONTEXT_value_3) {
+  testNumValue<int64_t>("NCCL_CREATE_THREAD_CONTEXT", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_CREATE_THREAD_CONTEXT, std::numeric_limits<int64_t>::min());
 }
 
 TEST_F(CvarTest, NCCL_CROSS_NIC_value_0) {
@@ -1998,6 +2038,81 @@ TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_value_3) {
 TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_default_value) {
   testDefaultValue("NCCL_P2P_PXN_LEVEL");
   EXPECT_EQ(NCCL_P2P_PXN_LEVEL, 2);
+}
+
+TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_value_0) {
+  testNumValue<int64_t>("NCCL_PROGRESS_APPENDOP_FREQ", 0);
+  EXPECT_EQ(NCCL_PROGRESS_APPENDOP_FREQ, 0);
+}
+
+TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_value_1) {
+  testNumValue<int64_t>("NCCL_PROGRESS_APPENDOP_FREQ", 9999);
+  EXPECT_EQ(NCCL_PROGRESS_APPENDOP_FREQ, 9999);
+}
+
+TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_value_2) {
+  testNumValue<int64_t>("NCCL_PROGRESS_APPENDOP_FREQ", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_PROGRESS_APPENDOP_FREQ, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_value_3) {
+  testNumValue<int64_t>("NCCL_PROGRESS_APPENDOP_FREQ", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_PROGRESS_APPENDOP_FREQ, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_default_value) {
+  testDefaultValue("NCCL_PROGRESS_APPENDOP_FREQ");
+  EXPECT_EQ(NCCL_PROGRESS_APPENDOP_FREQ, 8);
+}
+
+TEST_F(CvarTest, NCCL_PROXY_APPEND_BATCH_SIZE_value_0) {
+  testNumValue<int64_t>("NCCL_PROXY_APPEND_BATCH_SIZE", 0);
+  EXPECT_EQ(NCCL_PROXY_APPEND_BATCH_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_PROXY_APPEND_BATCH_SIZE_value_1) {
+  testNumValue<int64_t>("NCCL_PROXY_APPEND_BATCH_SIZE", 9999);
+  EXPECT_EQ(NCCL_PROXY_APPEND_BATCH_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_PROXY_APPEND_BATCH_SIZE_value_2) {
+  testNumValue<int64_t>("NCCL_PROXY_APPEND_BATCH_SIZE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_PROXY_APPEND_BATCH_SIZE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_PROXY_APPEND_BATCH_SIZE_value_3) {
+  testNumValue<int64_t>("NCCL_PROXY_APPEND_BATCH_SIZE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_PROXY_APPEND_BATCH_SIZE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_PROXY_APPEND_BATCH_SIZE_default_value) {
+  testDefaultValue("NCCL_PROXY_APPEND_BATCH_SIZE");
+  EXPECT_EQ(NCCL_PROXY_APPEND_BATCH_SIZE, 16);
+}
+
+TEST_F(CvarTest, NCCL_PROXY_DUMP_SIGNAL_value_0) {
+  testNumValue<int64_t>("NCCL_PROXY_DUMP_SIGNAL", 0);
+  EXPECT_EQ(NCCL_PROXY_DUMP_SIGNAL, 0);
+}
+
+TEST_F(CvarTest, NCCL_PROXY_DUMP_SIGNAL_value_1) {
+  testNumValue<int64_t>("NCCL_PROXY_DUMP_SIGNAL", 9999);
+  EXPECT_EQ(NCCL_PROXY_DUMP_SIGNAL, 9999);
+}
+
+TEST_F(CvarTest, NCCL_PROXY_DUMP_SIGNAL_value_2) {
+  testNumValue<int64_t>("NCCL_PROXY_DUMP_SIGNAL", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_PROXY_DUMP_SIGNAL, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_PROXY_DUMP_SIGNAL_value_3) {
+  testNumValue<int64_t>("NCCL_PROXY_DUMP_SIGNAL", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_PROXY_DUMP_SIGNAL, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_PROXY_DUMP_SIGNAL_default_value) {
+  testDefaultValue("NCCL_PROXY_DUMP_SIGNAL");
+  EXPECT_EQ(NCCL_PROXY_DUMP_SIGNAL, -1);
 }
 
 TEST_F(CvarTest, NCCL_PXN_DISABLE_value_0) {

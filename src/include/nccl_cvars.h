@@ -43,7 +43,11 @@ extern int64_t NCCL_BUFFSIZE;
 
 extern int64_t NCCL_CHECK_POINTERS;
 
+extern int64_t NCCL_CHUNK_SIZE;
+
 extern int64_t NCCL_COLLNET_NODE_THRESHOLD;
+
+extern int64_t NCCL_CREATE_THREAD_CONTEXT;
 
 extern int64_t NCCL_CROSS_NIC;
 
@@ -187,6 +191,12 @@ extern int64_t NCCL_P2P_NVL_CHUNKSIZE;
 extern int64_t NCCL_P2P_PCI_CHUNKSIZE;
 
 extern int64_t NCCL_P2P_PXN_LEVEL;
+
+extern int64_t NCCL_PROGRESS_APPENDOP_FREQ;
+
+extern int64_t NCCL_PROXY_APPEND_BATCH_SIZE;
+
+extern int64_t NCCL_PROXY_DUMP_SIGNAL;
 
 extern int64_t NCCL_PXN_DISABLE;
 
