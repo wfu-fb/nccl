@@ -109,10 +109,12 @@ class basetype:
 
     def externDecl(self, file):
         indent(file, "extern %s %s;" % (self.type, self.name))
+        indent(file, "extern %s %s_DEFAULT;" % (self.type, self.name))
         file.write("\n")
 
     def storageDecl(self, file):
         indent(file, "%s %s;" % (self.type, self.name))
+        indent(file, "%s %s_DEFAULT;" % (self.type, self.name))
 
     def desc(self, file):
         file.write("\n")
@@ -177,6 +179,8 @@ class bool(basetype):
     def readenv(self, file):
         indent(file, "%s = env2bool(\"%s\", \"%s\");" %
             (self.name, self.envstr, self.default))
+        indent(file, "%s_DEFAULT = env2bool(\"NCCL_ENV_DO_NOT_SET\", \"%s\");" %
+            (self.name, self.default))
         file.write("\n")
 
 
@@ -212,6 +216,8 @@ class numeric(basetype):
     def readenv(self, file):
         indent(file, "%s = env2num<%s>(\"%s\", \"%s\");" %
             (self.name, self.type, self.envstr, self.default))
+        indent(file, "%s_DEFAULT = env2num<%s>(\"NCCL_ENV_DO_NOT_SET\", \"%s\");" %
+            (self.name, self.type, self.default))
         file.write("\n")
 
 
@@ -222,10 +228,12 @@ class string(basetype):
 
     def externDecl(self, file):
         indent(file, "extern std::string %s;" % self.name)
+        indent(file, "extern std::string %s_DEFAULT;" % self.name)
         file.write("\n")
 
     def storageDecl(self, file):
         indent(file, "std::string %s;" % self.name)
+        indent(file, "std::string %s_DEFAULT;" % self.name)
 
     def unitTest(self, file):
         for i, val in enumerate(["val1", "  val2_with_space   "]):
@@ -247,6 +255,8 @@ class string(basetype):
         default = self.default if self.default else ""
         indent(file, "%s = env2str(\"%s\", \"%s\");" %
             (self.name, self.envstr, default))
+        indent(file, "%s_DEFAULT = env2str(\"NCCL_ENV_DO_NOT_SET\", \"%s\");" %
+            (self.name, default))
         file.write("\n")
 
 
@@ -257,10 +267,12 @@ class stringlist(basetype):
 
     def externDecl(self, file):
         indent(file, "extern std::vector<std::string> %s;" % self.name)
+        indent(file, "extern std::vector<std::string> %s_DEFAULT;" % self.name)
         file.write("\n")
 
     def storageDecl(self, file):
         indent(file, "std::vector<std::string> %s;" % self.name)
+        indent(file, "std::vector<std::string> %s_DEFAULT;" % self.name)
 
     def unitTest(self, file):
         for i, val in enumerate(["val1,val2,val3", "val1:1,val2:2,val3:3", "val", "val1, val_w_space  "]):
@@ -293,7 +305,11 @@ class stringlist(basetype):
         indent(file, "%s.clear();" % self.name)
         indent(file, "%s = env2strlist(\"%s\", \"%s\");" %
             (self.name, self.envstr, default))
+        indent(file, "%s_DEFAULT.clear();" % self.name)
+        indent(file, "%s_DEFAULT = env2strlist(\"NCCL_ENV_DO_NOT_SET\", \"%s\");" %
+            (self.name, default))
         file.write("\n")
+
 
 class prefixedStringlist(stringlist):
     @staticmethod
@@ -302,10 +318,12 @@ class prefixedStringlist(stringlist):
 
     def externDecl(self, file):
         indent(file, "extern std::string %s_PREFIX;" % self.name)
+        indent(file, "extern std::string %s_PREFIX_DEFAULT;" % self.name)
         super().externDecl(file)
 
     def storageDecl(self, file):
         indent(file, "std::string %s_PREFIX;" % self.name)
+        indent(file, "std::string %s_PREFIX_DEFAULT;" % self.name)
         super().storageDecl(file)
 
     def unitTest(self, file):
@@ -342,10 +360,14 @@ class prefixedStringlist(stringlist):
     def readenv(self, file):
         trimedPrefixes = [v.strip() for v in self.prefixes.split(",")]
         indent(file, "std::vector<std::string> %s_allPrefixes{\"%s\"};" % (self.name, ("\", \"").join(trimedPrefixes)))
-        indent(file, "%s.clear();" % self.name)
         default = self.default if self.default else ""
+        indent(file, "%s.clear();" % self.name)
         indent(file, "std::tie(%s_PREFIX, %s) = env2prefixedStrlist(\"%s\", \"%s\", %s_allPrefixes);" %
                 (self.name, self.name, self.envstr, default, self.name))
+        indent(file, "%s_DEFAULT.clear();" % self.name)
+        indent(file, "std::tie(%s_PREFIX_DEFAULT, %s_DEFAULT) = " \
+                "env2prefixedStrlist(\"NCCL_ENV_DO_NOT_SET\", \"%s\", %s_allPrefixes);" %
+                (self.name, self.name, default, self.name))
         file.write("\n")
 
 class enum(basetype):
@@ -360,10 +382,12 @@ class enum(basetype):
             indent(file, "%s," % c)
         indent(file, "};")
         indent(file, "extern enum %s %s;" % (self.name, self.name))
+        indent(file, "extern enum %s %s_DEFAULT;" % (self.name, self.name))
         file.write("\n")
 
     def storageDecl(self, file):
         indent(file, "enum %s %s;" % (self.name, self.name))
+        indent(file, "enum %s %s_DEFAULT;" % (self.name, self.name))
 
     def unitTest(self, file):
         choiceList = self.choices.replace(" ", "").split(",")
@@ -400,6 +424,7 @@ class enum(basetype):
         indent(file, "  CVAR_WARN_UNKNOWN_VALUE(\"%s\", str.c_str());" % self.name)
         indent(file, "}")
         indent(file, "}")
+        indent(file, "%s_DEFAULT = %s::%s;" % (self.name, self.name, self.default))
         file.write("\n")
 
 
@@ -415,10 +440,12 @@ class enumlist(basetype):
             indent(file, "%s," % c)
         indent(file, "};")
         indent(file, "extern std::vector<enum %s> %s;" % (self.name, self.name))
+        indent(file, "extern std::vector<enum %s> %s_DEFAULT;" % (self.name, self.name))
         file.write("\n")
 
     def storageDecl(self, file):
         indent(file, "std::vector<enum %s> %s;" % (self.name, self.name))
+        indent(file, "std::vector<enum %s> %s_DEFAULT;" % (self.name, self.name))
 
     def unitTest(self, file):
         choiceList = self.choices.replace(" ", "").split(",")
@@ -474,6 +501,10 @@ class enumlist(basetype):
         indent(file, "}")
         indent(file, "}")
         indent(file, "}")
+        indent(file, "%s_DEFAULT.clear();" % self.name)
+        default = self.default.replace(" ", "").split(",")
+        for d in default:
+            indent(file, "%s_DEFAULT.emplace_back(%s::%s);" % (self.name, self.name, d))
         file.write("\n")
 
 def printAutogenHeader(file):
