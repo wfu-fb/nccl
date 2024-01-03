@@ -210,6 +210,8 @@ enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO_DEFAULT;
 int64_t NCCL_SET_STACK_SIZE;
 int64_t NCCL_SET_STACK_SIZE_DEFAULT;
+int64_t NCCL_SET_THREAD_NAME;
+int64_t NCCL_SET_THREAD_NAME_DEFAULT;
 int64_t NCCL_SHM_DISABLE;
 int64_t NCCL_SHM_DISABLE_DEFAULT;
 int64_t NCCL_SHM_LOCALITY;
@@ -325,6 +327,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_PXN_DISABLE");
   env.insert("NCCL_SENDRECV_ALGO");
   env.insert("NCCL_SET_STACK_SIZE");
+  env.insert("NCCL_SET_THREAD_NAME");
   env.insert("NCCL_SHM_DISABLE");
   env.insert("NCCL_SHM_LOCALITY");
   env.insert("NCCL_SHM_MEMCPY_MODE");
@@ -757,6 +760,9 @@ void readCvarEnv() {
 
   NCCL_SET_STACK_SIZE = env2num<int64_t>("NCCL_SET_STACK_SIZE", "0");
   NCCL_SET_STACK_SIZE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");
+
+  NCCL_SET_THREAD_NAME = env2num<int64_t>("NCCL_SET_THREAD_NAME", "0");
+  NCCL_SET_THREAD_NAME_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");
 
   NCCL_SHM_DISABLE = env2num<int64_t>("NCCL_SHM_DISABLE", "0");
   NCCL_SHM_DISABLE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");

@@ -2529,6 +2529,26 @@ TEST_F(CvarTest, NCCL_SET_STACK_SIZE_value_3) {
   EXPECT_EQ(NCCL_SET_STACK_SIZE, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_SET_THREAD_NAME_value_0) {
+  testNumValue<int64_t>("NCCL_SET_THREAD_NAME", 0);
+  EXPECT_EQ(NCCL_SET_THREAD_NAME, 0);
+}
+
+TEST_F(CvarTest, NCCL_SET_THREAD_NAME_value_1) {
+  testNumValue<int64_t>("NCCL_SET_THREAD_NAME", 9999);
+  EXPECT_EQ(NCCL_SET_THREAD_NAME, 9999);
+}
+
+TEST_F(CvarTest, NCCL_SET_THREAD_NAME_value_2) {
+  testNumValue<int64_t>("NCCL_SET_THREAD_NAME", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_SET_THREAD_NAME, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_SET_THREAD_NAME_value_3) {
+  testNumValue<int64_t>("NCCL_SET_THREAD_NAME", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_SET_THREAD_NAME, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_SHM_DISABLE_value_0) {
   testNumValue<int64_t>("NCCL_SHM_DISABLE", 0);
   EXPECT_EQ(NCCL_SHM_DISABLE, 0);

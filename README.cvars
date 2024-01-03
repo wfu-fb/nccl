@@ -783,6 +783,14 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_SET_THREAD_NAME
+Description:
+    Change the name of NCCL threads to ease debugging and analysis.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-thread-name
+Type: int64_t
+Default: 0
+
 NCCL_SHM_DISABLE
 Description:
     The NCCL_SHM_DISABLE variable disables the Shared Memory (SHM)

@@ -6,11 +6,26 @@
 
 #include "core.h"
 #include "nccl_net.h"
+#include "nccl_cvars.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/syscall.h>
 #include <iomanip>
 #include <sstream>
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_SET_THREAD_NAME
+   type        : int64_t
+   default     : 0
+   description : |-
+     Change the name of NCCL threads to ease debugging and analysis.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-thread-name
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 int ncclDebugLevel = -1;
 static int pid = -1;
@@ -194,13 +209,11 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
   }
 }
 
-NCCL_PARAM(SetThreadName, "SET_THREAD_NAME", 0);
-
 void ncclSetThreadName(pthread_t thread, const char *fmt, ...) {
   // pthread_setname_np is nonstandard GNU extension
   // needs the following feature test macro
 #ifdef _GNU_SOURCE
-  if (ncclParamSetThreadName() != 1) return;
+  if (NCCL_SET_THREAD_NAME != 1) return;
   char threadName[NCCL_THREAD_NAMELEN];
   va_list vargs;
   va_start(vargs, fmt);
