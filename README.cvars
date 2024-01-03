@@ -614,7 +614,7 @@ NCCL_MAX_P2P_NCHANNELS
 Description:
     Hidden variable. No description provided.
 Type: int64_t
-Default: 32
+Default: MAX
 
 NCCL_MEM_SYNC_DOMAIN
 Description:

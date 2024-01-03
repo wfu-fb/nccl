@@ -1974,7 +1974,7 @@ TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_value_3) {
 
 TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_default_value) {
   testDefaultValue("NCCL_MAX_P2P_NCHANNELS");
-  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, 32);
+  EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, std::numeric_limits<int64_t>::max());
 }
 
 TEST_F(CvarTest, NCCL_MEM_SYNC_DOMAIN_single_choice_0) {
