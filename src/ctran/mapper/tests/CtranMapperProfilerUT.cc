@@ -21,14 +21,11 @@ class CtranMapperProfilerTest : public ::testing::Test {
   void SetUp() override {
     setenv("NCCL_CTRAN_BACKENDS", "", 1);
 
-    NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
-
     // A random duration between 0-5ms to test the timer
     srand(time(NULL));
     expectedDurMS = rand() % 5 + 1;
   }
   void TearDown() override {
-    NCCLCHECKABORT(ncclCommDestroy(dummyComm));
     unsetenv("NCCL_CTRAN_BACKENDS");
   }
 };
@@ -99,6 +96,7 @@ TEST_F(CtranMapperProfilerTest, TimestampInsert) {
 TEST_F(CtranMapperProfilerTest, MapperFlushTimerStdout) {
   setenv("NCCL_CTRAN_PROFILING", "stdout", 1);
   ncclCvarInit();
+  NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
 
   auto dummyAlgo = "Ring";
   auto mapper = std::unique_ptr<CtranMapper>(new CtranMapper(dummyComm));
@@ -128,12 +126,14 @@ TEST_F(CtranMapperProfilerTest, MapperFlushTimerStdout) {
   std::string output = testing::internal::GetCapturedStdout();
   EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput1));
   EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput2));
+  NCCLCHECKABORT(ncclCommDestroy(dummyComm));
 }
 
 TEST_F(CtranMapperProfilerTest, MapperFlushTimerInfo) {
   setenv("NCCL_CTRAN_PROFILING", "info", 1);
   setenv("NCCL_DEBUG", "INFO", 1);
   ncclCvarInit();
+  NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
 
   auto dummyAlgo = "Ring";
   auto mapper = std::unique_ptr<CtranMapper>(new CtranMapper(dummyComm));
@@ -165,6 +165,7 @@ TEST_F(CtranMapperProfilerTest, MapperFlushTimerInfo) {
   EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput1));
   EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput2));
   EXPECT_THAT(output, testing::HasSubstr(kExpectedOutput3));
+  NCCLCHECKABORT(ncclCommDestroy(dummyComm));
 }
 
 TEST_F(CtranMapperProfilerTest, MapperFlushTimerKineto) {
@@ -176,6 +177,7 @@ TEST_F(CtranMapperProfilerTest, MapperFlushTimerKineto) {
   setenv("NCCL_CTRAN_PROFILING", "kineto", 1);
   setenv("NCCL_CTRAN_KINETO_PROFILE_DIR", outputDir, 1);
   ncclCvarInit();
+  NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
 
   auto dummyAlgo = "Ring";
   auto mapper = std::unique_ptr<CtranMapper>(new CtranMapper(dummyComm));
@@ -219,6 +221,7 @@ TEST_F(CtranMapperProfilerTest, MapperFlushTimerKineto) {
     }
   }
   EXPECT_TRUE(foundFile);
+  NCCLCHECKABORT(ncclCommDestroy(dummyComm));
 }
 
 TEST_F(CtranMapperProfilerTest, regSnapshot) {
@@ -226,6 +229,7 @@ TEST_F(CtranMapperProfilerTest, regSnapshot) {
   setenv("NCCL_DEBUG", "INFO", 1);
   setenv("NCCL_DEBUG_SUBSYS", "INIT", 1);
   ncclCvarInit();
+  NCCLCHECKABORT(ncclCommInitAll(&dummyComm, 1, nullptr));
 
   auto mapper = std::unique_ptr<CtranMapper>(new CtranMapper(dummyComm));
   EXPECT_THAT(mapper, testing::NotNull());
