@@ -616,6 +616,14 @@ Description:
 Type: int64_t
 Default: 32
 
+NCCL_MEM_SYNC_DOMAIN
+Description:
+    Hidden variable. No description provided.
+    More information on CUDA memsync domains can be found here:
+    https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#using-domains-in-cuda
+Type: enum
+Default: remote
+
 NCCL_MIN_CTAS
 Description:
     Set the minimal number of CTAs NCCL should use. Setting this

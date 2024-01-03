@@ -1977,6 +1977,28 @@ TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_default_value) {
   EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, 32);
 }
 
+TEST_F(CvarTest, NCCL_MEM_SYNC_DOMAIN_single_choice_0) {
+  setenv("NCCL_MEM_SYNC_DOMAIN", "local", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_MEM_SYNC_DOMAIN, NCCL_MEM_SYNC_DOMAIN::local);
+}
+
+TEST_F(CvarTest, NCCL_MEM_SYNC_DOMAIN_single_choice_1) {
+  setenv("NCCL_MEM_SYNC_DOMAIN", "remote", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_MEM_SYNC_DOMAIN, NCCL_MEM_SYNC_DOMAIN::remote);
+}
+
+TEST_F(CvarTest, NCCL_MEM_SYNC_DOMAIN_default_choice) {
+  testDefaultValue("NCCL_MEM_SYNC_DOMAIN");
+  EXPECT_EQ(NCCL_MEM_SYNC_DOMAIN, NCCL_MEM_SYNC_DOMAIN::remote);
+}
+
+TEST_F(CvarTest, NCCL_MEM_SYNC_DOMAIN_warn_unknown_val) {
+  setenv("NCCL_MEM_SYNC_DOMAIN", "dummy", 1);
+  testWarn("NCCL_MEM_SYNC_DOMAIN", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_MIN_CTAS_value_0) {
   testNumValue<int64_t>("NCCL_MIN_CTAS", 0);
   EXPECT_EQ(NCCL_MIN_CTAS, 0);

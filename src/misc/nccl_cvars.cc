@@ -164,6 +164,8 @@ int64_t NCCL_MAX_NRINGS;
 int64_t NCCL_MAX_NRINGS_DEFAULT;
 int64_t NCCL_MAX_P2P_NCHANNELS;
 int64_t NCCL_MAX_P2P_NCHANNELS_DEFAULT;
+enum NCCL_MEM_SYNC_DOMAIN NCCL_MEM_SYNC_DOMAIN;
+enum NCCL_MEM_SYNC_DOMAIN NCCL_MEM_SYNC_DOMAIN_DEFAULT;
 int64_t NCCL_MIN_CTAS;
 int64_t NCCL_MIN_CTAS_DEFAULT;
 int64_t NCCL_MIN_NCHANNELS;
@@ -320,6 +322,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_MAX_NCHANNELS");
   env.insert("NCCL_MAX_NRINGS");
   env.insert("NCCL_MAX_P2P_NCHANNELS");
+  env.insert("NCCL_MEM_SYNC_DOMAIN");
   env.insert("NCCL_MIN_CTAS");
   env.insert("NCCL_MIN_NCHANNELS");
   env.insert("NCCL_MIN_NRINGS");
@@ -704,6 +707,20 @@ void readCvarEnv() {
 
   NCCL_MAX_P2P_NCHANNELS = env2num<int64_t>("NCCL_MAX_P2P_NCHANNELS", "32");
   NCCL_MAX_P2P_NCHANNELS_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "32");
+
+  if (getenv("NCCL_MEM_SYNC_DOMAIN") == nullptr) {
+    NCCL_MEM_SYNC_DOMAIN = NCCL_MEM_SYNC_DOMAIN::remote;
+  } else {
+    std::string str(getenv("NCCL_MEM_SYNC_DOMAIN"));
+    if (str == std::string("local")) {
+      NCCL_MEM_SYNC_DOMAIN = NCCL_MEM_SYNC_DOMAIN::local;
+    } else if (str == std::string("remote")) {
+      NCCL_MEM_SYNC_DOMAIN = NCCL_MEM_SYNC_DOMAIN::remote;
+    } else {
+      CVAR_WARN_UNKNOWN_VALUE("NCCL_MEM_SYNC_DOMAIN", str.c_str());
+    }
+  }
+  NCCL_MEM_SYNC_DOMAIN_DEFAULT = NCCL_MEM_SYNC_DOMAIN::remote;
 
   NCCL_MIN_CTAS = env2num<int64_t>("NCCL_MIN_CTAS", "-1");
   NCCL_MIN_CTAS_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-1");

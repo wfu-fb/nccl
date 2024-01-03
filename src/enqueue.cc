@@ -41,6 +41,15 @@
      CUDA Graphs. For more information:
      https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-register
 
+ - name        : NCCL_MEM_SYNC_DOMAIN
+   type        : enum
+   default     : remote
+   choices     : local, remote
+   description : |-
+     Hidden variable. No description provided.
+     More information on CUDA memsync domains can be found here:
+     https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#using-domains-in-cuda
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -1091,11 +1100,6 @@ ncclResult_t ncclLaunchKernelBefore_NoUncapturedCuda(struct ncclComm* comm, stru
   return ncclSuccess;
 }
 
-#if CUDART_VERSION >= 12000
-// NCCL uses the "Remote" Mem Sync domain by default
-NCCL_PARAM(MemSyncDomain, "MEM_SYNC_DOMAIN", cudaLaunchMemSyncDomainRemote);
-#endif
-
 ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan) {
   struct ncclTasks* tasks = &comm->tasks;
   void *fn = plan->kernelFn;
@@ -1139,7 +1143,11 @@ ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan
     if (compCap >= 90 && driverVersion >= 12000) {
       // Set the NCCL Mem Sync domain on CUDA 12.0 and later (sm90)
       launchAttrs[attrs].id = cudaLaunchAttributeMemSyncDomain;
-      launchAttrs[attrs++].val.memSyncDomain = (cudaLaunchMemSyncDomain) ncclParamMemSyncDomain();
+      if (NCCL_MEM_SYNC_DOMAIN == NCCL_MEM_SYNC_DOMAIN::local) {
+        launchAttrs[attrs++].val.memSyncDomain = cudaLaunchMemSyncDomainDefault;
+      } else {
+        launchAttrs[attrs++].val.memSyncDomain = cudaLaunchMemSyncDomainRemote;
+      }
     }
     #endif
     launchConfig.gridDim = grid;
