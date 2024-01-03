@@ -108,12 +108,27 @@ static bool env2bool(const char *str_, const char *def) {
 
 template <typename T>
 static T env2num(const char *str, const char *def) {
-  std::string in(getenv(str) ? getenv(str) : def);
-  std::stringstream sstream(in);
-  T ret;
-  sstream >> ret;
+  std::string s(getenv(str) ? getenv(str) : def);
 
-  return ret;
+  if (std::find_if(s.begin(), s.end(), ::isdigit) != s.end()) {
+    /* if the string contains a digit, try converting it normally */
+    std::stringstream sstream(s);
+    T ret;
+    sstream >> ret;
+    return ret;
+  } else {
+    /* if there are no digits, see if its a special string such as
+     * "MAX" or "MIN". */
+    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+    if (s == "MAX") {
+      return std::numeric_limits<T>::max();
+    } else if (s == "MIN") {
+      return std::numeric_limits<T>::min();
+    } else {
+      CVAR_WARN("Unrecognized numeral %s\n", s.c_str());
+      return 0;
+    }
+  }
 }
 
 static std::string env2str(const char *str, const char *def_) {

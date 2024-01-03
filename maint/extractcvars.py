@@ -198,7 +198,14 @@ class numeric(basetype):
         if self.default:
             indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
             indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
-            indent(file, "EXPECT_EQ(%s, %s);" % (self.name, self.default))
+            if self.default == "MAX":
+                indent(file, "EXPECT_EQ(%s, std::numeric_limits<%s>::max());" %
+                    (self.name, self.type))
+            elif self.default == "MIN":
+                indent(file, "EXPECT_EQ(%s, std::numeric_limits<%s>::min());" %
+                    (self.name, self.type))
+            else:
+                indent(file, "EXPECT_EQ(%s, %s);" % (self.name, self.default))
             indent(file, "}")
             file.write("\n")
 
