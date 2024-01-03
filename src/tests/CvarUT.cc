@@ -2327,6 +2327,23 @@ TEST_F(CvarTest, NCCL_NET_OVERHEAD_default_value) {
   EXPECT_EQ(NCCL_NET_OVERHEAD, -2);
 }
 
+TEST_F(CvarTest, NCCL_NET_PLUGIN_value_0) {
+  setenv("NCCL_NET_PLUGIN", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_NET_PLUGIN, "val1");
+}
+
+TEST_F(CvarTest, NCCL_NET_PLUGIN_value_1) {
+  setenv("NCCL_NET_PLUGIN", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_NET_PLUGIN, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_NET_PLUGIN_default_value) {
+  testDefaultValue("NCCL_NET_PLUGIN");
+  EXPECT_EQ(NCCL_NET_PLUGIN, "libnccl-net.so");
+}
+
 TEST_F(CvarTest, NCCL_NET_SHARED_BUFFERS_value_0) {
   testNumValue<int64_t>("NCCL_NET_SHARED_BUFFERS", 0);
   EXPECT_EQ(NCCL_NET_SHARED_BUFFERS, 0);

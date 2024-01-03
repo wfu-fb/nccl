@@ -328,6 +328,9 @@ extern int64_t NCCL_NET_GDR_READ_DEFAULT;
 extern int64_t NCCL_NET_OVERHEAD;
 extern int64_t NCCL_NET_OVERHEAD_DEFAULT;
 
+extern std::string NCCL_NET_PLUGIN;
+extern std::string NCCL_NET_PLUGIN_DEFAULT;
+
 extern int64_t NCCL_NET_SHARED_BUFFERS;
 extern int64_t NCCL_NET_SHARED_BUFFERS_DEFAULT;
 

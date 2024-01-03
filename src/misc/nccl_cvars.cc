@@ -202,6 +202,8 @@ int64_t NCCL_NET_GDR_READ;
 int64_t NCCL_NET_GDR_READ_DEFAULT;
 int64_t NCCL_NET_OVERHEAD;
 int64_t NCCL_NET_OVERHEAD_DEFAULT;
+std::string NCCL_NET_PLUGIN;
+std::string NCCL_NET_PLUGIN_DEFAULT;
 int64_t NCCL_NET_SHARED_BUFFERS;
 int64_t NCCL_NET_SHARED_BUFFERS_DEFAULT;
 int64_t NCCL_NET_SHARED_COMMS;
@@ -379,6 +381,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_NET_GDR_LEVEL");
   env.insert("NCCL_NET_GDR_READ");
   env.insert("NCCL_NET_OVERHEAD");
+  env.insert("NCCL_NET_PLUGIN");
   env.insert("NCCL_NET_SHARED_BUFFERS");
   env.insert("NCCL_NET_SHARED_COMMS");
   env.insert("NCCL_NSOCKS_PERTHREAD");
@@ -832,6 +835,9 @@ void readCvarEnv() {
 
   NCCL_NET_OVERHEAD = env2num<int64_t>("NCCL_NET_OVERHEAD", "-2");
   NCCL_NET_OVERHEAD_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
+
+  NCCL_NET_PLUGIN = env2str("NCCL_NET_PLUGIN", "libnccl-net.so");
+  NCCL_NET_PLUGIN_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "libnccl-net.so");
 
   NCCL_NET_SHARED_BUFFERS = env2num<int64_t>("NCCL_NET_SHARED_BUFFERS", "-2");
   NCCL_NET_SHARED_BUFFERS_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");

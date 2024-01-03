@@ -761,6 +761,19 @@ Description:
 Type: int64_t
 Default: -2
 
+NCCL_NET_PLUGIN
+Description:
+    Set it to a suffix string to choose among multiple NCCL net
+    plugins. This setting will cause NCCL to look for file
+    "libnccl-net-<suffix>.so" instead of the default
+    "libnccl-net.so". For example, setting NCCL_NET_PLUGIN=aws will
+    cause NCCL to use "libnccl-net-aws.so" (provided that it exists on
+    the system). Setting NCCL_NET_PLUGIN=none will cause NCCL not to
+    use any plugin. More information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-plugin
+Type: string
+Default: libnccl-net.so
+
 NCCL_NET_SHARED_BUFFERS
 Description:
     Allows the usage of shared buffers for inter-node point-to-point
