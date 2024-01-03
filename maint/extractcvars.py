@@ -278,8 +278,8 @@ class stringlist(basetype):
         for i, val in enumerate(["val1,val2,val3", "val1:1,val2:2,val3:3", "val", "val1, val_w_space  "]):
             indent(file, "TEST_F(CvarTest, %s_valuelist_%s) {" % (self.name, i))
             indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
-            trimedVals = [v.strip() for v in val.split(",")]
-            indent(file, "std::vector<std::string> vals{\"%s\"};" % ("\",\"".join(trimedVals)))
+            trimmedVals = [v.strip() for v in val.split(",")]
+            indent(file, "std::vector<std::string> vals{\"%s\"};" % ("\",\"".join(trimmedVals)))
             indent(file, "ncclCvarInit();")
             indent(file, "checkListValues<std::string>(vals, %s);" % (self.name))
             indent(file, "}")
@@ -331,9 +331,9 @@ class prefixedStringlist(stringlist):
         if self.default:
             indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "{")
-            trimedPrefixes = [v.strip() for v in self.prefixes.split(",")]
+            trimmedPrefixes = [v.strip() for v in self.prefixes.split(",")]
             default = self.default
-            for v in trimedPrefixes:
+            for v in trimmedPrefixes:
                 default = default.lstrip(v)
             indent(file, "std::vector<std::string> vals{\"%s\"};" % (default.replace("," , "\",\"")))
             indent(file, "checkListValues<std::string>(vals, %s);" % (self.name))
@@ -358,8 +358,8 @@ class prefixedStringlist(stringlist):
             file.write("\n")
 
     def readenv(self, file):
-        trimedPrefixes = [v.strip() for v in self.prefixes.split(",")]
-        indent(file, "std::vector<std::string> %s_allPrefixes{\"%s\"};" % (self.name, ("\", \"").join(trimedPrefixes)))
+        trimmedPrefixes = [v.strip() for v in self.prefixes.split(",")]
+        indent(file, "std::vector<std::string> %s_allPrefixes{\"%s\"};" % (self.name, ("\", \"").join(trimmedPrefixes)))
         default = self.default if self.default else ""
         indent(file, "%s.clear();" % self.name)
         indent(file, "std::tie(%s_PREFIX, %s) = env2prefixedStrlist(\"%s\", \"%s\", %s_allPrefixes);" %
