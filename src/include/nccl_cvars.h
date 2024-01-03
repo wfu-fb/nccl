@@ -437,6 +437,9 @@ extern int64_t NCCL_TOPO_DUMP_FILE_RANK_DEFAULT;
 extern std::string NCCL_TOPO_FILE;
 extern std::string NCCL_TOPO_FILE_DEFAULT;
 
+extern std::string NCCL_TUNER_PLUGIN;
+extern std::string NCCL_TUNER_PLUGIN_DEFAULT;
+
 extern int64_t NCCL_WORK_FIFO_DEPTH;
 extern int64_t NCCL_WORK_FIFO_DEPTH_DEFAULT;
 

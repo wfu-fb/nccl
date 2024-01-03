@@ -1056,6 +1056,12 @@ Description:
 Type: string
 Default: /var/run/nvidia-topologyd/virtualTopology.xml
 
+NCCL_TUNER_PLUGIN
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
 NCCL_WORK_FIFO_DEPTH
 Description:
     Hidden variable. No description provided.

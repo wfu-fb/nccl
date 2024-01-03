@@ -11,6 +11,19 @@
 #include "param.h"
 #include "debug.h"
 #include "nccl_tuner.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_TUNER_PLUGIN
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 pthread_mutex_t tunerPluginLock = PTHREAD_MUTEX_INITIALIZER;
 static int tunerPluginRefCount = -1;
@@ -26,22 +39,23 @@ ncclResult_t ncclLoadTunerPlugin(ncclTuner_t** tuner) {
   if (tunerPluginRefCount == -1) {
     tunerPluginRefCount = -2; // Default: no plugin, don't try again later
 
-    const char* name = ncclGetEnv("NCCL_TUNER_PLUGIN");
-    INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", name);
-    tunerPluginLib = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+    INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", NCCL_TUNER_PLUGIN.c_str());
+    tunerPluginLib = dlopen(NCCL_TUNER_PLUGIN.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (tunerPluginLib == nullptr) {
       // dlopen does not guarantee to set errno, but dlerror only gives us a
       // string, so checking errno doesn't hurt to try to provide a better
       // error message
       if (errno == ENOENT) {
-        INFO(NCCL_TUNING, "Tuner: no plugin found '%s', using default tuner instead.", name);
+        INFO(NCCL_TUNING, "Tuner: no plugin found '%s', using default tuner instead.", NCCL_TUNER_PLUGIN.c_str());
       } else {
-        INFO(NCCL_TUNING, "Tuner: plugin load '%s' returned error (%d : %s), using default tuner instead.", name, errno, dlerror());
+        INFO(NCCL_TUNING, "Tuner: plugin load '%s' returned error (%d : %s), using default tuner instead.",
+            NCCL_TUNER_PLUGIN.c_str(), errno, dlerror());
       }
     } else {
       tunerSymbol = (ncclTuner_t*)dlsym(tunerPluginLib, NCCL_TUNER_PLUGIN_SYMBOL);
       if (tunerSymbol == nullptr) {
-        INFO(NCCL_TUNING, "Tuner: failed to find " NCCL_TUNER_PLUGIN_SYMBOL " in plugin (%s), using default tuner instead.", name);
+        INFO(NCCL_TUNING, "Tuner: failed to find " NCCL_TUNER_PLUGIN_SYMBOL " in plugin (%s), using default tuner instead.",
+            NCCL_TUNER_PLUGIN.c_str());
         dlclose(tunerPluginLib);
         tunerPluginLib = nullptr;
       } else {

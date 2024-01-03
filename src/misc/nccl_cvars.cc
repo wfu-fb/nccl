@@ -272,6 +272,8 @@ int64_t NCCL_TOPO_DUMP_FILE_RANK;
 int64_t NCCL_TOPO_DUMP_FILE_RANK_DEFAULT;
 std::string NCCL_TOPO_FILE;
 std::string NCCL_TOPO_FILE_DEFAULT;
+std::string NCCL_TUNER_PLUGIN;
+std::string NCCL_TUNER_PLUGIN_DEFAULT;
 int64_t NCCL_WORK_FIFO_DEPTH;
 int64_t NCCL_WORK_FIFO_DEPTH_DEFAULT;
 
@@ -406,6 +408,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_TOPO_DUMP_FILE");
   env.insert("NCCL_TOPO_DUMP_FILE_RANK");
   env.insert("NCCL_TOPO_FILE");
+  env.insert("NCCL_TUNER_PLUGIN");
   env.insert("NCCL_WORK_FIFO_DEPTH");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
@@ -936,6 +939,9 @@ void readCvarEnv() {
 
   NCCL_TOPO_FILE = env2str("NCCL_TOPO_FILE", "/var/run/nvidia-topologyd/virtualTopology.xml");
   NCCL_TOPO_FILE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "/var/run/nvidia-topologyd/virtualTopology.xml");
+
+  NCCL_TUNER_PLUGIN = env2str("NCCL_TUNER_PLUGIN", "");
+  NCCL_TUNER_PLUGIN_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   NCCL_WORK_FIFO_DEPTH = env2num<int64_t>("NCCL_WORK_FIFO_DEPTH", "65536");
   NCCL_WORK_FIFO_DEPTH_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "65536");

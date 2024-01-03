@@ -3081,6 +3081,18 @@ TEST_F(CvarTest, NCCL_TOPO_FILE_default_value) {
   EXPECT_EQ(NCCL_TOPO_FILE, "/var/run/nvidia-topologyd/virtualTopology.xml");
 }
 
+TEST_F(CvarTest, NCCL_TUNER_PLUGIN_value_0) {
+  setenv("NCCL_TUNER_PLUGIN", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_TUNER_PLUGIN, "val1");
+}
+
+TEST_F(CvarTest, NCCL_TUNER_PLUGIN_value_1) {
+  setenv("NCCL_TUNER_PLUGIN", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_TUNER_PLUGIN, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_WORK_FIFO_DEPTH_value_0) {
   testNumValue<int64_t>("NCCL_WORK_FIFO_DEPTH", 0);
   EXPECT_EQ(NCCL_WORK_FIFO_DEPTH, 0);
