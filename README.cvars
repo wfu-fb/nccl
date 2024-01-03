@@ -684,6 +684,17 @@ Description:
 Type: int64_t
 Default: 16
 
+NCCL_P2P_DIRECT_DISABLE
+Description:
+    The NCCL_P2P_DIRECT_DISABLE variable forbids NCCL to directly
+    access user buffers through P2P between GPUs of the same process.
+    This is useful when user buffers are allocated with APIs which do
+    not automatically make them accessible to other GPUs managed by
+    the same process and with P2P access. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-direct-disable
+Type: int64_t
+Default: 0
+
 NCCL_P2P_NET_CHUNKSIZE
 Description:
     The NCCL_P2P_NET_CHUNKSIZE controls the size of messages sent
@@ -715,6 +726,19 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-pxn-level
 Type: int64_t
 Default: 2
+
+NCCL_P2P_READ_ENABLE
+Description:
+    Setting this to non zero causes P2P to use Reads rather than
+    Writes.
+Type: int64_t
+Default: -2
+
+NCCL_P2P_USE_CUDA_MEMCPY
+Description:
+    CE memcpy support.
+Type: int64_t
+Default: 0
 
 NCCL_PROGRESS_APPENDOP_FREQ
 Description:

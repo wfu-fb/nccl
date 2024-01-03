@@ -2227,6 +2227,26 @@ TEST_F(CvarTest, NCCL_NVLS_NCHANNELS_default_value) {
   EXPECT_EQ(NCCL_NVLS_NCHANNELS, 16);
 }
 
+TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_0) {
+  testNumValue<int64_t>("NCCL_P2P_DIRECT_DISABLE", 0);
+  EXPECT_EQ(NCCL_P2P_DIRECT_DISABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_1) {
+  testNumValue<int64_t>("NCCL_P2P_DIRECT_DISABLE", 9999);
+  EXPECT_EQ(NCCL_P2P_DIRECT_DISABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_2) {
+  testNumValue<int64_t>("NCCL_P2P_DIRECT_DISABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_P2P_DIRECT_DISABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_3) {
+  testNumValue<int64_t>("NCCL_P2P_DIRECT_DISABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_P2P_DIRECT_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_P2P_NET_CHUNKSIZE_value_0) {
   testNumValue<int64_t>("NCCL_P2P_NET_CHUNKSIZE", 0);
   EXPECT_EQ(NCCL_P2P_NET_CHUNKSIZE, 0);
@@ -2325,6 +2345,51 @@ TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_value_3) {
 TEST_F(CvarTest, NCCL_P2P_PXN_LEVEL_default_value) {
   testDefaultValue("NCCL_P2P_PXN_LEVEL");
   EXPECT_EQ(NCCL_P2P_PXN_LEVEL, 2);
+}
+
+TEST_F(CvarTest, NCCL_P2P_READ_ENABLE_value_0) {
+  testNumValue<int64_t>("NCCL_P2P_READ_ENABLE", 0);
+  EXPECT_EQ(NCCL_P2P_READ_ENABLE, 0);
+}
+
+TEST_F(CvarTest, NCCL_P2P_READ_ENABLE_value_1) {
+  testNumValue<int64_t>("NCCL_P2P_READ_ENABLE", 9999);
+  EXPECT_EQ(NCCL_P2P_READ_ENABLE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_P2P_READ_ENABLE_value_2) {
+  testNumValue<int64_t>("NCCL_P2P_READ_ENABLE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_P2P_READ_ENABLE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_P2P_READ_ENABLE_value_3) {
+  testNumValue<int64_t>("NCCL_P2P_READ_ENABLE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_P2P_READ_ENABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_P2P_READ_ENABLE_default_value) {
+  testDefaultValue("NCCL_P2P_READ_ENABLE");
+  EXPECT_EQ(NCCL_P2P_READ_ENABLE, -2);
+}
+
+TEST_F(CvarTest, NCCL_P2P_USE_CUDA_MEMCPY_value_0) {
+  testNumValue<int64_t>("NCCL_P2P_USE_CUDA_MEMCPY", 0);
+  EXPECT_EQ(NCCL_P2P_USE_CUDA_MEMCPY, 0);
+}
+
+TEST_F(CvarTest, NCCL_P2P_USE_CUDA_MEMCPY_value_1) {
+  testNumValue<int64_t>("NCCL_P2P_USE_CUDA_MEMCPY", 9999);
+  EXPECT_EQ(NCCL_P2P_USE_CUDA_MEMCPY, 9999);
+}
+
+TEST_F(CvarTest, NCCL_P2P_USE_CUDA_MEMCPY_value_2) {
+  testNumValue<int64_t>("NCCL_P2P_USE_CUDA_MEMCPY", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_P2P_USE_CUDA_MEMCPY, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_P2P_USE_CUDA_MEMCPY_value_3) {
+  testNumValue<int64_t>("NCCL_P2P_USE_CUDA_MEMCPY", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_P2P_USE_CUDA_MEMCPY, std::numeric_limits<int64_t>::min());
 }
 
 TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_value_0) {
