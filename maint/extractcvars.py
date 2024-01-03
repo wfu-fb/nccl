@@ -159,7 +159,7 @@ class bool(basetype):
         if self.default:
             indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
             indent(file, "testDefaultValue(\"%s\");" % (self.name))
-            func = "EXPECT_TRUE" if self.default == "true" else "EXPECT_FALSE"
+            func = "EXPECT_TRUE" if self.default == True else "EXPECT_FALSE"
             indent(file, "%s(%s);" % (func, self.name))
             indent(file, "}")
             file.write("\n")
