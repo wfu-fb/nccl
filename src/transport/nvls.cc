@@ -11,6 +11,29 @@
 #include "utils.h"
 #include "proxy.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NVLS_ENABLE
+   type        : int64_t
+   default     : 2
+   description : |-
+     Enable the use of NVLink SHARP (NVLS). NVLink SHARP is available
+     in third-generation NVSwitch systems (NVLink4) with Hopper and
+     later GPU architectures, allowing collectives such as
+     ncclAllReduce to be offloaded to the NVSwitch domain. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvls-enable
+
+ - name        : NCCL_NVLS_NCHANNELS
+   type        : int64_t
+   default     : 16
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 #if CUDART_VERSION >= 12010
 
 // Currently we only support POSIX_FILE_DESCRIPTOR handle exchange
@@ -227,16 +250,13 @@ ncclResult_t nvlsGroupUnmapMem(struct ncclComm *comm, struct ncclNvlsSharedRes* 
 
 #define NVLS_MEM_ALIGN_SIZE (1 << 21)
 
-NCCL_PARAM(NvlsEnable, "NVLS_ENABLE", 2);
-NCCL_PARAM(NvlsChannels, "NVLS_NCHANNELS", 16);
-
 ncclResult_t ncclNvlsInit(struct ncclComm* comm) {
   comm->nvlsSupport = 0;
   comm->nvlsChannels = 0;
 
   int gpuCount;
   NCCLCHECK(ncclTopoGetGpuCount(comm->topo, &gpuCount));
-  if (!ncclParamNvlsEnable() || gpuCount <= 2) return ncclSuccess;
+  if (!NCCL_NVLS_ENABLE || gpuCount <= 2) return ncclSuccess;
 
   CUdevice dev;
   int driverVersion;
@@ -244,7 +264,7 @@ ncclResult_t ncclNvlsInit(struct ncclComm* comm) {
   if (CUPFN(cuDeviceGet) == NULL) return ncclSuccess;
   CUCHECK(cuCtxGetDevice(&dev));
   CUDACHECK(cudaDriverGetVersion(&driverVersion));
-  if (ncclParamNvlsEnable() == 2) {
+  if (NCCL_NVLS_ENABLE == 2) {
     // NVLS Multicast support requires CUDA12.1 UMD + KMD
     if (CUPFN(cuMulticastCreate) != NULL /*&& driverVersion >= 12010 */) {
       CUCHECK(cuDeviceGetAttribute(&comm->nvlsSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, dev));
@@ -254,7 +274,7 @@ ncclResult_t ncclNvlsInit(struct ncclComm* comm) {
   }
 
   INFO(NCCL_INIT, "NVLS multicast support is %savailable on dev %d", comm->nvlsSupport ? "" : "not ", dev);
-  if (comm->nvlsSupport == 1) comm->nvlsChannels = std::max(comm->config.minCTAs, std::min(comm->config.maxCTAs, (int)ncclParamNvlsChannels()));
+  if (comm->nvlsSupport == 1) comm->nvlsChannels = std::max(comm->config.minCTAs, std::min(comm->config.maxCTAs, (int)NCCL_NVLS_NCHANNELS));
   return ncclSuccess;
 }
 

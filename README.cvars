@@ -667,6 +667,23 @@ Description:
 Type: int64_t
 Default: 1
 
+NCCL_NVLS_ENABLE
+Description:
+    Enable the use of NVLink SHARP (NVLS). NVLink SHARP is available
+    in third-generation NVSwitch systems (NVLink4) with Hopper and
+    later GPU architectures, allowing collectives such as
+    ncclAllReduce to be offloaded to the NVSwitch domain. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvls-enable
+Type: int64_t
+Default: 2
+
+NCCL_NVLS_NCHANNELS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 16
+
 NCCL_P2P_NET_CHUNKSIZE
 Description:
     The NCCL_P2P_NET_CHUNKSIZE controls the size of messages sent
