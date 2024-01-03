@@ -35,6 +35,18 @@
      For more information:
      https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-pxn-level
 
+ - name        : NCCL_GRAPH_FILE
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_GRAPH_DUMP_FILE
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -838,12 +850,11 @@ ncclResult_t ncclTopoCompute(ncclTopoSystem* system, struct ncclTopoGraph* graph
   int trySameChannels = graph->pattern == NCCL_TOPO_PATTERN_NVLS ? 0 : 1;
   graph->sameChannels = trySameChannels;
 
-  const char* str = ncclGetEnv("NCCL_GRAPH_FILE");
-  if (str) {
-    INFO(NCCL_ENV, "NCCL_GRAPH_FILE set by environment to %s", str);
+  if (!NCCL_GRAPH_FILE.empty()) {
+    INFO(NCCL_ENV, "NCCL_GRAPH_FILE set by environment to %s", NCCL_GRAPH_FILE.c_str());
     struct ncclXml* xml;
     NCCLCHECK(ncclCalloc(&xml, 1));
-    NCCLCHECK(ncclTopoGetXmlGraphFromFile(str, xml));
+    NCCLCHECK(ncclTopoGetXmlGraphFromFile(NCCL_GRAPH_FILE.c_str(), xml));
     int nChannels;
     NCCLCHECK(ncclTopoGetGraphFromXml(xml->nodes, system, graph, &nChannels));
     INFO(NCCL_GRAPH, "Search %d : %d channels loaded from XML graph", graph->id, nChannels);
@@ -1031,13 +1042,12 @@ ncclResult_t ncclTopoPrintGraph(struct ncclTopoSystem* system, struct ncclTopoGr
 }
 
 ncclResult_t ncclTopoDumpGraphs(struct ncclTopoSystem* system, int ngraphs, struct ncclTopoGraph** graphs) {
-  const char* str = ncclGetEnv("NCCL_GRAPH_DUMP_FILE");
-  if (str) {
-    INFO(NCCL_ENV, "NCCL_GRAPH_DUMP_FILE set by environment to %s", str);
+  if (!NCCL_GRAPH_DUMP_FILE.empty()) {
+    INFO(NCCL_ENV, "NCCL_GRAPH_DUMP_FILE set by environment to %s", NCCL_GRAPH_DUMP_FILE.c_str());
     struct ncclXml* xml;
     NCCLCHECK(ncclCalloc(&xml, 1));
     NCCLCHECK(ncclTopoGetXmlFromGraphs(ngraphs, graphs, system, xml));
-    NCCLCHECK(ncclTopoDumpXmlToFile(str, xml));
+    NCCLCHECK(ncclTopoDumpXmlToFile(NCCL_GRAPH_DUMP_FILE.c_str(), xml));
     free(xml);
   }
   return ncclSuccess;

@@ -371,11 +371,23 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_GRAPH_DUMP_FILE
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
 NCCL_GRAPH_DUMP_FILE_RANK
 Description:
     Hidden variable. No description provided.
 Type: int64_t
 Default: 0
+
+NCCL_GRAPH_FILE
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
 
 NCCL_GRAPH_MIXING_SUPPORT
 Description:
