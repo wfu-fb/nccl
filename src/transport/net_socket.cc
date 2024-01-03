@@ -16,6 +16,34 @@
 #include <limits.h>
 #include <fcntl.h>
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NSOCKS_PERTHREAD
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_NSOCKS_PERTHREAD variable specifies the number of
+     sockets opened by each helper thread of the socket transport. In
+     environments where per-socket speed is limited, setting this
+     variable larger than 1 may improve the network performance. For
+     more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nsocks-perthread
+
+ - name        : NCCL_SOCKET_NTHREADS
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_SOCKET_NTHREADS variable specifies the number of CPU
+     helper threads used per network connection for socket transport.
+     Increasing this value may increase the socket transport
+     performance, at the cost of higher CPU usage. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-nthreads
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 /* Init functions */
 static int ncclNetIfs = -1;
 struct ncclNetSocketDev {
@@ -110,9 +138,6 @@ ncclResult_t ncclNetSocketGetProperties(int dev, ncclNetProperties_t* props) {
 #define MAX_THREADS 16
 #define MAX_REQUESTS NCCL_NET_MAX_REQUESTS
 #define MIN_CHUNKSIZE (64*1024)
-
-NCCL_PARAM(SocketNsocksPerThread, "NSOCKS_PERTHREAD", -2);
-NCCL_PARAM(SocketNthreads, "SOCKET_NTHREADS", -2);
 
 enum ncclNetSocketCommState {
   ncclNetSocketCommStateStart = 0,
@@ -232,8 +257,8 @@ void* persistentSocketThread(void *args_) {
 }
 
 ncclResult_t ncclNetSocketGetNsockNthread(int dev, int* ns, int* nt) {
-  int nSocksPerThread = ncclParamSocketNsocksPerThread();
-  int nThreads = ncclParamSocketNthreads();
+  int nSocksPerThread = NCCL_NSOCKS_PERTHREAD;
+  int nThreads = NCCL_SOCKET_NTHREADS;
   if (nThreads > MAX_THREADS) {
     WARN("NET/Socket : NCCL_SOCKET_NTHREADS is greater than the maximum allowed, setting to %d", MAX_THREADS);
     nThreads = MAX_THREADS;

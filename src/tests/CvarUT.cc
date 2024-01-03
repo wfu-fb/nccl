@@ -2082,6 +2082,31 @@ TEST_F(CvarTest, NCCL_NET_SHARED_COMMS_default_value) {
   EXPECT_EQ(NCCL_NET_SHARED_COMMS, 1);
 }
 
+TEST_F(CvarTest, NCCL_NSOCKS_PERTHREAD_value_0) {
+  testNumValue<int64_t>("NCCL_NSOCKS_PERTHREAD", 0);
+  EXPECT_EQ(NCCL_NSOCKS_PERTHREAD, 0);
+}
+
+TEST_F(CvarTest, NCCL_NSOCKS_PERTHREAD_value_1) {
+  testNumValue<int64_t>("NCCL_NSOCKS_PERTHREAD", 9999);
+  EXPECT_EQ(NCCL_NSOCKS_PERTHREAD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_NSOCKS_PERTHREAD_value_2) {
+  testNumValue<int64_t>("NCCL_NSOCKS_PERTHREAD", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_NSOCKS_PERTHREAD, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_NSOCKS_PERTHREAD_value_3) {
+  testNumValue<int64_t>("NCCL_NSOCKS_PERTHREAD", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_NSOCKS_PERTHREAD, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_NSOCKS_PERTHREAD_default_value) {
+  testDefaultValue("NCCL_NSOCKS_PERTHREAD");
+  EXPECT_EQ(NCCL_NSOCKS_PERTHREAD, -2);
+}
+
 TEST_F(CvarTest, NCCL_NTHREADS_value_0) {
   testNumValue<int64_t>("NCCL_NTHREADS", 0);
   EXPECT_EQ(NCCL_NTHREADS, 0);
@@ -2387,6 +2412,31 @@ TEST_F(CvarTest, NCCL_SET_STACK_SIZE_value_2) {
 TEST_F(CvarTest, NCCL_SET_STACK_SIZE_value_3) {
   testNumValue<int64_t>("NCCL_SET_STACK_SIZE", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_SET_STACK_SIZE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_value_0) {
+  testNumValue<int64_t>("NCCL_SOCKET_NTHREADS", 0);
+  EXPECT_EQ(NCCL_SOCKET_NTHREADS, 0);
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_value_1) {
+  testNumValue<int64_t>("NCCL_SOCKET_NTHREADS", 9999);
+  EXPECT_EQ(NCCL_SOCKET_NTHREADS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_value_2) {
+  testNumValue<int64_t>("NCCL_SOCKET_NTHREADS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_SOCKET_NTHREADS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_value_3) {
+  testNumValue<int64_t>("NCCL_SOCKET_NTHREADS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_SOCKET_NTHREADS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_default_value) {
+  testDefaultValue("NCCL_SOCKET_NTHREADS");
+  EXPECT_EQ(NCCL_SOCKET_NTHREADS, -2);
 }
 
 TEST_F(CvarTest, NCCL_TOPO_DUMP_FILE_RANK_value_0) {

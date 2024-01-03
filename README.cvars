@@ -633,6 +633,17 @@ Description:
 Type: int64_t
 Default: 1
 
+NCCL_NSOCKS_PERTHREAD
+Description:
+    The NCCL_NSOCKS_PERTHREAD variable specifies the number of
+    sockets opened by each helper thread of the socket transport. In
+    environments where per-socket speed is limited, setting this
+    variable larger than 1 may improve the network performance. For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nsocks-perthread
+Type: int64_t
+Default: -2
+
 NCCL_NTHREADS
 Description:
     The NCCL_NTHREADS variable sets the number of CUDA threads per
@@ -730,6 +741,17 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-stack-size
 Type: int64_t
 Default: 0
+
+NCCL_SOCKET_NTHREADS
+Description:
+    The NCCL_SOCKET_NTHREADS variable specifies the number of CPU
+    helper threads used per network connection for socket transport.
+    Increasing this value may increase the socket transport
+    performance, at the cost of higher CPU usage. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-nthreads
+Type: int64_t
+Default: -2
 
 NCCL_TOPO_DUMP_FILE_RANK
 Description:
