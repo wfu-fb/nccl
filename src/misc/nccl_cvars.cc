@@ -10,6 +10,8 @@
 #include "nccl_cvars.h"
 #include "nccl_cvars_base.h"
 
+std::string CUDA_LAUNCH_BLOCKING;
+std::string CUDA_LAUNCH_BLOCKING_DEFAULT;
 int64_t NCCL_AGG_CHANNEL_SIZE;
 int64_t NCCL_AGG_CHANNEL_SIZE_DEFAULT;
 std::string NCCL_ALGO;
@@ -74,6 +76,8 @@ std::string NCCL_CTRAN_TOPO_FILE;
 std::string NCCL_CTRAN_TOPO_FILE_DEFAULT;
 std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS;
 std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS_DEFAULT;
+std::string NCCL_CUDA_PATH;
+std::string NCCL_CUDA_PATH_DEFAULT;
 int64_t NCCL_CUMEM_ENABLE;
 int64_t NCCL_CUMEM_ENABLE_DEFAULT;
 int NCCL_DDA2_ALLREDUCE_MAX_BLOCKS;
@@ -280,6 +284,7 @@ int64_t NCCL_WORK_FIFO_DEPTH;
 int64_t NCCL_WORK_FIFO_DEPTH_DEFAULT;
 
 void initEnvSet(std::unordered_set<std::string>& env) {
+  env.insert("CUDA_LAUNCH_BLOCKING");
   env.insert("NCCL_AGG_CHANNEL_SIZE");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_ALLGATHER_ALGO");
@@ -312,6 +317,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT");
   env.insert("NCCL_CTRAN_TOPO_FILE");
   env.insert("NCCL_CTRAN_TOPO_FILE_KEYS");
+  env.insert("NCCL_CUDA_PATH");
   env.insert("NCCL_CUMEM_ENABLE");
   env.insert("NCCL_DDA2_ALLREDUCE_MAX_BLOCKS");
   env.insert("NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD");
@@ -450,6 +456,9 @@ void initEnvSet(std::unordered_set<std::string>& env) {
 }
 
 void readCvarEnv() {
+  CUDA_LAUNCH_BLOCKING = env2str("CUDA_LAUNCH_BLOCKING", "");
+  CUDA_LAUNCH_BLOCKING_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
   NCCL_AGG_CHANNEL_SIZE = env2num<int64_t>("NCCL_AGG_CHANNEL_SIZE", "-2");
   NCCL_AGG_CHANNEL_SIZE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
 
@@ -623,6 +632,9 @@ void readCvarEnv() {
   NCCL_CTRAN_TOPO_FILE_KEYS = env2strlist("NCCL_CTRAN_TOPO_FILE_KEYS", "");
   NCCL_CTRAN_TOPO_FILE_KEYS_DEFAULT.clear();
   NCCL_CTRAN_TOPO_FILE_KEYS_DEFAULT = env2strlist("NCCL_ENV_DO_NOT_SET", "");
+
+  NCCL_CUDA_PATH = env2str("NCCL_CUDA_PATH", "");
+  NCCL_CUDA_PATH_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   NCCL_CUMEM_ENABLE = env2num<int64_t>("NCCL_CUMEM_ENABLE", "0");
   NCCL_CUMEM_ENABLE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");

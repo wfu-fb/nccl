@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+extern std::string CUDA_LAUNCH_BLOCKING;
+extern std::string CUDA_LAUNCH_BLOCKING_DEFAULT;
+
 extern int64_t NCCL_AGG_CHANNEL_SIZE;
 extern int64_t NCCL_AGG_CHANNEL_SIZE_DEFAULT;
 
@@ -132,6 +135,9 @@ extern std::string NCCL_CTRAN_TOPO_FILE_DEFAULT;
 
 extern std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS;
 extern std::vector<std::string> NCCL_CTRAN_TOPO_FILE_KEYS_DEFAULT;
+
+extern std::string NCCL_CUDA_PATH;
+extern std::string NCCL_CUDA_PATH_DEFAULT;
 
 extern int64_t NCCL_CUMEM_ENABLE;
 extern int64_t NCCL_CUMEM_ENABLE_DEFAULT;
