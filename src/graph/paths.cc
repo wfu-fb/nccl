@@ -80,6 +80,38 @@
    description : |-
      Hidden variable. No description provided.
 
+ - name        : NCCL_P2P_DISABLE
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_P2P_DISABLE variable disables the peer to peer (P2P)
+     transport, which uses CUDA direct access between GPUs, using NVLink
+     or PCI. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-disable
+
+ - name        : NCCL_P2P_LEVEL
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_P2P_LEVEL variable allows the user to finely control
+     when to use the peer to peer (P2P) transport between GPUs. The
+     level defines the maximum distance between GPUs where NCCL will
+     use the P2P transport. A short string representing the path type
+     should be used to specify the topographical cutoff for using the
+     P2P transport. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-level
+
+ - name        : NCCL_NET_GDR_LEVEL
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_NET_GDR_LEVEL variable allows the user to finely control
+     when to use GPU Direct RDMA between a NIC and a GPU. The level
+     defines the maximum distance between the NIC and the GPU. A
+     string representing the path type should be used to specify the
+     topographical cutoff for GpuDirect. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-gdr-level-formerly-nccl-ib-gdr-level
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -278,21 +310,17 @@ static void ncclTopoRemovePathType(struct ncclTopoSystem* system, int nodeType) 
 }
 
 static const int levelsOldToNew[] = { PATH_LOC, PATH_PIX, PATH_PXB, PATH_PHB, PATH_SYS, PATH_SYS };
-ncclResult_t ncclGetLevel(int* level, const char* disableEnv, const char* levelEnv) {
+ncclResult_t ncclGetLevel(int* level, std::string disableEnv, std::string levelEnv) {
   if (*level == -1) {
     int l = -1;
-    if (disableEnv) {
-      const char* str = ncclGetEnv(disableEnv);
-      if (str) {
-        int disable = strtol(str, NULL, 0);
-        if (disable == 1) l = 0;
-      }
+    if (!disableEnv.empty()) {
+      int disable = std::stol(disableEnv);
+      if (disable == 1) l = 0;
     }
     if (l == -1) {
-      const char* str = ncclGetEnv(levelEnv);
-      if (str) {
+      if (!levelEnv.empty()) {
         for (int i=0; i<=PATH_SYS; i++) {
-          if (strcmp(str, topoPathTypeStr[i]) == 0) {
+          if (levelEnv == topoPathTypeStr[i]) {
             l = i;
             break;
           }
@@ -301,15 +329,15 @@ ncclResult_t ncclGetLevel(int* level, const char* disableEnv, const char* levelE
         // levelsOldToNew to is an array with each index corresponding to the
         // "old level" int, and each value mapping to the correct value defined in topo.h
         // maxOldLevel is a quick check to handle out of bounds (based on the length of levelsOldToNew)
-        if (l == -1 && str[0] >= '0' && str[0] <= '9') {
-          int oldLevel = strtol(str, NULL, 0);
+        if (l == -1 && levelEnv[0] >= '0' && levelEnv[0] <= '9') {
+          int oldLevel = std::stol(levelEnv);
           const int maxOldLevel = sizeof(levelsOldToNew)/sizeof(int) - 1;
           if (oldLevel > maxOldLevel) oldLevel = maxOldLevel;
           l = levelsOldToNew[oldLevel];
         }
       }
     }
-    if (l >= 0) INFO(NCCL_ALL, "%s set by environment to %s", levelEnv, topoPathTypeStr[l]);
+    if (l >= 0) INFO(NCCL_ALL, "%s set by environment to %s", levelEnv.c_str(), topoPathTypeStr[l]);
     *level = l >= 0 ? l : -2;
   }
   return ncclSuccess;
@@ -346,7 +374,7 @@ ncclResult_t ncclTopoCheckP2p(struct ncclTopoSystem* system, int64_t id1, int64_
 
   // User override
   if (ncclTopoUserP2pLevel == -1)
-    NCCLCHECK(ncclGetLevel(&ncclTopoUserP2pLevel, "NCCL_P2P_DISABLE", "NCCL_P2P_LEVEL"));
+    NCCLCHECK(ncclGetLevel(&ncclTopoUserP2pLevel, NCCL_P2P_DISABLE, NCCL_P2P_LEVEL));
   if (ncclTopoUserP2pLevel != -2) {
     p2pLevel = ncclTopoUserP2pLevel;
     goto compare;
@@ -445,7 +473,7 @@ ncclResult_t ncclTopoCheckGdr(struct ncclTopoSystem* system, int64_t busId, int 
 
   // Check if we are close enough that it makes sense to enable GDR
   int netGdrLevel = PATH_PXB;
-  NCCLCHECK(ncclGetLevel(&ncclTopoUserGdrLevel, NULL, "NCCL_NET_GDR_LEVEL"));
+  NCCLCHECK(ncclGetLevel(&ncclTopoUserGdrLevel, "", NCCL_NET_GDR_LEVEL));
   if (ncclTopoUserGdrLevel != -2) netGdrLevel = ncclTopoUserGdrLevel;
   int distance = gpu->paths[NET][n].type;
   if (distance == PATH_PXN) {

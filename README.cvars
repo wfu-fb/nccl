@@ -699,6 +699,17 @@ Description:
 Type: int64_t
 Default: 1
 
+NCCL_NET_GDR_LEVEL
+Description:
+    The NCCL_NET_GDR_LEVEL variable allows the user to finely control
+    when to use GPU Direct RDMA between a NIC and a GPU. The level
+    defines the maximum distance between the NIC and the GPU. A
+    string representing the path type should be used to specify the
+    topographical cutoff for GpuDirect. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-gdr-level-formerly-nccl-ib-gdr-level
+Type: string
+Default: 
+
 NCCL_NET_GDR_READ
 Description:
     The NCCL_NET_GDR_READ variable enables GPU Direct RDMA when
@@ -799,6 +810,27 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-direct-disable
 Type: int64_t
 Default: 0
+
+NCCL_P2P_DISABLE
+Description:
+    The NCCL_P2P_DISABLE variable disables the peer to peer (P2P)
+    transport, which uses CUDA direct access between GPUs, using NVLink
+    or PCI. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-disable
+Type: string
+Default: 
+
+NCCL_P2P_LEVEL
+Description:
+    The NCCL_P2P_LEVEL variable allows the user to finely control
+    when to use the peer to peer (P2P) transport between GPUs. The
+    level defines the maximum distance between GPUs where NCCL will
+    use the P2P transport. A short string representing the path type
+    should be used to specify the topographical cutoff for using the
+    P2P transport. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-level
+Type: string
+Default: 
 
 NCCL_P2P_LL_THRESHOLD
 Description:

@@ -186,6 +186,8 @@ int64_t NCCL_NET_DISABLE_INTRA;
 int64_t NCCL_NET_DISABLE_INTRA_DEFAULT;
 int64_t NCCL_NET_FORCE_FLUSH;
 int64_t NCCL_NET_FORCE_FLUSH_DEFAULT;
+std::string NCCL_NET_GDR_LEVEL;
+std::string NCCL_NET_GDR_LEVEL_DEFAULT;
 int64_t NCCL_NET_GDR_READ;
 int64_t NCCL_NET_GDR_READ_DEFAULT;
 int64_t NCCL_NET_OVERHEAD;
@@ -208,6 +210,10 @@ int64_t NCCL_NVLS_NCHANNELS;
 int64_t NCCL_NVLS_NCHANNELS_DEFAULT;
 int64_t NCCL_P2P_DIRECT_DISABLE;
 int64_t NCCL_P2P_DIRECT_DISABLE_DEFAULT;
+std::string NCCL_P2P_DISABLE;
+std::string NCCL_P2P_DISABLE_DEFAULT;
+std::string NCCL_P2P_LEVEL;
+std::string NCCL_P2P_LEVEL_DEFAULT;
 int64_t NCCL_P2P_LL_THRESHOLD;
 int64_t NCCL_P2P_LL_THRESHOLD_DEFAULT;
 int64_t NCCL_P2P_NET_CHUNKSIZE;
@@ -347,6 +353,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_NCHANNELS_PER_NET_PEER");
   env.insert("NCCL_NET_DISABLE_INTRA");
   env.insert("NCCL_NET_FORCE_FLUSH");
+  env.insert("NCCL_NET_GDR_LEVEL");
   env.insert("NCCL_NET_GDR_READ");
   env.insert("NCCL_NET_OVERHEAD");
   env.insert("NCCL_NET_SHARED_BUFFERS");
@@ -358,6 +365,8 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_NVLS_ENABLE");
   env.insert("NCCL_NVLS_NCHANNELS");
   env.insert("NCCL_P2P_DIRECT_DISABLE");
+  env.insert("NCCL_P2P_DISABLE");
+  env.insert("NCCL_P2P_LEVEL");
   env.insert("NCCL_P2P_LL_THRESHOLD");
   env.insert("NCCL_P2P_NET_CHUNKSIZE");
   env.insert("NCCL_P2P_NVL_CHUNKSIZE");
@@ -773,6 +782,9 @@ void readCvarEnv() {
   NCCL_NET_FORCE_FLUSH = env2num<int64_t>("NCCL_NET_FORCE_FLUSH", "1");
   NCCL_NET_FORCE_FLUSH_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "1");
 
+  NCCL_NET_GDR_LEVEL = env2str("NCCL_NET_GDR_LEVEL", "");
+  NCCL_NET_GDR_LEVEL_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
   NCCL_NET_GDR_READ = env2num<int64_t>("NCCL_NET_GDR_READ", "-2");
   NCCL_NET_GDR_READ_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
 
@@ -805,6 +817,12 @@ void readCvarEnv() {
 
   NCCL_P2P_DIRECT_DISABLE = env2num<int64_t>("NCCL_P2P_DIRECT_DISABLE", "0");
   NCCL_P2P_DIRECT_DISABLE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");
+
+  NCCL_P2P_DISABLE = env2str("NCCL_P2P_DISABLE", "");
+  NCCL_P2P_DISABLE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
+  NCCL_P2P_LEVEL = env2str("NCCL_P2P_LEVEL", "");
+  NCCL_P2P_LEVEL_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   NCCL_P2P_LL_THRESHOLD = env2num<int64_t>("NCCL_P2P_LL_THRESHOLD", "16384");
   NCCL_P2P_LL_THRESHOLD_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "16384");

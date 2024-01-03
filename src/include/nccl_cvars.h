@@ -304,6 +304,9 @@ extern int64_t NCCL_NET_DISABLE_INTRA_DEFAULT;
 extern int64_t NCCL_NET_FORCE_FLUSH;
 extern int64_t NCCL_NET_FORCE_FLUSH_DEFAULT;
 
+extern std::string NCCL_NET_GDR_LEVEL;
+extern std::string NCCL_NET_GDR_LEVEL_DEFAULT;
+
 extern int64_t NCCL_NET_GDR_READ;
 extern int64_t NCCL_NET_GDR_READ_DEFAULT;
 
@@ -336,6 +339,12 @@ extern int64_t NCCL_NVLS_NCHANNELS_DEFAULT;
 
 extern int64_t NCCL_P2P_DIRECT_DISABLE;
 extern int64_t NCCL_P2P_DIRECT_DISABLE_DEFAULT;
+
+extern std::string NCCL_P2P_DISABLE;
+extern std::string NCCL_P2P_DISABLE_DEFAULT;
+
+extern std::string NCCL_P2P_LEVEL;
+extern std::string NCCL_P2P_LEVEL_DEFAULT;
 
 extern int64_t NCCL_P2P_LL_THRESHOLD;
 extern int64_t NCCL_P2P_LL_THRESHOLD_DEFAULT;

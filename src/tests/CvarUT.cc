@@ -2205,6 +2205,18 @@ TEST_F(CvarTest, NCCL_NET_FORCE_FLUSH_default_value) {
   EXPECT_EQ(NCCL_NET_FORCE_FLUSH, 1);
 }
 
+TEST_F(CvarTest, NCCL_NET_GDR_LEVEL_value_0) {
+  setenv("NCCL_NET_GDR_LEVEL", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_NET_GDR_LEVEL, "val1");
+}
+
+TEST_F(CvarTest, NCCL_NET_GDR_LEVEL_value_1) {
+  setenv("NCCL_NET_GDR_LEVEL", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_NET_GDR_LEVEL, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_NET_GDR_READ_value_0) {
   testNumValue<int64_t>("NCCL_NET_GDR_READ", 0);
   EXPECT_EQ(NCCL_NET_GDR_READ, 0);
@@ -2468,6 +2480,30 @@ TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_2) {
 TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_3) {
   testNumValue<int64_t>("NCCL_P2P_DIRECT_DISABLE", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_P2P_DIRECT_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_P2P_DISABLE_value_0) {
+  setenv("NCCL_P2P_DISABLE", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_P2P_DISABLE, "val1");
+}
+
+TEST_F(CvarTest, NCCL_P2P_DISABLE_value_1) {
+  setenv("NCCL_P2P_DISABLE", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_P2P_DISABLE, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_P2P_LEVEL_value_0) {
+  setenv("NCCL_P2P_LEVEL", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_P2P_LEVEL, "val1");
+}
+
+TEST_F(CvarTest, NCCL_P2P_LEVEL_value_1) {
+  setenv("NCCL_P2P_LEVEL", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_P2P_LEVEL, "val2_with_space");
 }
 
 TEST_F(CvarTest, NCCL_P2P_LL_THRESHOLD_value_0) {
