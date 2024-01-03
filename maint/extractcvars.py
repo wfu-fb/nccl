@@ -244,12 +244,9 @@ class string(basetype):
             file.write("\n")
 
     def readenv(self, file):
-        if (self.default != None):
-            indent(file, "%s = env2str(\"%s\", \"%s\");" %
-                (self.name, self.envstr, self.default))
-        else:
-            indent(file, "%s = env2str(\"%s\", nullptr);" %
-                (self.name, self.envstr))
+        default = self.default if self.default else ""
+        indent(file, "%s = env2str(\"%s\", \"%s\");" %
+            (self.name, self.envstr, default))
         file.write("\n")
 
 
@@ -292,13 +289,10 @@ class stringlist(basetype):
         self.dupValUnitTest(file)
 
     def readenv(self, file):
+        default = self.default if self.default else ""
         indent(file, "%s.clear();" % self.name)
-        if (self.default != None):
-            indent(file, "%s = env2strlist(\"%s\", \"%s\");" %
-                (self.name, self.envstr, self.default))
-        else:
-            indent(file, "%s = env2strlist(\"%s\", nullptr);" %
-                (self.name, self.envstr))
+        indent(file, "%s = env2strlist(\"%s\", \"%s\");" %
+            (self.name, self.envstr, default))
         file.write("\n")
 
 class prefixedStringlist(stringlist):
