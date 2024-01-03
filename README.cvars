@@ -128,6 +128,13 @@ Description:
 Type: int64_t
 Default: 2
 
+NCCL_COLLTRACE_LOCAL_SUBDIR
+Description:
+    If this parameter is set, then the profiling data is written to a
+    file.
+Type: string
+Default: 
+
 NCCL_COMM_BLOCKING
 Description:
     The NCCL_COMM_BLOCKING variable controls whether NCCL calls are

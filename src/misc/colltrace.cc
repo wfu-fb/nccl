@@ -11,6 +11,19 @@
 #include <string>
 #include <fstream>
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_COLLTRACE_LOCAL_SUBDIR
+   type        : string
+   default     : ""
+   description : |-
+     If this parameter is set, then the profiling data is written to a
+     file.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 #ifndef COLLTRACE_IO_FB_POST_RUN
 #define COLLTRACE_IO_FB_POST_RUN
 #define COLLTRACE_IO_FB_DURING_RUN
@@ -33,11 +46,9 @@ void CollTrace::outputResults(){
   std::string fileName = std::to_string(rank_) + "_online.json";
 
   // If local env variable is set, then write profiling data to file
-  const char* subDirEnv = ncclGetEnv("NCCL_COLLTRACE_LOCAL_SUBDIR");
-  if(subDirEnv){
-    std::string localSubDir(subDirEnv);
-    INFO(NCCL_ALL, "Rank %lu: Writing %lu online profiler data to local directory: %s", rank_, results_.size(), localSubDir.c_str());
-    std::ofstream out(localSubDir + "/" + fileName);
+  if(!NCCL_COLLTRACE_LOCAL_SUBDIR.empty()){
+    INFO(NCCL_ALL, "Rank %lu: Writing %lu online profiler data to local directory: %s", rank_, results_.size(), NCCL_COLLTRACE_LOCAL_SUBDIR.c_str());
+    std::ofstream out(NCCL_COLLTRACE_LOCAL_SUBDIR + "/" + fileName);
     out << stream.str();
     out.close();
   }

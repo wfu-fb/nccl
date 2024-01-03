@@ -392,6 +392,18 @@ TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_default_value) {
   EXPECT_EQ(NCCL_COLLNET_NODE_THRESHOLD, 2);
 }
 
+TEST_F(CvarTest, NCCL_COLLTRACE_LOCAL_SUBDIR_value_0) {
+  setenv("NCCL_COLLTRACE_LOCAL_SUBDIR", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_COLLTRACE_LOCAL_SUBDIR, "val1");
+}
+
+TEST_F(CvarTest, NCCL_COLLTRACE_LOCAL_SUBDIR_value_1) {
+  setenv("NCCL_COLLTRACE_LOCAL_SUBDIR", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_COLLTRACE_LOCAL_SUBDIR, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_COMM_BLOCKING_value_0) {
   testNumValue<int64_t>("NCCL_COMM_BLOCKING", 0);
   EXPECT_EQ(NCCL_COMM_BLOCKING, 0);
