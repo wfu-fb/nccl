@@ -1423,6 +1423,18 @@ TEST_F(CvarTest, NCCL_GRAPH_REGISTER_value_3) {
   EXPECT_EQ(NCCL_GRAPH_REGISTER, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_HOSTID_value_0) {
+  setenv("NCCL_HOSTID", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_HOSTID, "val1");
+}
+
+TEST_F(CvarTest, NCCL_HOSTID_value_1) {
+  setenv("NCCL_HOSTID", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_HOSTID, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_0) {
   testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", 0);
   EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, 0);

@@ -120,6 +120,8 @@ int64_t NCCL_GRAPH_MIXING_SUPPORT;
 int64_t NCCL_GRAPH_MIXING_SUPPORT_DEFAULT;
 int64_t NCCL_GRAPH_REGISTER;
 int64_t NCCL_GRAPH_REGISTER_DEFAULT;
+std::string NCCL_HOSTID;
+std::string NCCL_HOSTID_DEFAULT;
 int64_t NCCL_IB_ADAPTIVE_ROUTING;
 int64_t NCCL_IB_ADAPTIVE_ROUTING_DEFAULT;
 int64_t NCCL_IB_AR_THRESHOLD;
@@ -333,6 +335,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_GRAPH_FILE");
   env.insert("NCCL_GRAPH_MIXING_SUPPORT");
   env.insert("NCCL_GRAPH_REGISTER");
+  env.insert("NCCL_HOSTID");
   env.insert("NCCL_IB_ADAPTIVE_ROUTING");
   env.insert("NCCL_IB_AR_THRESHOLD");
   env.insert("NCCL_IB_DISABLE");
@@ -689,6 +692,9 @@ void readCvarEnv() {
 
   NCCL_GRAPH_REGISTER = env2num<int64_t>("NCCL_GRAPH_REGISTER", "0");
   NCCL_GRAPH_REGISTER_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");
+
+  NCCL_HOSTID = env2str("NCCL_HOSTID", "");
+  NCCL_HOSTID_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   NCCL_IB_ADAPTIVE_ROUTING = env2num<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", "-2");
   NCCL_IB_ADAPTIVE_ROUTING_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
