@@ -1235,6 +1235,42 @@ TEST_F(CvarTest, NCCL_DDA_MAX_RANKS_default_value) {
   EXPECT_EQ(NCCL_DDA_MAX_RANKS, 16);
 }
 
+TEST_F(CvarTest, NCCL_DEBUG_value_0) {
+  setenv("NCCL_DEBUG", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DEBUG, "val1");
+}
+
+TEST_F(CvarTest, NCCL_DEBUG_value_1) {
+  setenv("NCCL_DEBUG", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DEBUG, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_DEBUG_FILE_value_0) {
+  setenv("NCCL_DEBUG_FILE", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DEBUG_FILE, "val1");
+}
+
+TEST_F(CvarTest, NCCL_DEBUG_FILE_value_1) {
+  setenv("NCCL_DEBUG_FILE", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DEBUG_FILE, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_DEBUG_SUBSYS_value_0) {
+  setenv("NCCL_DEBUG_SUBSYS", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DEBUG_SUBSYS, "val1");
+}
+
+TEST_F(CvarTest, NCCL_DEBUG_SUBSYS_value_1) {
+  setenv("NCCL_DEBUG_SUBSYS", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DEBUG_SUBSYS, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_DMABUF_ENABLE_value_0) {
   testNumValue<int64_t>("NCCL_DMABUF_ENABLE", 0);
   EXPECT_EQ(NCCL_DMABUF_ENABLE, 0);

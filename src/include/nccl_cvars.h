@@ -178,6 +178,15 @@ extern bool NCCL_DDA_FORCE_P2P_ACCESS_DEFAULT;
 extern int NCCL_DDA_MAX_RANKS;
 extern int NCCL_DDA_MAX_RANKS_DEFAULT;
 
+extern std::string NCCL_DEBUG;
+extern std::string NCCL_DEBUG_DEFAULT;
+
+extern std::string NCCL_DEBUG_FILE;
+extern std::string NCCL_DEBUG_FILE_DEFAULT;
+
+extern std::string NCCL_DEBUG_SUBSYS;
+extern std::string NCCL_DEBUG_SUBSYS_DEFAULT;
+
 extern int64_t NCCL_DMABUF_ENABLE;
 extern int64_t NCCL_DMABUF_ENABLE_DEFAULT;
 

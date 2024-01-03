@@ -104,6 +104,12 @@ bool NCCL_DDA_FORCE_P2P_ACCESS;
 bool NCCL_DDA_FORCE_P2P_ACCESS_DEFAULT;
 int NCCL_DDA_MAX_RANKS;
 int NCCL_DDA_MAX_RANKS_DEFAULT;
+std::string NCCL_DEBUG;
+std::string NCCL_DEBUG_DEFAULT;
+std::string NCCL_DEBUG_FILE;
+std::string NCCL_DEBUG_FILE_DEFAULT;
+std::string NCCL_DEBUG_SUBSYS;
+std::string NCCL_DEBUG_SUBSYS_DEFAULT;
 int64_t NCCL_DMABUF_ENABLE;
 int64_t NCCL_DMABUF_ENABLE_DEFAULT;
 int64_t NCCL_GDRCOPY_ENABLE;
@@ -339,6 +345,9 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_NVS");
   env.insert("NCCL_DDA_FORCE_P2P_ACCESS");
   env.insert("NCCL_DDA_MAX_RANKS");
+  env.insert("NCCL_DEBUG");
+  env.insert("NCCL_DEBUG_FILE");
+  env.insert("NCCL_DEBUG_SUBSYS");
   env.insert("NCCL_DMABUF_ENABLE");
   env.insert("NCCL_GDRCOPY_ENABLE");
   env.insert("NCCL_GDRCOPY_FIFO_ENABLE");
@@ -686,6 +695,15 @@ void readCvarEnv() {
 
   NCCL_DDA_MAX_RANKS = env2num<int>("NCCL_DDA_MAX_RANKS", "16");
   NCCL_DDA_MAX_RANKS_DEFAULT = env2num<int>("NCCL_ENV_DO_NOT_SET", "16");
+
+  NCCL_DEBUG = env2str("NCCL_DEBUG", "");
+  NCCL_DEBUG_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
+  NCCL_DEBUG_FILE = env2str("NCCL_DEBUG_FILE", "");
+  NCCL_DEBUG_FILE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
+  NCCL_DEBUG_SUBSYS = env2str("NCCL_DEBUG_SUBSYS", "");
+  NCCL_DEBUG_SUBSYS_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   NCCL_DMABUF_ENABLE = env2num<int64_t>("NCCL_DMABUF_ENABLE", "1");
   NCCL_DMABUF_ENABLE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "1");

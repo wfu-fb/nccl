@@ -372,6 +372,37 @@ Description:
 Type: int
 Default: 16
 
+NCCL_DEBUG
+Description:
+    The NCCL_DEBUG variable controls the debug information that is
+    displayed from NCCL. This variable is commonly used for
+    debugging. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug
+Type: string
+Default: 
+
+NCCL_DEBUG_FILE
+Description:
+    The NCCL_DEBUG_FILE variable directs the NCCL debug logging
+    output to a file. The filename format can be set to
+    filename.%h.%p where %h is replaced with the hostname and %p is
+    replaced with the process PID. This does not accept the "~"
+    character as part of the path, please convert to a relative or
+    absolute path first. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug-file
+Type: string
+Default: 
+
+NCCL_DEBUG_SUBSYS
+Description:
+    The NCCL_DEBUG_SUBSYS variable allows the user to filter the
+    NCCL_DEBUG=INFO output based on subsystems. A comma separated
+    list of the subsystems to include in the NCCL debug log traces.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug-subsys
+Type: string
+Default: 
+
 NCCL_DMABUF_ENABLE
 Description:
     Enable GPU Direct RDMA buffer registration using the Linux
