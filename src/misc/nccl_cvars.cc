@@ -244,8 +244,12 @@ int64_t NCCL_SHM_USE_CUDA_MEMCPY;
 int64_t NCCL_SHM_USE_CUDA_MEMCPY_DEFAULT;
 int64_t NCCL_SOCKET_NTHREADS;
 int64_t NCCL_SOCKET_NTHREADS_DEFAULT;
+std::string NCCL_TOPO_DUMP_FILE;
+std::string NCCL_TOPO_DUMP_FILE_DEFAULT;
 int64_t NCCL_TOPO_DUMP_FILE_RANK;
 int64_t NCCL_TOPO_DUMP_FILE_RANK_DEFAULT;
+std::string NCCL_TOPO_FILE;
+std::string NCCL_TOPO_FILE_DEFAULT;
 int64_t NCCL_WORK_FIFO_DEPTH;
 int64_t NCCL_WORK_FIFO_DEPTH_DEFAULT;
 
@@ -366,7 +370,9 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_SHM_MEMCPY_MODE");
   env.insert("NCCL_SHM_USE_CUDA_MEMCPY");
   env.insert("NCCL_SOCKET_NTHREADS");
+  env.insert("NCCL_TOPO_DUMP_FILE");
   env.insert("NCCL_TOPO_DUMP_FILE_RANK");
+  env.insert("NCCL_TOPO_FILE");
   env.insert("NCCL_WORK_FIFO_DEPTH");
   env.insert("NCCL_ALGO");
   env.insert("NCCL_COLLNET_ENABLE");
@@ -856,8 +862,14 @@ void readCvarEnv() {
   NCCL_SOCKET_NTHREADS = env2num<int64_t>("NCCL_SOCKET_NTHREADS", "-2");
   NCCL_SOCKET_NTHREADS_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
 
+  NCCL_TOPO_DUMP_FILE = env2str("NCCL_TOPO_DUMP_FILE", "");
+  NCCL_TOPO_DUMP_FILE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
   NCCL_TOPO_DUMP_FILE_RANK = env2num<int64_t>("NCCL_TOPO_DUMP_FILE_RANK", "0");
   NCCL_TOPO_DUMP_FILE_RANK_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");
+
+  NCCL_TOPO_FILE = env2str("NCCL_TOPO_FILE", "/var/run/nvidia-topologyd/virtualTopology.xml");
+  NCCL_TOPO_FILE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "/var/run/nvidia-topologyd/virtualTopology.xml");
 
   NCCL_WORK_FIFO_DEPTH = env2num<int64_t>("NCCL_WORK_FIFO_DEPTH", "65536");
   NCCL_WORK_FIFO_DEPTH_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "65536");

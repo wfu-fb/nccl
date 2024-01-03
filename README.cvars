@@ -941,11 +941,29 @@ Description:
 Type: int64_t
 Default: -2
 
+NCCL_TOPO_DUMP_FILE
+Description:
+    Path to an XML file to dump the topology after detection. For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-topo-dump-file
+Type: string
+Default: 
+
 NCCL_TOPO_DUMP_FILE_RANK
 Description:
     Hidden variable. No description provided.
 Type: int64_t
 Default: 0
+
+NCCL_TOPO_FILE
+Description:
+    Path to an XML file to load before detecting the topology. By
+    default, NCCL will load
+    /var/run/nvidia-topologyd/virtualTopology.xml if present. For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-topo-file
+Type: string
+Default: /var/run/nvidia-topologyd/virtualTopology.xml
 
 NCCL_WORK_FIFO_DEPTH
 Description:
