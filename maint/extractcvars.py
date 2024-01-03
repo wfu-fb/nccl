@@ -90,6 +90,10 @@ class basetype:
         self.default = cvar['default']
         self.description = cvar['description']
         self.type = cvar['type']
+        if 'envstr' in cvar:
+            self.envstr = cvar['envstr']
+        else:
+            self.envstr = self.name
         if 'choices' in cvar:
             self.choices = cvar['choices']
         else:
@@ -112,7 +116,11 @@ class basetype:
 
     def desc(self, file):
         file.write("\n")
-        file.write("%s\n" % self.name)
+        if self.name == self.envstr:
+            file.write("%s\n" % self.name)
+        else:
+            file.write("%s (internal variable within NCCL: %s)\n" %
+                (self.envstr, self.name))
         file.write("Description:\n")
         d = self.description.split("\n")
         for line in d:
@@ -122,15 +130,15 @@ class basetype:
 
     def unknownValUnitTest(self, file):
         indent(file, "TEST_F(CvarTest, %s_warn_unknown_val) {" % (self.name))
-        indent(file, "setenv(\"%s\", \"dummy\", 1);" % (self.name))
-        indent(file, "testWarn(\"%s\", \"Unknown value\");" % (self.name))
+        indent(file, "setenv(\"%s\", \"dummy\", 1);" % (self.envstr))
+        indent(file, "testWarn(\"%s\", \"Unknown value\");" % (self.envstr))
         indent(file, "}")
         file.write("\n")
 
     def dupValUnitTest(self, file):
         indent(file, "TEST_F(CvarTest, %s_warn_dup_val) {" % (self.name))
-        indent(file, "setenv(\"%s\", \"dummy,dummy\", 1);" % (self.name))
-        indent(file, "testWarn(\"%s\", \"Duplicate token\");" % (self.name))
+        indent(file, "setenv(\"%s\", \"dummy,dummy\", 1);" % (self.envstr))
+        indent(file, "testWarn(\"%s\", \"Duplicate token\");" % (self.envstr))
         indent(file, "}")
         file.write("\n")
 
@@ -142,7 +150,7 @@ class bool(basetype):
     def unitTest(self, file):
         for i, val in enumerate(["y", "yes", "true", "1"]):
             indent(file, "TEST_F(CvarTest, %s_value_y%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
+            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
             indent(file, "ncclCvarInit();")
             indent(file, "EXPECT_TRUE(%s);" % (self.name))
             indent(file, "}")
@@ -150,7 +158,7 @@ class bool(basetype):
 
         for i, val in enumerate(["n", "no", "false", "0"]):
             indent(file, "TEST_F(CvarTest, %s_value_n%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
+            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
             indent(file, "ncclCvarInit();")
             indent(file, "EXPECT_FALSE(%s);" % (self.name))
             indent(file, "}")
@@ -158,7 +166,7 @@ class bool(basetype):
 
         if self.default:
             indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             func = "EXPECT_TRUE" if self.default == True else "EXPECT_FALSE"
             indent(file, "%s(%s);" % (func, self.name))
             indent(file, "}")
@@ -168,7 +176,7 @@ class bool(basetype):
 
     def readenv(self, file):
         indent(file, "%s = env2bool(\"%s\", \"%s\");" %
-            (self.name, self.name, self.default))
+            (self.name, self.envstr, self.default))
         file.write("\n")
 
 
@@ -182,21 +190,21 @@ class numeric(basetype):
             "std::numeric_limits<%s>::max()" % self.type, \
             "std::numeric_limits<%s>::min()" % self.type]):
             indent(file, "TEST_F(CvarTest, %s_value_%s) {" % (self.name, i))
-            indent(file, "testNumValue<%s>(\"%s\", %s);" % (self.type, self.name, val))
+            indent(file, "testNumValue<%s>(\"%s\", %s);" % (self.type, self.envstr, val))
             indent(file, "EXPECT_EQ(%s, %s);" % (self.name, val))
             indent(file, "}")
             file.write("\n")
 
         if self.default:
             indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "EXPECT_EQ(%s, %s);" % (self.name, self.default))
             indent(file, "}")
             file.write("\n")
 
     def readenv(self, file):
         indent(file, "%s = env2num<%s>(\"%s\", \"%s\");" %
-            (self.name, self.type, self.name, self.default))
+            (self.name, self.type, self.envstr, self.default))
         file.write("\n")
 
 
@@ -215,7 +223,7 @@ class string(basetype):
     def unitTest(self, file):
         for i, val in enumerate(["val1", "  val2_with_space   "]):
             indent(file, "TEST_F(CvarTest, %s_value_%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
+            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
             indent(file, "ncclCvarInit();")
             indent(file, "EXPECT_EQ(%s, \"%s\");" % (self.name, val.strip()))
             indent(file, "}")
@@ -223,7 +231,7 @@ class string(basetype):
 
         if self.default:
             indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "EXPECT_EQ(%s, \"%s\");" % (self.name, self.default))
             indent(file, "}")
             file.write("\n")
@@ -231,10 +239,10 @@ class string(basetype):
     def readenv(self, file):
         if (self.default != None):
             indent(file, "%s = env2str(\"%s\", \"%s\");" %
-                (self.name, self.name, self.default))
+                (self.name, self.envstr, self.default))
         else:
             indent(file, "%s = env2str(\"%s\", nullptr);" %
-                (self.name, self.name))
+                (self.name, self.envstr))
         file.write("\n")
 
 
@@ -253,7 +261,7 @@ class stringlist(basetype):
     def unitTest(self, file):
         for i, val in enumerate(["val1,val2,val3", "val1:1,val2:2,val3:3", "val", "val1, val_w_space  "]):
             indent(file, "TEST_F(CvarTest, %s_valuelist_%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
+            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
             trimedVals = [v.strip() for v in val.split(",")]
             indent(file, "std::vector<std::string> vals{\"%s\"};" % ("\",\"".join(trimedVals)))
             indent(file, "ncclCvarInit();")
@@ -263,13 +271,13 @@ class stringlist(basetype):
 
         indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
         if self.default:
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "{")
             indent(file, "std::vector<std::string> vals{\"%s\"};" % (self.default.replace("," , "\",\"")))
             indent(file, "checkListValues<std::string>(vals, %s);" % (self.name))
             indent(file, "}")
         else:
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "EXPECT_EQ(%s.size(), 0);" % (self.name))
         indent(file, "}")
         file.write("\n")
@@ -280,10 +288,10 @@ class stringlist(basetype):
         indent(file, "%s.clear();" % self.name)
         if (self.default != None):
             indent(file, "%s = env2strlist(\"%s\", \"%s\");" %
-                (self.name, self.name, self.default))
+                (self.name, self.envstr, self.default))
         else:
             indent(file, "%s = env2strlist(\"%s\", nullptr);" %
-                (self.name, self.name))
+                (self.name, self.envstr))
         file.write("\n")
 
 class prefixedStringlist(stringlist):
@@ -302,7 +310,7 @@ class prefixedStringlist(stringlist):
     def unitTest(self, file):
         indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
         if self.default:
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "{")
             trimedPrefixes = [v.strip() for v in self.prefixes.split(",")]
             default = self.default
@@ -312,7 +320,7 @@ class prefixedStringlist(stringlist):
             indent(file, "checkListValues<std::string>(vals, %s);" % (self.name))
             indent(file, "}")
         else:
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "EXPECT_EQ(%s.size(), 0);" % (self.name))
         indent(file, "}")
         file.write("\n")
@@ -322,7 +330,7 @@ class prefixedStringlist(stringlist):
         val = "val1,val2,val3"
         for i, prefix in enumerate(["^", "=", ""]):
             indent(file, "TEST_F(CvarTest, %s_prefix_%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s%s\", 1);" % (self.name, prefix, val))
+            indent(file, "setenv(\"%s\", \"%s%s\", 1);" % (self.envstr, prefix, val))
             indent(file, "std::vector<std::string> vals{\"%s\"};" % (val.replace("," , "\",\"")))
             indent(file, "ncclCvarInit();")
             indent(file, "EXPECT_EQ(%s_PREFIX, \"%s\");" % (self.name, prefix))
@@ -336,7 +344,7 @@ class prefixedStringlist(stringlist):
         indent(file, "%s.clear();" % self.name)
         default = self.default if self.default else ""
         indent(file, "std::tie(%s_PREFIX, %s) = env2prefixedStrlist(\"%s\", \"%s\", %s_allPrefixes);" %
-                (self.name, self.name, self.name, default, self.name))
+                (self.name, self.name, self.envstr, default, self.name))
         file.write("\n")
 
 class enum(basetype):
@@ -360,7 +368,7 @@ class enum(basetype):
         choiceList = self.choices.replace(" ", "").split(",")
         for i, val in enumerate(choiceList):
             indent(file, "TEST_F(CvarTest, %s_single_choice_%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
+            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
             indent(file, "ncclCvarInit();")
             indent(file, "EXPECT_EQ(%s, %s::%s);" % (self.name, self.name, val))
             indent(file, "}")
@@ -368,7 +376,7 @@ class enum(basetype):
 
         if self.default:
             indent(file, "TEST_F(CvarTest, %s_default_choice) {" % (self.name))
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "EXPECT_EQ(%s, %s::%s);" % (self.name, self.name, self.default))
             indent(file, "}")
         file.write("\n")
@@ -376,10 +384,10 @@ class enum(basetype):
         self.unknownValUnitTest(file)
 
     def readenv(self, file):
-        indent(file, "if (getenv(\"%s\") == nullptr) {" % self.name)
+        indent(file, "if (getenv(\"%s\") == nullptr) {" % self.envstr)
         indent(file, "%s = %s::%s;" % (self.name, self.name, self.default))
         indent(file, "} else {")
-        indent(file, "std::string str(getenv(\"%s\"));" % self.name)
+        indent(file, "std::string str(getenv(\"%s\"));" % self.envstr)
         choices = self.choices.replace(" ", "").split(",")
         for idx, c in enumerate(choices):
             if (idx == 0):
@@ -417,7 +425,7 @@ class enumlist(basetype):
 
         for i, val in enumerate(choiceList):
             indent(file, "TEST_F(CvarTest, %s_single_choice_%s) {" % (self.name, i))
-            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, val))
+            indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, val))
             indent(file, "ncclCvarInit();")
             indent(file, "std::vector<enum %s> vals{%s::%s};" % (self.name, self.name, val))
             indent(file, "checkListValues<enum %s>(vals, %s);" % (self.name, self.name))
@@ -425,7 +433,7 @@ class enumlist(basetype):
             file.write("\n")
 
         indent(file, "TEST_F(CvarTest, %s_all_choices) {" % (self.name))
-        indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.name, self.choices))
+        indent(file, "setenv(\"%s\", \"%s\", 1);" % (self.envstr, self.choices))
         indent(file, "ncclCvarInit();")
         indent(file, "std::vector<enum %s> vals{%s};" % (self.name, ",".join(allChoicesEnum)))
         indent(file, "checkListValues<enum %s>(vals, %s);" % (self.name, self.name))
@@ -435,11 +443,11 @@ class enumlist(basetype):
         defaultChoicesEnum = ["%s::%s" % (self.name, c) for c in self.default.replace(" ", "").split(",")]
         indent(file, "TEST_F(CvarTest, %s_default_choices) {" % (self.name))
         if defaultChoicesEnum:
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "std::vector<enum %s> vals{%s};" % (self.name, ",".join(defaultChoicesEnum)))
             indent(file, "checkListValues<enum %s>(vals, %s);" % (self.name, self.name))
         else:
-            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "testDefaultValue(\"%s\");" % (self.envstr))
             indent(file, "EXPECT_EQ(%s.size(), 0);" % (self.name))
         indent(file, "}")
         file.write("\n")
@@ -450,7 +458,8 @@ class enumlist(basetype):
     def readenv(self, file):
         indent(file, "{")
         indent(file, "%s.clear();" % self.name)
-        indent(file, "auto tokens = env2strlist(\"%s\", \"%s\");" % (self.name, self.default))
+        indent(file, "auto tokens = env2strlist(\"%s\", \"%s\");" %
+                (self.envstr, self.default))
         choices = self.choices.replace(" ", "").split(",")
         indent(file, "for (auto token : tokens) {")
         for idx, c in enumerate(choices):
@@ -496,7 +505,7 @@ def populateCCFile(allcvars, outputFilename):
     # Generate initialization for environment variable set
     indent(file, "void initEnvSet(std::unordered_set<std::string>& env) {")
     for cvar in allcvars:
-        indent(file, "env.insert(\"%s\");" % cvar.name)
+        indent(file, "env.insert(\"%s\");" % cvar.envstr)
     for e in acceptedEnvs:
         indent(file, "env.insert(\"%s\");" % e)
     indent(file, "}")
