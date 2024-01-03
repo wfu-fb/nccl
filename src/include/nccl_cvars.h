@@ -12,6 +12,9 @@
 extern int64_t NCCL_AGG_CHANNEL_SIZE;
 extern int64_t NCCL_AGG_CHANNEL_SIZE_DEFAULT;
 
+extern std::string NCCL_ALGO;
+extern std::string NCCL_ALGO_DEFAULT;
+
 enum class NCCL_ALLGATHER_ALGO {
   orig,
   ctdirect,
@@ -358,6 +361,9 @@ extern int64_t NCCL_P2P_USE_CUDA_MEMCPY_DEFAULT;
 extern int64_t NCCL_PROGRESS_APPENDOP_FREQ;
 extern int64_t NCCL_PROGRESS_APPENDOP_FREQ_DEFAULT;
 
+extern std::string NCCL_PROTO;
+extern std::string NCCL_PROTO_DEFAULT;
+
 extern int64_t NCCL_PROXY_APPEND_BATCH_SIZE;
 extern int64_t NCCL_PROXY_APPEND_BATCH_SIZE_DEFAULT;
 
@@ -394,6 +400,9 @@ extern int64_t NCCL_SHM_USE_CUDA_MEMCPY_DEFAULT;
 
 extern int64_t NCCL_SOCKET_NTHREADS;
 extern int64_t NCCL_SOCKET_NTHREADS_DEFAULT;
+
+extern std::string NCCL_THREAD_THRESHOLDS;
+extern std::string NCCL_THREAD_THRESHOLDS_DEFAULT;
 
 extern std::string NCCL_TOPO_DUMP_FILE;
 extern std::string NCCL_TOPO_DUMP_FILE_DEFAULT;

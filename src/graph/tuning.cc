@@ -34,6 +34,30 @@
      Hidden variable. No description provided.
      Network post overhead in ns (1000 = 1 us)
 
+ - name        : NCCL_PROTO
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_PROTO variable defines which protocol NCCL will use.
+     Comma-separated list of protocols (not case sensitive) among: LL,
+     LL128, Simple. To specify protocols to exclude (instead of
+     include), start the list with ^. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-proto
+
+ - name        : NCCL_ALGO
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_ALGO variable defines which algorithms NCCL will use.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-algo
+
+ - name        : NCCL_THREAD_THRESHOLDS
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -268,15 +292,13 @@ ncclResult_t ncclTopoTuneModel(struct ncclComm* comm, int minCompCap, int maxCom
   int protoEnable[NCCL_NUM_PROTOCOLS] = { 1, 2, 1 };
   int algoEnable[NCCL_NUM_ALGORITHMS] = { 1, 1, 1, 1, 1, 1 };
 
-  const char *protoStr = ncclGetEnv("NCCL_PROTO");
-  if (protoStr) {
-    INFO(NCCL_ENV, "NCCL_PROTO set by environment to %s", protoStr);
-    NCCLCHECK(parseList(protoStr, ncclProtoStr, NCCL_NUM_PROTOCOLS, protoEnable));
+  if (!NCCL_PROTO.empty()) {
+    INFO(NCCL_ENV, "NCCL_PROTO set by environment to %s", NCCL_PROTO.c_str());
+    NCCLCHECK(parseList(NCCL_PROTO.c_str(), ncclProtoStr, NCCL_NUM_PROTOCOLS, protoEnable));
   }
-  const char *algoStr = ncclGetEnv("NCCL_ALGO");
-  if (algoStr) {
-    INFO(NCCL_ENV, "NCCL_ALGO set by environment to %s", algoStr);
-    NCCLCHECK(parseList(algoStr, ncclAlgoStr, NCCL_NUM_ALGORITHMS, algoEnable));
+  if (!NCCL_ALGO.empty()) {
+    INFO(NCCL_ENV, "NCCL_ALGO set by environment to %s", NCCL_ALGO.c_str());
+    NCCLCHECK(parseList(NCCL_ALGO.c_str(), ncclAlgoStr, NCCL_NUM_ALGORITHMS, algoEnable));
   }
 
   if (comm->nNodes == 1) algoEnable[NCCL_ALGO_NVLS_TREE] = 0;
@@ -368,11 +390,10 @@ ncclResult_t ncclTopoTuneModel(struct ncclComm* comm, int minCompCap, int maxCom
   comm->threadThresholds[NCCL_ALGO_COLLNET_CHAIN][NCCL_PROTO_SIMPLE] = 512;
 
   // Override defaults with user env
-  const char* str = ncclGetEnv("NCCL_THREAD_THRESHOLDS");
-  if (str) {
-    INFO(NCCL_ENV, "NCCL_THREAD_THRESHOLDS set by environment to %s", str);
+  if (!NCCL_THREAD_THRESHOLDS.empty()) {
+    INFO(NCCL_ENV, "NCCL_THREAD_THRESHOLDS set by environment to %s", NCCL_THREAD_THRESHOLDS.c_str());
     ssize_t t[2][NCCL_NUM_PROTOCOLS] = {{ -2, -2, -2 }, { -2, -2, -2 }};
-    sscanf(str, "%ld %ld %ld %ld %ld %ld", t[0], t[0]+1, t[0]+2, t[1], t[1]+1, t[1]+2);
+    sscanf(NCCL_THREAD_THRESHOLDS.c_str(), "%ld %ld %ld %ld %ld %ld", t[0], t[0]+1, t[0]+2, t[1], t[1]+1, t[1]+2);
     for (int a=0; a<2; a++) {
       for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
         if (t[a][p] >= 0) comm->threadThresholds[a][p] = t[a][p];

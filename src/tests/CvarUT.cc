@@ -92,6 +92,18 @@ TEST_F(CvarTest, NCCL_AGG_CHANNEL_SIZE_default_value) {
   EXPECT_EQ(NCCL_AGG_CHANNEL_SIZE, -2);
 }
 
+TEST_F(CvarTest, NCCL_ALGO_value_0) {
+  setenv("NCCL_ALGO", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALGO, "val1");
+}
+
+TEST_F(CvarTest, NCCL_ALGO_value_1) {
+  setenv("NCCL_ALGO", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALGO, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_0) {
   setenv("NCCL_ALLGATHER_ALGO", "orig", 1);
   ncclCvarInit();
@@ -2653,6 +2665,18 @@ TEST_F(CvarTest, NCCL_PROGRESS_APPENDOP_FREQ_default_value) {
   EXPECT_EQ(NCCL_PROGRESS_APPENDOP_FREQ, 8);
 }
 
+TEST_F(CvarTest, NCCL_PROTO_value_0) {
+  setenv("NCCL_PROTO", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_PROTO, "val1");
+}
+
+TEST_F(CvarTest, NCCL_PROTO_value_1) {
+  setenv("NCCL_PROTO", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_PROTO, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_PROXY_APPEND_BATCH_SIZE_value_0) {
   testNumValue<int64_t>("NCCL_PROXY_APPEND_BATCH_SIZE", 0);
   EXPECT_EQ(NCCL_PROXY_APPEND_BATCH_SIZE, 0);
@@ -2898,6 +2922,18 @@ TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_value_3) {
 TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_default_value) {
   testDefaultValue("NCCL_SOCKET_NTHREADS");
   EXPECT_EQ(NCCL_SOCKET_NTHREADS, -2);
+}
+
+TEST_F(CvarTest, NCCL_THREAD_THRESHOLDS_value_0) {
+  setenv("NCCL_THREAD_THRESHOLDS", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_THREAD_THRESHOLDS, "val1");
+}
+
+TEST_F(CvarTest, NCCL_THREAD_THRESHOLDS_value_1) {
+  setenv("NCCL_THREAD_THRESHOLDS", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_THREAD_THRESHOLDS, "val2_with_space");
 }
 
 TEST_F(CvarTest, NCCL_TOPO_DUMP_FILE_value_0) {

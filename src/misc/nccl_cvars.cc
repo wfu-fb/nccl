@@ -12,6 +12,8 @@
 
 int64_t NCCL_AGG_CHANNEL_SIZE;
 int64_t NCCL_AGG_CHANNEL_SIZE_DEFAULT;
+std::string NCCL_ALGO;
+std::string NCCL_ALGO_DEFAULT;
 enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO;
 enum NCCL_ALLGATHER_ALGO NCCL_ALLGATHER_ALGO_DEFAULT;
 uint64_t NCCL_ALLGATHER_DIRECT_CUTOFF;
@@ -222,6 +224,8 @@ int64_t NCCL_P2P_USE_CUDA_MEMCPY;
 int64_t NCCL_P2P_USE_CUDA_MEMCPY_DEFAULT;
 int64_t NCCL_PROGRESS_APPENDOP_FREQ;
 int64_t NCCL_PROGRESS_APPENDOP_FREQ_DEFAULT;
+std::string NCCL_PROTO;
+std::string NCCL_PROTO_DEFAULT;
 int64_t NCCL_PROXY_APPEND_BATCH_SIZE;
 int64_t NCCL_PROXY_APPEND_BATCH_SIZE_DEFAULT;
 int64_t NCCL_PROXY_DUMP_SIGNAL;
@@ -244,6 +248,8 @@ int64_t NCCL_SHM_USE_CUDA_MEMCPY;
 int64_t NCCL_SHM_USE_CUDA_MEMCPY_DEFAULT;
 int64_t NCCL_SOCKET_NTHREADS;
 int64_t NCCL_SOCKET_NTHREADS_DEFAULT;
+std::string NCCL_THREAD_THRESHOLDS;
+std::string NCCL_THREAD_THRESHOLDS_DEFAULT;
 std::string NCCL_TOPO_DUMP_FILE;
 std::string NCCL_TOPO_DUMP_FILE_DEFAULT;
 int64_t NCCL_TOPO_DUMP_FILE_RANK;
@@ -255,6 +261,7 @@ int64_t NCCL_WORK_FIFO_DEPTH_DEFAULT;
 
 void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_AGG_CHANNEL_SIZE");
+  env.insert("NCCL_ALGO");
   env.insert("NCCL_ALLGATHER_ALGO");
   env.insert("NCCL_ALLGATHER_DIRECT_CUTOFF");
   env.insert("NCCL_ALLOC_P2P_NET_LL_BUFFERS");
@@ -359,6 +366,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_P2P_READ_ENABLE");
   env.insert("NCCL_P2P_USE_CUDA_MEMCPY");
   env.insert("NCCL_PROGRESS_APPENDOP_FREQ");
+  env.insert("NCCL_PROTO");
   env.insert("NCCL_PROXY_APPEND_BATCH_SIZE");
   env.insert("NCCL_PROXY_DUMP_SIGNAL");
   env.insert("NCCL_PXN_DISABLE");
@@ -370,6 +378,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_SHM_MEMCPY_MODE");
   env.insert("NCCL_SHM_USE_CUDA_MEMCPY");
   env.insert("NCCL_SOCKET_NTHREADS");
+  env.insert("NCCL_THREAD_THRESHOLDS");
   env.insert("NCCL_TOPO_DUMP_FILE");
   env.insert("NCCL_TOPO_DUMP_FILE_RANK");
   env.insert("NCCL_TOPO_FILE");
@@ -413,6 +422,9 @@ void initEnvSet(std::unordered_set<std::string>& env) {
 void readCvarEnv() {
   NCCL_AGG_CHANNEL_SIZE = env2num<int64_t>("NCCL_AGG_CHANNEL_SIZE", "-2");
   NCCL_AGG_CHANNEL_SIZE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
+
+  NCCL_ALGO = env2str("NCCL_ALGO", "");
+  NCCL_ALGO_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   if (getenv("NCCL_ALLGATHER_ALGO") == nullptr) {
     NCCL_ALLGATHER_ALGO = NCCL_ALLGATHER_ALGO::orig;
@@ -818,6 +830,9 @@ void readCvarEnv() {
   NCCL_PROGRESS_APPENDOP_FREQ = env2num<int64_t>("NCCL_PROGRESS_APPENDOP_FREQ", "8");
   NCCL_PROGRESS_APPENDOP_FREQ_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "8");
 
+  NCCL_PROTO = env2str("NCCL_PROTO", "");
+  NCCL_PROTO_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
   NCCL_PROXY_APPEND_BATCH_SIZE = env2num<int64_t>("NCCL_PROXY_APPEND_BATCH_SIZE", "16");
   NCCL_PROXY_APPEND_BATCH_SIZE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "16");
 
@@ -861,6 +876,9 @@ void readCvarEnv() {
 
   NCCL_SOCKET_NTHREADS = env2num<int64_t>("NCCL_SOCKET_NTHREADS", "-2");
   NCCL_SOCKET_NTHREADS_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "-2");
+
+  NCCL_THREAD_THRESHOLDS = env2str("NCCL_THREAD_THRESHOLDS", "");
+  NCCL_THREAD_THRESHOLDS_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
 
   NCCL_TOPO_DUMP_FILE = env2str("NCCL_TOPO_DUMP_FILE", "");
   NCCL_TOPO_DUMP_FILE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
