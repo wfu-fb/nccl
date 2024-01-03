@@ -165,6 +165,69 @@
      ncclCommRegister. For more information:
      https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-local-register
 
+ - name        : NCCL_COMM_BLOCKING
+   type        : int64_t
+   default     : -1
+   description : |-
+     The NCCL_COMM_BLOCKING variable controls whether NCCL calls are
+     allowed to block or not. This includes all calls to NCCL,
+     including init/finalize functions, as well as communication
+     functions which may also block due to the lazy initialization of
+     connections for send/receive calls. Setting this environment
+     variable will override the blocking configuration in all
+     communicators (see ncclConfig_t); if not set (undefined),
+     communicator behavior will be determined by the configuration; if
+     not passing configuration, communicators are blocking. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-comm-blocking
+
+ - name        : NCCL_CGA_CLUSTER_SIZE
+   type        : int64_t
+   default     : -1
+   description : |-
+     Set CUDA Cooperative Group Array (CGA) cluster size. On sm90 and
+     later we have an extra level of hierarchy where we can group
+     together several blocks within the Grid, called Thread Block
+     Clusters. Setting this to non-zero will cause NCCL to launch the
+     communication kernels with the Cluster Dimension attribute set
+     accordingly. Setting this environment variable will override the
+     cgaClusterSize configuration in all communicators (see
+         ncclConfig_t); if not set (undefined), CGA cluster size will
+     be determined by the configuration; if not passing configuration,
+     NCCL will automatically choose the best value. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cga-cluster-size
+
+ - name        : NCCL_MAX_CTAS
+   type        : int64_t
+   default     : -1
+   description : |-
+     Set the maximal number of CTAs NCCL should use. Setting this
+     environment variable will override the maxCTAs configuration in
+     all communicators (see ncclConfig_t); if not set (undefined),
+     maximal CTAs will be determined by the configuration; if not
+     passing configuration, NCCL will automatically choose the best
+     value. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-ctas
+
+ - name        : NCCL_MIN_CTAS
+   type        : int64_t
+   default     : -1
+   description : |-
+     Set the minimal number of CTAs NCCL should use. Setting this
+     environment variable will override the minCTAs configuration in
+     all communicators (see ncclConfig_t); if not set (undefined),
+     minimal CTAs will be determined by the configuration; if not
+     passing configuration, NCCL will automatically choose the best
+     value. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-ctas
+
+ - name        : NCCL_COMM_SPLIT_SHARE_RESOURCES
+   type        : int64_t
+   default     : -1
+   description : |-
+     Hidden variable. No description provided.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -182,8 +245,6 @@ ncclComm_t ncclCommWorld __attribute__ ((visibility("default")));
 const char* ncclFuncStr[NCCL_NUM_FUNCTIONS] = { "Broadcast", "Reduce", "AllGather", "ReduceScatter", "AllReduce" };
 const char* ncclAlgoStr[NCCL_NUM_ALGORITHMS] = { "Tree", "Ring", "CollNetDirect", "CollNetChain", "NVLS", "NVLSTree" };
 const char* ncclProtoStr[NCCL_NUM_PROTOCOLS] = { "LL", "LL128", "Simple" };
-
-NCCL_PARAM(CommBlocking, "COMM_BLOCKING", NCCL_CONFIG_UNDEF_INT);
 
 static ncclResult_t ncclCommInitWorld(const ncclComm_t comm);
 static ncclResult_t commReclaim(ncclComm_t comm);
@@ -1367,10 +1428,6 @@ fail:
   goto exit;
 }
 
-NCCL_PARAM(CGAClusterSize, "CGA_CLUSTER_SIZE", NCCL_CONFIG_UNDEF_INT);
-// Match config max/minCTAs
-NCCL_PARAM(MaxCTAs, "MAX_CTAS", NCCL_CONFIG_UNDEF_INT);
-NCCL_PARAM(MinCTAs, "MIN_CTAS", NCCL_CONFIG_UNDEF_INT);
 #define NCCL_MAX_CGA_CLUSTER_SIZE 8
 
 struct ncclCommInitRankAsyncJob {
@@ -1390,8 +1447,6 @@ struct ncclCommFinalizeAsyncJob {
   struct ncclAsyncJob base;
   ncclComm_t comm;
 };
-
-NCCL_PARAM(CommSplitShareResources, "COMM_SPLIT_SHARE_RESOURCES", NCCL_CONFIG_UNDEF_INT);
 
 static ncclResult_t commGetSplitInfo(struct ncclComm* comm, struct ncclComm* parent, int color, int key, int* nRanksRet, int* myRankRet, int* parentRanksRet) {
   int* colors = NULL;
@@ -1553,11 +1608,11 @@ static ncclResult_t envConfigOverride(ncclComm_t comm) {
   int splitShareEnv;
 
   /* override configuration from env variable. */
-  blockingEnv = ncclParamCommBlocking();
+  blockingEnv = NCCL_COMM_BLOCKING;
   if (blockingEnv == 0 || blockingEnv == 1)
     comm->config.blocking = blockingEnv;
 
-  cgaClusterSizeEnv = ncclParamCGAClusterSize();
+  cgaClusterSizeEnv = NCCL_CGA_CLUSTER_SIZE;
   if (0 <= cgaClusterSizeEnv && cgaClusterSizeEnv <= NCCL_MAX_CGA_CLUSTER_SIZE) {
     comm->config.cgaClusterSize = cgaClusterSizeEnv;
   } else if (cgaClusterSizeEnv > NCCL_MAX_CGA_CLUSTER_SIZE) {
@@ -1565,13 +1620,13 @@ static ncclResult_t envConfigOverride(ncclComm_t comm) {
     comm->config.cgaClusterSize = NCCL_MAX_CGA_CLUSTER_SIZE;
   }
 
-  minCTAsEnv = ncclParamMinCTAs();
-  if (minCTAsEnv != NCCL_CONFIG_UNDEF_INT) {
+  minCTAsEnv = NCCL_MIN_CTAS;
+  if (minCTAsEnv > 0) {
     comm->config.minCTAs = minCTAsEnv;
   }
 
-  maxCTAsEnv = ncclParamMaxCTAs();
-  if (maxCTAsEnv != NCCL_CONFIG_UNDEF_INT) {
+  maxCTAsEnv = NCCL_MAX_CTAS;
+  if (maxCTAsEnv > 0) {
     comm->config.maxCTAs = maxCTAsEnv;
   }
 
@@ -1586,8 +1641,8 @@ static ncclResult_t envConfigOverride(ncclComm_t comm) {
     comm->config.netName = NULL;
   }
 
-  splitShareEnv = ncclParamCommSplitShareResources();
-  if (splitShareEnv != NCCL_CONFIG_UNDEF_INT) {
+  splitShareEnv = NCCL_COMM_SPLIT_SHARE_RESOURCES;
+  if (splitShareEnv != -1) {
     comm->config.splitShare = splitShareEnv;
   }
 

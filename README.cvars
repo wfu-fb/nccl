@@ -80,6 +80,23 @@ Description:
 Type: int64_t
 Default: -2
 
+NCCL_CGA_CLUSTER_SIZE
+Description:
+    Set CUDA Cooperative Group Array (CGA) cluster size. On sm90 and
+    later we have an extra level of hierarchy where we can group
+    together several blocks within the Grid, called Thread Block
+    Clusters. Setting this to non-zero will cause NCCL to launch the
+    communication kernels with the Cluster Dimension attribute set
+    accordingly. Setting this environment variable will override the
+    cgaClusterSize configuration in all communicators (see
+        ncclConfig_t); if not set (undefined), CGA cluster size will
+    be determined by the configuration; if not passing configuration,
+    NCCL will automatically choose the best value. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cga-cluster-size
+Type: int64_t
+Default: -1
+
 NCCL_CHECK_POINTERS
 Description:
     The NCCL_CHECK_POINTERS variable enables checking of the CUDA
@@ -102,6 +119,28 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-node-threshold
 Type: int64_t
 Default: 2
+
+NCCL_COMM_BLOCKING
+Description:
+    The NCCL_COMM_BLOCKING variable controls whether NCCL calls are
+    allowed to block or not. This includes all calls to NCCL,
+    including init/finalize functions, as well as communication
+    functions which may also block due to the lazy initialization of
+    connections for send/receive calls. Setting this environment
+    variable will override the blocking configuration in all
+    communicators (see ncclConfig_t); if not set (undefined),
+    communicator behavior will be determined by the configuration; if
+    not passing configuration, communicators are blocking. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-comm-blocking
+Type: int64_t
+Default: -1
+
+NCCL_COMM_SPLIT_SHARE_RESOURCES
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -1
 
 NCCL_CONNECT_ROUND_SIZE
 Description:
@@ -542,6 +581,18 @@ Description:
 Type: int64_t
 Default: 1
 
+NCCL_MAX_CTAS
+Description:
+    Set the maximal number of CTAs NCCL should use. Setting this
+    environment variable will override the maxCTAs configuration in
+    all communicators (see ncclConfig_t); if not set (undefined),
+    maximal CTAs will be determined by the configuration; if not
+    passing configuration, NCCL will automatically choose the best
+    value. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-ctas
+Type: int64_t
+Default: -1
+
 NCCL_MAX_NCHANNELS
 Description:
     The NCCL_MAX_NCHANNELS variable limits the number of channels
@@ -564,6 +615,18 @@ Description:
     Hidden variable. No description provided.
 Type: int64_t
 Default: 32
+
+NCCL_MIN_CTAS
+Description:
+    Set the minimal number of CTAs NCCL should use. Setting this
+    environment variable will override the minCTAs configuration in
+    all communicators (see ncclConfig_t); if not set (undefined),
+    minimal CTAs will be determined by the configuration; if not
+    passing configuration, NCCL will automatically choose the best
+    value. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-ctas
+Type: int64_t
+Default: -1
 
 NCCL_MIN_NCHANNELS
 Description:

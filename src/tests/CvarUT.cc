@@ -290,6 +290,31 @@ TEST_F(CvarTest, NCCL_BUFFSIZE_default_value) {
   EXPECT_EQ(NCCL_BUFFSIZE, -2);
 }
 
+TEST_F(CvarTest, NCCL_CGA_CLUSTER_SIZE_value_0) {
+  testNumValue<int64_t>("NCCL_CGA_CLUSTER_SIZE", 0);
+  EXPECT_EQ(NCCL_CGA_CLUSTER_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CGA_CLUSTER_SIZE_value_1) {
+  testNumValue<int64_t>("NCCL_CGA_CLUSTER_SIZE", 9999);
+  EXPECT_EQ(NCCL_CGA_CLUSTER_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CGA_CLUSTER_SIZE_value_2) {
+  testNumValue<int64_t>("NCCL_CGA_CLUSTER_SIZE", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_CGA_CLUSTER_SIZE, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CGA_CLUSTER_SIZE_value_3) {
+  testNumValue<int64_t>("NCCL_CGA_CLUSTER_SIZE", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_CGA_CLUSTER_SIZE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CGA_CLUSTER_SIZE_default_value) {
+  testDefaultValue("NCCL_CGA_CLUSTER_SIZE");
+  EXPECT_EQ(NCCL_CGA_CLUSTER_SIZE, -1);
+}
+
 TEST_F(CvarTest, NCCL_CHECK_POINTERS_value_0) {
   testNumValue<int64_t>("NCCL_CHECK_POINTERS", 0);
   EXPECT_EQ(NCCL_CHECK_POINTERS, 0);
@@ -353,6 +378,56 @@ TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_value_3) {
 TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_default_value) {
   testDefaultValue("NCCL_COLLNET_NODE_THRESHOLD");
   EXPECT_EQ(NCCL_COLLNET_NODE_THRESHOLD, 2);
+}
+
+TEST_F(CvarTest, NCCL_COMM_BLOCKING_value_0) {
+  testNumValue<int64_t>("NCCL_COMM_BLOCKING", 0);
+  EXPECT_EQ(NCCL_COMM_BLOCKING, 0);
+}
+
+TEST_F(CvarTest, NCCL_COMM_BLOCKING_value_1) {
+  testNumValue<int64_t>("NCCL_COMM_BLOCKING", 9999);
+  EXPECT_EQ(NCCL_COMM_BLOCKING, 9999);
+}
+
+TEST_F(CvarTest, NCCL_COMM_BLOCKING_value_2) {
+  testNumValue<int64_t>("NCCL_COMM_BLOCKING", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_COMM_BLOCKING, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_COMM_BLOCKING_value_3) {
+  testNumValue<int64_t>("NCCL_COMM_BLOCKING", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_COMM_BLOCKING, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_COMM_BLOCKING_default_value) {
+  testDefaultValue("NCCL_COMM_BLOCKING");
+  EXPECT_EQ(NCCL_COMM_BLOCKING, -1);
+}
+
+TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_0) {
+  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 0);
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, 0);
+}
+
+TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_1) {
+  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 9999);
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, 9999);
+}
+
+TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_2) {
+  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_3) {
+  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_default_value) {
+  testDefaultValue("NCCL_COMM_SPLIT_SHARE_RESOURCES");
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, -1);
 }
 
 TEST_F(CvarTest, NCCL_CONNECT_ROUND_SIZE_value_0) {
@@ -1802,6 +1877,31 @@ TEST_F(CvarTest, NCCL_LOCAL_REGISTER_default_value) {
   EXPECT_EQ(NCCL_LOCAL_REGISTER, 1);
 }
 
+TEST_F(CvarTest, NCCL_MAX_CTAS_value_0) {
+  testNumValue<int64_t>("NCCL_MAX_CTAS", 0);
+  EXPECT_EQ(NCCL_MAX_CTAS, 0);
+}
+
+TEST_F(CvarTest, NCCL_MAX_CTAS_value_1) {
+  testNumValue<int64_t>("NCCL_MAX_CTAS", 9999);
+  EXPECT_EQ(NCCL_MAX_CTAS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_MAX_CTAS_value_2) {
+  testNumValue<int64_t>("NCCL_MAX_CTAS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_MAX_CTAS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_MAX_CTAS_value_3) {
+  testNumValue<int64_t>("NCCL_MAX_CTAS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_MAX_CTAS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_MAX_CTAS_default_value) {
+  testDefaultValue("NCCL_MAX_CTAS");
+  EXPECT_EQ(NCCL_MAX_CTAS, -1);
+}
+
 TEST_F(CvarTest, NCCL_MAX_NCHANNELS_value_0) {
   testNumValue<int64_t>("NCCL_MAX_NCHANNELS", 0);
   EXPECT_EQ(NCCL_MAX_NCHANNELS, 0);
@@ -1875,6 +1975,31 @@ TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_value_3) {
 TEST_F(CvarTest, NCCL_MAX_P2P_NCHANNELS_default_value) {
   testDefaultValue("NCCL_MAX_P2P_NCHANNELS");
   EXPECT_EQ(NCCL_MAX_P2P_NCHANNELS, 32);
+}
+
+TEST_F(CvarTest, NCCL_MIN_CTAS_value_0) {
+  testNumValue<int64_t>("NCCL_MIN_CTAS", 0);
+  EXPECT_EQ(NCCL_MIN_CTAS, 0);
+}
+
+TEST_F(CvarTest, NCCL_MIN_CTAS_value_1) {
+  testNumValue<int64_t>("NCCL_MIN_CTAS", 9999);
+  EXPECT_EQ(NCCL_MIN_CTAS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_MIN_CTAS_value_2) {
+  testNumValue<int64_t>("NCCL_MIN_CTAS", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_MIN_CTAS, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_MIN_CTAS_value_3) {
+  testNumValue<int64_t>("NCCL_MIN_CTAS", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_MIN_CTAS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_MIN_CTAS_default_value) {
+  testDefaultValue("NCCL_MIN_CTAS");
+  EXPECT_EQ(NCCL_MIN_CTAS, -1);
 }
 
 TEST_F(CvarTest, NCCL_MIN_NCHANNELS_value_0) {
