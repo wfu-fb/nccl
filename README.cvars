@@ -783,6 +783,40 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_SHM_DISABLE
+Description:
+    The NCCL_SHM_DISABLE variable disables the Shared Memory (SHM)
+    transports. SHM is used between devices when peer-to-peer cannot
+    happen, therefore, host memory is used. NCCL will use network
+    (i.e. InfiniBand or IP sockets) to communicate between the CPU
+    sockets when SHM is disabled. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-shm-disable
+Type: int64_t
+Default: 0
+
+NCCL_SHM_LOCALITY
+Description:
+    Hidden variable. No description provided.
+    1 - sender-side
+    2 - receiver-side
+Type: int64_t
+Default: 2
+
+NCCL_SHM_MEMCPY_MODE
+Description:
+    Hidden variable. No description provided.
+    1 - sender-side
+    2 - receiver-side
+    3 - both
+Type: int64_t
+Default: 1
+
+NCCL_SHM_USE_CUDA_MEMCPY
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
 NCCL_SOCKET_NTHREADS
 Description:
     The NCCL_SOCKET_NTHREADS variable specifies the number of CPU
