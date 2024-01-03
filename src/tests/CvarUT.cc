@@ -1268,6 +1268,26 @@ TEST_F(CvarTest, NCCL_GRAPH_MIXING_SUPPORT_default_value) {
   EXPECT_EQ(NCCL_GRAPH_MIXING_SUPPORT, 1);
 }
 
+TEST_F(CvarTest, NCCL_GRAPH_REGISTER_value_0) {
+  testNumValue<int64_t>("NCCL_GRAPH_REGISTER", 0);
+  EXPECT_EQ(NCCL_GRAPH_REGISTER, 0);
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_REGISTER_value_1) {
+  testNumValue<int64_t>("NCCL_GRAPH_REGISTER", 9999);
+  EXPECT_EQ(NCCL_GRAPH_REGISTER, 9999);
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_REGISTER_value_2) {
+  testNumValue<int64_t>("NCCL_GRAPH_REGISTER", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_GRAPH_REGISTER, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_GRAPH_REGISTER_value_3) {
+  testNumValue<int64_t>("NCCL_GRAPH_REGISTER", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_GRAPH_REGISTER, std::numeric_limits<int64_t>::min());
+}
+
 TEST_F(CvarTest, NCCL_IB_ADAPTIVE_ROUTING_value_0) {
   testNumValue<int64_t>("NCCL_IB_ADAPTIVE_ROUTING", 0);
   EXPECT_EQ(NCCL_IB_ADAPTIVE_ROUTING, 0);
@@ -1660,6 +1680,26 @@ TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_2) {
 TEST_F(CvarTest, NCCL_IGNORE_DISABLED_P2P_value_3) {
   testNumValue<int64_t>("NCCL_IGNORE_DISABLED_P2P", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_IGNORE_DISABLED_P2P, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_L1_SHARED_MEMORY_CARVEOUT_value_0) {
+  testNumValue<int64_t>("NCCL_L1_SHARED_MEMORY_CARVEOUT", 0);
+  EXPECT_EQ(NCCL_L1_SHARED_MEMORY_CARVEOUT, 0);
+}
+
+TEST_F(CvarTest, NCCL_L1_SHARED_MEMORY_CARVEOUT_value_1) {
+  testNumValue<int64_t>("NCCL_L1_SHARED_MEMORY_CARVEOUT", 9999);
+  EXPECT_EQ(NCCL_L1_SHARED_MEMORY_CARVEOUT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_L1_SHARED_MEMORY_CARVEOUT_value_2) {
+  testNumValue<int64_t>("NCCL_L1_SHARED_MEMORY_CARVEOUT", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_L1_SHARED_MEMORY_CARVEOUT, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_L1_SHARED_MEMORY_CARVEOUT_value_3) {
+  testNumValue<int64_t>("NCCL_L1_SHARED_MEMORY_CARVEOUT", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_L1_SHARED_MEMORY_CARVEOUT, std::numeric_limits<int64_t>::min());
 }
 
 TEST_F(CvarTest, NCCL_LL128_BUFFSIZE_value_0) {
@@ -2245,6 +2285,31 @@ TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_2) {
 TEST_F(CvarTest, NCCL_P2P_DIRECT_DISABLE_value_3) {
   testNumValue<int64_t>("NCCL_P2P_DIRECT_DISABLE", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_P2P_DIRECT_DISABLE, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_P2P_LL_THRESHOLD_value_0) {
+  testNumValue<int64_t>("NCCL_P2P_LL_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_P2P_LL_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_P2P_LL_THRESHOLD_value_1) {
+  testNumValue<int64_t>("NCCL_P2P_LL_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_P2P_LL_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_P2P_LL_THRESHOLD_value_2) {
+  testNumValue<int64_t>("NCCL_P2P_LL_THRESHOLD", std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(NCCL_P2P_LL_THRESHOLD, std::numeric_limits<int64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_P2P_LL_THRESHOLD_value_3) {
+  testNumValue<int64_t>("NCCL_P2P_LL_THRESHOLD", std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(NCCL_P2P_LL_THRESHOLD, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_P2P_LL_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_P2P_LL_THRESHOLD");
+  EXPECT_EQ(NCCL_P2P_LL_THRESHOLD, 16384);
 }
 
 TEST_F(CvarTest, NCCL_P2P_NET_CHUNKSIZE_value_0) {

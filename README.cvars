@@ -354,6 +354,14 @@ Description:
 Type: int64_t
 Default: 1
 
+NCCL_GRAPH_REGISTER
+Description:
+    Enable user buffer registration when NCCL calls are captured by
+    CUDA Graphs. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-register
+Type: int64_t
+Default: 0
+
 NCCL_IB_ADAPTIVE_ROUTING
 Description:
     Enable use of Adaptive Routing capable data transfers for the IB
@@ -499,6 +507,12 @@ Default: 0
 NCCL_IGNORE_DISABLED_P2P
 Description:
     Ignore disabling P2P.
+Type: int64_t
+Default: 0
+
+NCCL_L1_SHARED_MEMORY_CARVEOUT
+Description:
+    Hidden variable. No description provided.
 Type: int64_t
 Default: 0
 
@@ -694,6 +708,14 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-direct-disable
 Type: int64_t
 Default: 0
+
+NCCL_P2P_LL_THRESHOLD
+Description:
+    The NCCL_P2P_LL_THRESHOLD is the maximum message size that NCCL
+    will use LL for P2P operations. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-ll-threshold
+Type: int64_t
+Default: 16384
 
 NCCL_P2P_NET_CHUNKSIZE
 Description:

@@ -16,6 +16,34 @@
 #include <cstring> // std::memcpy
 #include <cinttypes> // PRIx64
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_L1_SHARED_MEMORY_CARVEOUT
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_P2P_LL_THRESHOLD
+   type        : int64_t
+   default     : 16384
+   description : |-
+     The NCCL_P2P_LL_THRESHOLD is the maximum message size that NCCL
+     will use LL for P2P operations. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-ll-threshold
+
+ - name        : NCCL_GRAPH_REGISTER
+   type        : int64_t
+   default     : 0
+   description : |-
+     Enable user buffer registration when NCCL calls are captured by
+     CUDA Graphs. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-register
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 static void* const ncclKernelGeneric = (void*)NCCL_KERN_NAME(SendRecv, RING, SIMPLE, Sum, int8_t);
 
 struct ncclKernelMatch {
@@ -111,15 +139,13 @@ static const ncclKernelMatch ncclKerns[1+ncclNumTypes+NCCL_NUM_FUNCTIONS*ncclNum
 
 static ncclResult_t computeColl(struct ncclInfo* info /* input */, int* workFuncIndex, struct ncclWorkElem* work, struct ncclProxyOp* proxyOp /* output */);
 
-NCCL_PARAM(L1SharedMemoryCarveout, "L1_SHARED_MEMORY_CARVEOUT", 0);
-
 // Returns maximum kernel stack size of all CUDA kernels
 ncclResult_t ncclInitKernelsForDevice(int cudaArch, size_t* maxStackSize) {
   constexpr int KernelCount = sizeof(ncclKerns)/sizeof(ncclKerns[0]);
   ncclResult_t result = ncclSuccess;
 
   if (maxStackSize) *maxStackSize = 0;
-  int carveout = ncclParamL1SharedMemoryCarveout();
+  int carveout = NCCL_L1_SHARED_MEMORY_CARVEOUT;
 
   // Keep track if we already visited a function pointer.
   void* lru[2] = {nullptr, nullptr};
@@ -364,8 +390,6 @@ static ncclResult_t addCollToPlan(
   return ncclSuccess;
 }
 
-NCCL_PARAM(P2pLLThreshold, "P2P_LL_THRESHOLD", 16384);
-
 // Put p2p op in plan assuming there is space in nWorkBudget, so you must
 // ensure *nWorkBudget >= 1 upon entry.
 static ncclResult_t addP2pToPlan(
@@ -386,7 +410,7 @@ static ncclResult_t addP2pToPlan(
   // 1 is connIndex
   struct ncclConnInfo* conn = isSendNotRecv ?
     &comm->channels[channelId].peers[peer]->send[1].conn : &comm->channels[channelId].peers[peer]->recv[1].conn;
-  info.protocol = ((conn->buffs[NCCL_PROTO_LL] != nullptr) && bytes <= ncclParamP2pLLThreshold()) ? NCCL_PROTO_LL : NCCL_PROTO_SIMPLE;
+  info.protocol = ((conn->buffs[NCCL_PROTO_LL] != nullptr) && bytes <= NCCL_P2P_LL_THRESHOLD) ? NCCL_PROTO_LL : NCCL_PROTO_SIMPLE;
 
   struct ncclProxyOp proxyOp = {};
   NCCLCHECK(ncclProxyComputeP2p(&info, &proxyOp));
@@ -494,8 +518,6 @@ fallback:
   return result;
 }
 
-NCCL_PARAM(GraphRegister, "GRAPH_REGISTER", 0);
-
 static ncclResult_t getCollNetSupport(struct ncclInfo* info, int* collNetTypeSupport);
 static ncclResult_t getAlgoInfo(struct ncclInfo* info, int collNetTypeSupport, int numPipeOps);
 
@@ -602,7 +624,7 @@ static ncclResult_t scheduleCollTasksToPlan(
       bool regBufUsed = false;
       void* regBufSend[NCCL_MAX_LOCAL_RANKS];
       void* regBufRecv[NCCL_MAX_LOCAL_RANKS];
-      if (plan->persistent && ncclParamGraphRegister() &&
+      if (plan->persistent && NCCL_GRAPH_REGISTER &&
           info.algorithm == NCCL_ALGO_COLLNET_DIRECT &&   // limited to CollNetDirect for now
           comm->intraHighestTransportType == TRANSPORT_P2P && // only when all ranks can p2p each other
           comm->intraRanks < comm->localRanks) { // only with inter-process & intra-node peers
