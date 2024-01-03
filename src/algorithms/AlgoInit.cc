@@ -21,14 +21,9 @@ namespace algorithms {
 */
 
 ncclResult_t algoInit(ncclComm_t comm, bool forceInit) {
-  if ((NCCL_ALLREDUCE_ALGO2 != NCCL_ALLREDUCE_ALGO2::dda) && (!forceInit)) {
-    // NCCL_ALLREDUCE_ALGO2 != dda and !forceInit, skip initialization
-     return ncclSuccess;
-   }
-
   // initiate AlgoDirector
   comm->algoDirector = std::unique_ptr<nccl::algorithms::AlgoDirector>(
-      new nccl::algorithms::AlgoDirector(comm));
+      new nccl::algorithms::AlgoDirector(comm, forceInit));
   return ncclSuccess;
 }
 

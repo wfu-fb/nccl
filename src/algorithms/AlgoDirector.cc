@@ -19,22 +19,27 @@ namespace algorithms {
  * - manages all the available algorithm instances for a given collective
  * - selects an optimal algorithm based on the input and environments
  */
-AlgoDirector::AlgoDirector(ncclComm_t comm) : comm_(comm) {
+AlgoDirector::AlgoDirector(ncclComm_t comm, int forceInit) : comm_(comm) {
   // register rank
   DdaThreadedData::get()->registerRank(comm->commHash, comm->rank);
 
-  // enable peer access (support for NVS full-mesh topology only)
-  for (int i = 0; i < comm->nRanks; ++i) {
-    if (i == comm->rank) {
-      continue;
-    }
-    cudaError_t e = cudaDeviceEnablePeerAccess(i, 0);
-    if (e != cudaErrorPeerAccessAlreadyEnabled && e != cudaSuccess) {
-      CUDACHECKIGNORE(e);
-    }
-  }
+  if ((NCCL_ALLREDUCE_ALGO2 == NCCL_ALLREDUCE_ALGO2::dda) || forceInit) {
+    // initialize allreduce if dda is enabled or forced
 
-  this->allReduce = std::unique_ptr<AlgoManagerAllReduce>(new AlgoManagerAllReduce(comm));
+    // enable peer access (support for NVS full-mesh topology only)
+    for (int i = 0; i < comm->nRanks; ++i) {
+      if (i == comm->rank) {
+        continue;
+      }
+      cudaError_t e = cudaDeviceEnablePeerAccess(i, 0);
+      if (e != cudaErrorPeerAccessAlreadyEnabled && e != cudaSuccess) {
+        CUDACHECKIGNORE(e);
+      }
+    }
+
+    this->allReduce =
+        std::unique_ptr<AlgoManagerAllReduce>(new AlgoManagerAllReduce(comm));
+  }
 
   INFO(NCCL_INIT, "AlgoDirector initialized.");
 }

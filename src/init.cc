@@ -1595,14 +1595,14 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
                 comm, comm->nRanks, (unsigned long long)hashUniqueId(job->commId), comm->rank, comm->cudaDev);
   }
 
+  NCCLCHECKGOTO(nccl::algorithms::algoInit(comm), res, fail);
+
   NCCLCHECKGOTO(ctranInit(comm), res, fail);
 
   timerDeltaMs = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - timerBegin).count() * 1000;
   INFO(NCCL_INIT,"comm %p rank %d nranks %d localrank %d localranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx commHash %lu - Init COMPLETE in %.2f ms",
        comm, comm->rank, comm->nRanks, comm->localRank, comm->localRanks, comm->cudaDev, comm->nvmlDev, comm->busId,
        (unsigned long long)hashUniqueId(job->commId), comm->commHash, timerDeltaMs);
-
-  NCCLCHECKGOTO(nccl::algorithms::algoInit(comm), res, fail);
 
   NCCLCHECKGOTO(ncclCommInitWorld(comm), res, fail);
 

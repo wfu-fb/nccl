@@ -34,6 +34,7 @@ TEST(AlgoDirectorTest, Create) {
   CUDACHECKIGNORE(cudaMalloc(&recvbuff_d, count * sizeof(float)));
 
   EXPECT_TRUE(comm->algoDirector);
+  EXPECT_TRUE(comm->algoDirector->allReduce);
   auto algo = comm->algoDirector->allReduce->getAlgoAllReduce(
       sendbuff_d, recvbuff_d, count, ncclFloat, ncclSum, comm, stream);
   EXPECT_EQ(algo, nullptr);
