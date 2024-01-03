@@ -1793,9 +1793,8 @@ static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUni
   ncclResult_t res = ncclSuccess;
   ncclComm_t comm = NULL;
   struct ncclCommInitRankAsyncJob *job = NULL;
-  const char* env = ncclGetEnv("NCCL_COMM_ID");
-  if (env && myrank == 0) {
-    INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", env);
+  if (!NCCL_COMM_ID.empty() && myrank == 0) {
+    INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", NCCL_COMM_ID.c_str());
     NCCLCHECKGOTO(bootstrapCreateRoot((struct ncclBootstrapHandle*)&commId, true), res, fail);
   }
 

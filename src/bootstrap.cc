@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "proxy.h"
+#include "nccl_cvars.h"
 
 struct bootstrapRootArgs {
   struct ncclSocket* listenSock;
@@ -28,10 +29,9 @@ ncclResult_t bootstrapNetInit() {
   if (bootstrapNetInitDone == 0) {
     pthread_mutex_lock(&bootstrapNetLock);
     if (bootstrapNetInitDone == 0) {
-      const char* env = ncclGetEnv("NCCL_COMM_ID");
-      if (env) {
+      if (!NCCL_COMM_ID.empty()) {
         union ncclSocketAddress remoteAddr;
-        if (ncclSocketGetAddrFromString(&remoteAddr, env) != ncclSuccess) {
+        if (ncclSocketGetAddrFromString(&remoteAddr, NCCL_COMM_ID.c_str()) != ncclSuccess) {
           WARN("Invalid NCCL_COMM_ID, please use format: <ipv4>:<port> or [<ipv6>]:<port> or <hostname>:<port>");
           return ncclInvalidArgument;
         }
@@ -189,10 +189,9 @@ ncclResult_t bootstrapGetUniqueId(struct ncclBootstrapHandle* handle) {
   memset(handle, 0, sizeof(ncclBootstrapHandle));
   NCCLCHECK(getRandomData(&handle->magic, sizeof(handle->magic)));
 
-  const char* env = ncclGetEnv("NCCL_COMM_ID");
-  if (env) {
-    INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", env);
-    if (ncclSocketGetAddrFromString(&handle->addr, env) != ncclSuccess) {
+  if (!NCCL_COMM_ID.empty()) {
+    INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", NCCL_COMM_ID.c_str());
+    if (ncclSocketGetAddrFromString(&handle->addr, NCCL_COMM_ID.c_str()) != ncclSuccess) {
       WARN("Invalid NCCL_COMM_ID, please use format: <ipv4>:<port> or [<ipv6>]:<port> or <hostname>:<port>");
       return ncclInvalidArgument;
     }

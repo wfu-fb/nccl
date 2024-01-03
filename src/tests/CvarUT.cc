@@ -429,6 +429,18 @@ TEST_F(CvarTest, NCCL_COMM_BLOCKING_default_value) {
   EXPECT_EQ(NCCL_COMM_BLOCKING, -1);
 }
 
+TEST_F(CvarTest, NCCL_COMM_ID_value_0) {
+  setenv("NCCL_COMM_ID", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_COMM_ID, "val1");
+}
+
+TEST_F(CvarTest, NCCL_COMM_ID_value_1) {
+  setenv("NCCL_COMM_ID", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_COMM_ID, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_0) {
   testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 0);
   EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, 0);
@@ -2957,6 +2969,30 @@ TEST_F(CvarTest, NCCL_SHM_USE_CUDA_MEMCPY_value_2) {
 TEST_F(CvarTest, NCCL_SHM_USE_CUDA_MEMCPY_value_3) {
   testNumValue<int64_t>("NCCL_SHM_USE_CUDA_MEMCPY", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_SHM_USE_CUDA_MEMCPY, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_FAMILY_value_0) {
+  setenv("NCCL_SOCKET_FAMILY", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SOCKET_FAMILY, "val1");
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_FAMILY_value_1) {
+  setenv("NCCL_SOCKET_FAMILY", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SOCKET_FAMILY, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_IFNAME_value_0) {
+  setenv("NCCL_SOCKET_IFNAME", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SOCKET_IFNAME, "val1");
+}
+
+TEST_F(CvarTest, NCCL_SOCKET_IFNAME_value_1) {
+  setenv("NCCL_SOCKET_IFNAME", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SOCKET_IFNAME, "val2_with_space");
 }
 
 TEST_F(CvarTest, NCCL_SOCKET_NTHREADS_value_0) {

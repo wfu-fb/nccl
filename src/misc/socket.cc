@@ -12,6 +12,35 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include "param.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_SOCKET_FAMILY
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_SOCKET_FAMILY variable allows users to force NCCL to use
+     only IPv4 or IPv6 interface. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-family
+
+ - name        : NCCL_SOCKET_IFNAME
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_SOCKET_IFNAME variable specifies which IP interface to
+     use for communication. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
+
+ - name        : NCCL_COMM_ID
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static ncclResult_t socketProgressOpt(int op, struct ncclSocket* sock, void* ptr, int size, int* offset, int block, int* closed) {
   int bytes = 0;
@@ -85,15 +114,14 @@ static uint16_t socketToPort(union ncclSocketAddress *addr) {
 /* Allow the user to force the IPv4/IPv6 interface selection */
 static int envSocketFamily(void) {
   int family = -1; // Family selection is not forced, will use first one found
-  const char* env = ncclGetEnv("NCCL_SOCKET_FAMILY");
-  if (env == NULL)
+  if (NCCL_SOCKET_FAMILY.empty())
     return family;
 
-  INFO(NCCL_ENV, "NCCL_SOCKET_FAMILY set by environment to %s", env);
+  INFO(NCCL_ENV, "NCCL_SOCKET_FAMILY set by environment to %s", NCCL_SOCKET_FAMILY.c_str());
 
-  if (strcmp(env, "AF_INET") == 0)
+  if (NCCL_SOCKET_FAMILY == "AF_INET")
     family = AF_INET;  // IPv4
-  else if (strcmp(env, "AF_INET6") == 0)
+  else if (NCCL_SOCKET_FAMILY == "AF_INET6")
     family = AF_INET6; // IPv6
   return family;
 }
@@ -326,24 +354,22 @@ int ncclFindInterfaces(char* ifNames, union ncclSocketAddress *ifAddrs, int ifNa
   // Allow user to force the INET socket family selection
   int sock_family = envSocketFamily();
   // User specified interface
-  const char* env = ncclGetEnv("NCCL_SOCKET_IFNAME");
-  if (env && strlen(env) > 1) {
-    INFO(NCCL_ENV, "NCCL_SOCKET_IFNAME set by environment to %s", env);
+  if (NCCL_SOCKET_IFNAME.length() > 1) {
+    INFO(NCCL_ENV, "NCCL_SOCKET_IFNAME set by environment to %s", NCCL_SOCKET_IFNAME.c_str());
     // Specified by user : find or fail
-    if (shownIfName++ == 0) INFO(NCCL_NET, "NCCL_SOCKET_IFNAME set to %s", env);
-    nIfs = findInterfaces(env, ifNames, ifAddrs, sock_family, ifNameMaxSize, maxIfs);
+    if (shownIfName++ == 0) INFO(NCCL_NET, "NCCL_SOCKET_IFNAME set to %s", NCCL_SOCKET_IFNAME.c_str());
+    nIfs = findInterfaces(NCCL_SOCKET_IFNAME.c_str(), ifNames, ifAddrs, sock_family, ifNameMaxSize, maxIfs);
   } else {
     // Try to automatically pick the right one
     // Start with IB
     nIfs = findInterfaces("ib", ifNames, ifAddrs, sock_family, ifNameMaxSize, maxIfs);
     // else see if we can get some hint from COMM ID
     if (nIfs == 0) {
-      const char* commId = ncclGetEnv("NCCL_COMM_ID");
-      if (commId && strlen(commId) > 1) {
-	INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", commId);
+      if (NCCL_COMM_ID.length() > 1) {
+	INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", NCCL_COMM_ID.c_str());
 	// Try to find interface that is in the same subnet as the IP in comm id
         union ncclSocketAddress idAddr;
-        ncclSocketGetAddrFromString(&idAddr, commId);
+        ncclSocketGetAddrFromString(&idAddr, NCCL_COMM_ID.c_str());
         nIfs = ncclFindInterfaceMatchSubnet(ifNames, ifAddrs, &idAddr, ifNameMaxSize, maxIfs);
       }
     }

@@ -71,6 +71,9 @@ extern std::string NCCL_COLLTRACE_LOCAL_SUBDIR_DEFAULT;
 extern int64_t NCCL_COMM_BLOCKING;
 extern int64_t NCCL_COMM_BLOCKING_DEFAULT;
 
+extern std::string NCCL_COMM_ID;
+extern std::string NCCL_COMM_ID_DEFAULT;
+
 extern int64_t NCCL_COMM_SPLIT_SHARE_RESOURCES;
 extern int64_t NCCL_COMM_SPLIT_SHARE_RESOURCES_DEFAULT;
 
@@ -412,6 +415,12 @@ extern int64_t NCCL_SHM_MEMCPY_MODE_DEFAULT;
 
 extern int64_t NCCL_SHM_USE_CUDA_MEMCPY;
 extern int64_t NCCL_SHM_USE_CUDA_MEMCPY_DEFAULT;
+
+extern std::string NCCL_SOCKET_FAMILY;
+extern std::string NCCL_SOCKET_FAMILY_DEFAULT;
+
+extern std::string NCCL_SOCKET_IFNAME;
+extern std::string NCCL_SOCKET_IFNAME_DEFAULT;
 
 extern int64_t NCCL_SOCKET_NTHREADS;
 extern int64_t NCCL_SOCKET_NTHREADS_DEFAULT;
