@@ -379,6 +379,18 @@ TEST_F(CvarTest, NCCL_CHUNK_SIZE_value_3) {
   EXPECT_EQ(NCCL_CHUNK_SIZE, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_COLLNET_ENABLE_value_0) {
+  setenv("NCCL_COLLNET_ENABLE", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_COLLNET_ENABLE, "val1");
+}
+
+TEST_F(CvarTest, NCCL_COLLNET_ENABLE_value_1) {
+  setenv("NCCL_COLLNET_ENABLE", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_COLLNET_ENABLE, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_COLLNET_NODE_THRESHOLD_value_0) {
   testNumValue<int64_t>("NCCL_COLLNET_NODE_THRESHOLD", 0);
   EXPECT_EQ(NCCL_COLLNET_NODE_THRESHOLD, 0);
@@ -1873,6 +1885,18 @@ TEST_F(CvarTest, NCCL_L1_SHARED_MEMORY_CARVEOUT_value_3) {
   EXPECT_EQ(NCCL_L1_SHARED_MEMORY_CARVEOUT, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_LAUNCH_MODE_value_0) {
+  setenv("NCCL_LAUNCH_MODE", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_LAUNCH_MODE, "val1");
+}
+
+TEST_F(CvarTest, NCCL_LAUNCH_MODE_value_1) {
+  setenv("NCCL_LAUNCH_MODE", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_LAUNCH_MODE, "val2_with_space");
+}
+
 TEST_F(CvarTest, NCCL_LL128_BUFFSIZE_value_0) {
   testNumValue<int64_t>("NCCL_LL128_BUFFSIZE", 0);
   EXPECT_EQ(NCCL_LL128_BUFFSIZE, 0);
@@ -2218,6 +2242,18 @@ TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_value_3) {
 TEST_F(CvarTest, NCCL_NCHANNELS_PER_NET_PEER_default_value) {
   testDefaultValue("NCCL_NCHANNELS_PER_NET_PEER");
   EXPECT_EQ(NCCL_NCHANNELS_PER_NET_PEER, 2);
+}
+
+TEST_F(CvarTest, NCCL_NETWORK_value_0) {
+  setenv("NCCL_NET", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_NETWORK, "val1");
+}
+
+TEST_F(CvarTest, NCCL_NETWORK_value_1) {
+  setenv("NCCL_NET", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_NETWORK, "val2_with_space");
 }
 
 TEST_F(CvarTest, NCCL_NET_DISABLE_INTRA_value_0) {

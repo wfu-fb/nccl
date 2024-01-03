@@ -126,6 +126,13 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_COLLNET_ENABLE
+Description:
+    Enable the use of CollNet plugin. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-enable
+Type: string
+Default: 
+
 NCCL_COLLNET_NODE_THRESHOLD
 Description:
     A threshold for number of nodes below which CollNet will not be
@@ -606,6 +613,14 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_LAUNCH_MODE
+Description:
+    The NCCL_LAUNCH_MODE variable controls how NCCL launches CUDA
+    kernels. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-launch-mode
+Type: string
+Default: 
+
 NCCL_LL128_BUFFSIZE
 Description:
     Hidden variable. No description provided.
@@ -716,6 +731,20 @@ Description:
     Hidden variable. No description provided.
 Type: int64_t
 Default: 2
+
+NCCL_NET (internal variable within NCCL: NCCL_NETWORK)
+Description:
+    Forces NCCL to use a specific network, for example to make sure
+    NCCL uses an external plugin and doesn’t automatically fall back
+    on the internal IB or Socket implementation. Setting this
+    environment variable will override the netName configuration in
+    all communicators (see ncclConfig_t); if not set (undefined), the
+    network module will be determined by the configuration; if not
+    passing configuration, NCCL will automatically choose the best
+    network module. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net
+Type: string
+Default: 
 
 NCCL_NET_DISABLE_INTRA
 Description:

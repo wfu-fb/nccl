@@ -228,6 +228,36 @@
    description : |-
      Hidden variable. No description provided.
 
+ - name        : NCCL_COLLNET_ENABLE
+   type        : string
+   default     : ""
+   description : |-
+     Enable the use of CollNet plugin. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-enable
+
+ - name        : NCCL_LAUNCH_MODE
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_LAUNCH_MODE variable controls how NCCL launches CUDA
+     kernels. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-launch-mode
+
+ - name        : NCCL_NETWORK
+   envstr      : NCCL_NET
+   type        : string
+   default     : ""
+   description : |-
+     Forces NCCL to use a specific network, for example to make sure
+     NCCL uses an external plugin and doesn’t automatically fall back
+     on the internal IB or Socket implementation. Setting this
+     environment variable will override the netName configuration in
+     all communicators (see ncclConfig_t); if not set (undefined), the
+     network module will be determined by the configuration; if not
+     passing configuration, NCCL will automatically choose the best
+     network module. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -1046,10 +1076,9 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
 
   // Determine local CollNet support
   if (collNetSupport(comm)) {
-    const char *collNetEnable = ncclGetEnv("NCCL_COLLNET_ENABLE");
-    if (collNetEnable != NULL) {
-      INFO(NCCL_ALL, "NCCL_COLLNET_ENABLE set by environment to %s.", collNetEnable);
-      if (strcmp(collNetEnable, "1") == 0) {
+    if (!NCCL_COLLNET_ENABLE.empty()) {
+      INFO(NCCL_ALL, "NCCL_COLLNET_ENABLE set by environment to %s.", NCCL_COLLNET_ENABLE.c_str());
+      if (NCCL_COLLNET_ENABLE == "1") {
         comm->collNetSupport = 1;
       }
     }
@@ -1384,9 +1413,8 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
   }
 
   if (comm->intraRank == 0) { // Load ncclParamLaunchMode
-    const char* str = ncclGetEnv("NCCL_LAUNCH_MODE");
     enum ncclLaunchMode mode, modeOld;
-    if (str && strcasecmp(str, "GROUP") == 0) {
+    if (strcasecmp(NCCL_LAUNCH_MODE.c_str(), "GROUP") == 0) {
       mode = ncclLaunchModeGroup;
     } else {
       mode = ncclLaunchModeParallel;
@@ -1394,7 +1422,7 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
     // In theory we could be racing with other communicators not associated with
     // this one if the user is connecting to multiple ncclUniqueId's concurrently.
     modeOld = __atomic_exchange_n(&ncclParamLaunchMode, mode, __ATOMIC_RELAXED);
-    if (modeOld == ncclLaunchModeInvalid && str && str[0]!='\0') {
+    if (modeOld == ncclLaunchModeInvalid && !NCCL_LAUNCH_MODE.empty()) {
       INFO(NCCL_ENV, "NCCL_LAUNCH_MODE set by environment to %s", mode == ncclLaunchModeParallel ? "PARALLEL" : "GROUP");
     }
   }
@@ -1600,7 +1628,6 @@ fail:
 static ncclResult_t envConfigOverride(ncclComm_t comm) {
   ncclResult_t ret = ncclSuccess;
   const char* tmpNetName = comm->config.netName;
-  const char* envNetName;
   int blockingEnv;
   int cgaClusterSizeEnv;
   int minCTAsEnv;
@@ -1630,9 +1657,8 @@ static ncclResult_t envConfigOverride(ncclComm_t comm) {
     comm->config.maxCTAs = maxCTAsEnv;
   }
 
-  envNetName = ncclGetEnv("NCCL_NET");
-  if (envNetName)
-    tmpNetName = envNetName;
+  if (!NCCL_NETWORK.empty())
+    tmpNetName = NCCL_NETWORK.c_str();
   if (tmpNetName != NULL) {
     int netNameLen = strlen(tmpNetName) + 1;
     comm->config.netName = (char*)malloc(netNameLen);
