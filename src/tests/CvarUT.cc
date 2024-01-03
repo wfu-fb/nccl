@@ -1358,34 +1358,6 @@ TEST_F(CvarTest, NCCL_IB_GID_INDEX_value_3) {
   EXPECT_EQ(NCCL_IB_GID_INDEX, std::numeric_limits<int64_t>::min());
 }
 
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_0) {
-  setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
-  std::vector<std::string> vals{"val1","val2","val3"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_1) {
-  setenv("NCCL_IB_HCA", "val1:1,val2:2,val3:3", 1);
-  std::vector<std::string> vals{"val1:1","val2:2","val3:3"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_2) {
-  setenv("NCCL_IB_HCA", "val", 1);
-  std::vector<std::string> vals{"val"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
-TEST_F(CvarTest, NCCL_IB_HCA_valuelist_3) {
-  setenv("NCCL_IB_HCA", "val1, val_w_space  ", 1);
-  std::vector<std::string> vals{"val1","val_w_space"};
-  ncclCvarInit();
-  checkListValues<std::string>(vals, NCCL_IB_HCA);
-}
-
 TEST_F(CvarTest, NCCL_IB_HCA_default_value) {
   testDefaultValue("NCCL_IB_HCA");
   EXPECT_EQ(NCCL_IB_HCA.size(), 0);

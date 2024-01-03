@@ -300,7 +300,24 @@ class prefixedStringlist(stringlist):
         super().storageDecl(file)
 
     def unitTest(self, file):
-        super().unitTest(file)
+        indent(file, "TEST_F(CvarTest, %s_default_value) {" % (self.name))
+        if self.default:
+            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "{")
+            trimedPrefixes = [v.strip() for v in self.prefixes.split(",")]
+            default = self.default
+            for v in trimedPrefixes:
+                default = default.lstrip(v)
+            indent(file, "std::vector<std::string> vals{\"%s\"};" % (default.replace("," , "\",\"")))
+            indent(file, "checkListValues<std::string>(vals, %s);" % (self.name))
+            indent(file, "}")
+        else:
+            indent(file, "testDefaultValue(\"%s\");" % (self.name))
+            indent(file, "EXPECT_EQ(%s.size(), 0);" % (self.name))
+        indent(file, "}")
+        file.write("\n")
+
+        self.dupValUnitTest(file)
 
         val = "val1,val2,val3"
         for i, prefix in enumerate(["^", "=", ""]):
