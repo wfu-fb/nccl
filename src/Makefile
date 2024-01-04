@@ -19,8 +19,6 @@ LIBSRCFILES := init.cc init_nvtx.cc channel.cc bootstrap.cc transport.cc enqueue
 LIBSRCFILES += collectives/all_reduce_sparse_block.cc setinfo.cc commSplitType.cc
 LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
 LIBSRCFILES += misc/nccl_cvars_base.cc misc/nccl_cvars.cc
-LIBSRCFILES += init_dda.cc collectives/ddaPrivateMd.cc collectives/ddaMemHandles.cc \
-		collectives/all_reduce_dda.cc
 LIBSRCFILES += ctran/backends/ib/CtranIb.cc ctran/backends/ib/CtranIbImpl.cc \
 			   ctran/backends/ib/CtranIbRequest.cc ctran/backends/ib/CtranIbVc.cc
 LIBSRCFILES += ctran/gpe/CtranGpe.cc ctran/gpe/CtranGpeImpl.cc

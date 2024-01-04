@@ -13,7 +13,6 @@
 #include "nccl_tuner.h"
 #include "proxy.h"
 #include "strongstream.h"
-#include "comm_dda.h"
 #include "info.h"
 #include "colltrace.h"
 #include "AlgoDirector.h"
@@ -357,8 +356,6 @@ struct ncclComm {
 
   // colltrace object
   COLLTRACE_OBJECT();
-
-  ddaPrivateMd *dda;
 
   std::unique_ptr<nccl::algorithms::AlgoDirector> algoDirector{nullptr};
   std::unique_ptr<Ctran> ctran{nullptr};

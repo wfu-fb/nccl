@@ -19,15 +19,6 @@ ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
     }
   }
 
-  ncclDDAAlgoAllReduce_t allreduceAlgo = getAlgoAllReduce(sendbuff, recvbuff, count, datatype, op, comm);
-  if (allreduceAlgo != NCCL_DDA_ALLREDUCE_ALGO_DEFAULT) {
-    auto ret = ncclAllReduceDDA(sendbuff, recvbuff, count, datatype, op, comm, stream);
-    if (ret != ncclInvalidUsage) {
-      // return immediately if result is non-ncclInvalidUsage error
-      return ret;
-    }
-  }
-
   struct NvtxParamsAllReduce {
     size_t bytes;
     ncclRedOp_t op;
