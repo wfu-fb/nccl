@@ -14,7 +14,7 @@
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
- - name        : NCCL_DDA2_TMPBUFF_SIZE
+ - name        : NCCL_DDA_TMPBUFF_SIZE
    type        : uint64_t
    default     : 33554432
    description : |-
@@ -35,7 +35,7 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
   // get device property (expensive call: 10+ ms)
   CUDACHECKIGNORE(cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
   maxBlocks_ =
-      std::min(NCCL_DDA2_ALLREDUCE_MAX_BLOCKS, devProp_.multiProcessorCount);
+      std::min(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, devProp_.multiProcessorCount);
 
   // allocate host memory
   devStates_ = static_cast<DdaDeviceState*>(
@@ -64,7 +64,7 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
       0,
       maxBlocks_ * comm_->nRanks * sizeof(uintptr_t)));
 
-  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA2_TMPBUFF_SIZE));
+  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
       cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
 

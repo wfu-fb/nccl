@@ -14,19 +14,19 @@
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
- - name        : NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD
+ - name        : NCCL_DDA_ALLREDUCE_TREE_THRESHOLD
    type        : uint64_t
    default     : 262144
    description : |-
      Message size at which DDA Allreduce switches to the tree algorithm.
 
- - name        : NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD
+ - name        : NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD
    type        : uint64_t
    default     : 1048576
    description : |-
      Message size at which DDA Allreduce switches to the scatter-gather algorithm.
 
- - name        : NCCL_DDA2_ALLREDUCE_MAX_BLOCKS
+ - name        : NCCL_DDA_ALLREDUCE_MAX_BLOCKS
    type        : int
    default     : 24
    description : |-
@@ -151,12 +151,12 @@ std::unique_ptr<AlgoAllReduce> AlgoManagerAllReduce::getAlgoAllReduce(
         recvbuff,
         totalSize,
         numDdaThreads,
-        NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD)) {
+        NCCL_DDA_ALLREDUCE_TREE_THRESHOLD)) {
       // fallback to default
       return nullptr;
     }
 
-    if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD) {
+    if (totalSize < NCCL_DDA_ALLREDUCE_TREE_THRESHOLD) {
       return getAlgoAllReduceDdaNvsFlatThreaded(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
     } else {
@@ -171,17 +171,17 @@ std::unique_ptr<AlgoAllReduce> AlgoManagerAllReduce::getAlgoAllReduce(
           sendbuff,
           recvbuff,
           totalSize,
-          NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD,
-          NCCL_DDA2_TMPBUFF_SIZE)) {
+          NCCL_DDA_ALLREDUCE_TREE_THRESHOLD,
+          NCCL_DDA_TMPBUFF_SIZE)) {
       // fallback to default
       return nullptr;
     }
 
-    assert(totalSize <= NCCL_DDA2_TMPBUFF_SIZE);
-    if (totalSize < NCCL_DDA2_ALLREDUCE_TREE_THRESHOLD) {
+    assert(totalSize <= NCCL_DDA_TMPBUFF_SIZE);
+    if (totalSize < NCCL_DDA_ALLREDUCE_TREE_THRESHOLD) {
       return getAlgoAllReduceDdaNvsFlatIpc(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
-    } else if (totalSize < NCCL_DDA2_ALLREDUCE_SCATGAT_THRESHOLD) {
+    } else if (totalSize < NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD) {
       return getAlgoAllReduceDdaNvsTreeIpc(
           sendbuff, recvbuff, count, datatype, op, comm, stream);
     } else {

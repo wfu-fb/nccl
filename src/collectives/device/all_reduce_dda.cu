@@ -1,7 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "all_reduce.h"
-#include "all_reduce_dda2.h"
+#include "all_reduce_dda.h"
 #include "collectives.h"
 #include "common.h"
 
@@ -387,7 +387,7 @@ barrier_onSameBlockIdx_ipc(uintptr_t* barrierMbox, uintptr_t barrierFlag, int ra
  * reduces it into the local destination buffer.
  */
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Flat(
+__global__ void ncclKernel_AllReduce_DDA_Flat(
     uintptr_t barrierFlag,
     DdaDeviceState* devStates,
     int rank,
@@ -426,7 +426,7 @@ __global__ void ncclKernel_AllReduce_DDA2_Flat(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
+__global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
     uintptr_t barrierFlag,
     DdaDeviceState* devStates,
     int rank,
@@ -527,7 +527,7 @@ static inline __device__ void allGather(
  * direct copy by each rank).
  */
 template <typename T, uint32_t NRANKS>
-__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree(
+__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA_Tree(
     uintptr_t barrierFlag,
     DdaDeviceState* devStates,
     int rank,
@@ -628,7 +628,7 @@ static inline __device__ void allGather_ipc(
 }
 
 template <typename T, uint32_t NRANKS>
-__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
+__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA_Tree_ipc(
     uintptr_t barrierFlag,
     DdaDeviceState* devStates,
     int rank,
@@ -681,7 +681,7 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_Tree_ipc(
  * Tree algorithm.
  */
 template <typename T, uint32_t NRANKS>
-__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
+__global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA_ScatGat_ipc(
     uintptr_t barrierFlag,
     DdaDeviceState* devStates,
     int rank,
@@ -749,19 +749,19 @@ __global__ void __launch_bounds__(1024) ncclKernel_AllReduce_DDA2_ScatGat_ipc(
   barrier_onSameBlockIdx_ipc<NRANKS>(mbox, flag, rank);
 }
 
-DECL_DDA2_FUNC(char);
-DECL_DDA2_FUNC(uint8_t);
-DECL_DDA2_FUNC(int32_t);
-DECL_DDA2_FUNC(uint32_t);
-DECL_DDA2_FUNC(int64_t);
-DECL_DDA2_FUNC(uint64_t);
-DECL_DDA2_FUNC(half);
-DECL_DDA2_FUNC(float);
-DECL_DDA2_FUNC(double);
+DECL_DDA_FUNC(char);
+DECL_DDA_FUNC(uint8_t);
+DECL_DDA_FUNC(int32_t);
+DECL_DDA_FUNC(uint32_t);
+DECL_DDA_FUNC(int64_t);
+DECL_DDA_FUNC(uint64_t);
+DECL_DDA_FUNC(half);
+DECL_DDA_FUNC(float);
+DECL_DDA_FUNC(double);
 #if defined(__CUDA_BF16_TYPES_EXIST__)
-DECL_DDA2_FUNC(__nv_bfloat16);
+DECL_DDA_FUNC(__nv_bfloat16);
 #endif
 #if defined(NCCL_ENABLE_FP8)
-DECL_DDA2_FUNC(__nv_fp8_e4m3);
-DECL_DDA2_FUNC(__nv_fp8_e5m2);
+DECL_DDA_FUNC(__nv_fp8_e4m3);
+DECL_DDA_FUNC(__nv_fp8_e5m2);
 #endif

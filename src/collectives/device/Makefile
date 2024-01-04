@@ -11,7 +11,7 @@ BUILDDIR ?= $(abspath ../../../build)
 OBJDIR := $(BUILDDIR)/obj/collectives/device
 
 LIBSRCFILES := all_reduce.cu broadcast.cu reduce.cu all_gather.cu reduce_scatter.cu sendrecv.cu onerank_reduce.cu
-LIBSRCFILES += all_reduce_dda2.cu
+LIBSRCFILES += all_reduce_dda.cu
 LIBSRCFILES += all_reduce_sparse_block.cu
 LIBSRCFILES += ../../ctran/gpe/CtranGpeKernel.cu
 
@@ -40,7 +40,7 @@ $(RULESFILE) : gen_rules.sh
 -include $(RULESFILE)
 
 LIBOBJ     := $(GENOBJS) $(OBJDIR)/functions.o $(OBJDIR)/onerank_reduce.o
-LIBOBJ     += $(OBJDIR)/all_reduce_dda2.o
+LIBOBJ     += $(OBJDIR)/all_reduce_dda.o
 LIBOBJ     += $(OBJDIR)/all_reduce_sparse_block.o
 LIBOBJ     += $(OBJDIR)/CtranGpeKernel.o
 

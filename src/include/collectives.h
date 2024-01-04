@@ -24,25 +24,25 @@ struct DdaDeviceState {
   void* tmpbuff;
 };
 
-// DDA2 kernels
+// DDA kernels
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Flat(
+__global__ void ncclKernel_AllReduce_DDA_Flat(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Tree(
+__global__ void ncclKernel_AllReduce_DDA_Tree(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, const T* sendbuff, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Flat_ipc(
+__global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_Tree_ipc(
+__global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, T* recvbuff, size_t count);
 template <typename T, uint32_t NRANKS>
-__global__ void ncclKernel_AllReduce_DDA2_ScatGat_ipc(
+__global__ void ncclKernel_AllReduce_DDA_ScatGat_ipc(
   uintptr_t barrierFlag, DdaDeviceState* devStates,
   int rank, T* sendbuff, T* recvbuff, size_t count);
 

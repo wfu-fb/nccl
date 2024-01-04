@@ -36,7 +36,7 @@ AlgoAllReduceDdaNvsFlatThreaded::~AlgoAllReduceDdaNvsFlatThreaded() {}
 template <typename T>
 ncclResult_t AlgoAllReduceDdaNvsFlatThreaded::launchKernel() {
   const void* func = nullptr;
-  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_Flat, comm_->nRanks);
+  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA_Flat, comm_->nRanks);
 
   auto gridBlock =
       getGridAndBlockDims(func, count_, datatype_, maxBlocks_);

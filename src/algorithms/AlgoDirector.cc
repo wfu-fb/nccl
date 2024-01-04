@@ -23,7 +23,7 @@ AlgoDirector::AlgoDirector(ncclComm_t comm, int forceInit) : comm_(comm) {
   // register rank
   DdaThreadedData::get()->registerRank(comm->commHash, comm->rank);
 
-  if ((NCCL_ALLREDUCE_ALGO2 == NCCL_ALLREDUCE_ALGO2::dda) || forceInit) {
+  if ((NCCL_ALLREDUCE_ALGO == NCCL_ALLREDUCE_ALGO::dda) || forceInit) {
     // initialize allreduce if dda is enabled or forced
 
     // enable peer access (support for NVS full-mesh topology only)

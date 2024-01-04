@@ -38,7 +38,7 @@ AlgoAllReduceDdaNvsScatGatIpc::~AlgoAllReduceDdaNvsScatGatIpc() {}
 template <typename T>
 ncclResult_t AlgoAllReduceDdaNvsScatGatIpc::launchKernel() {
   const void* func = nullptr;
-  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA2_ScatGat_ipc, comm_->nRanks);
+  ASSIGN_FUNC_NRANKS(func, ncclKernel_AllReduce_DDA_ScatGat_ipc, comm_->nRanks);
 
   auto gridBlock =
       getGridAndBlockDims(func, count_, datatype_, maxBlocks_);

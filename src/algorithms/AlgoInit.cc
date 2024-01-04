@@ -8,7 +8,7 @@ namespace algorithms {
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
- - name        : NCCL_ALLREDUCE_ALGO2
+ - name        : NCCL_ALLREDUCE_ALGO
    type        : enum
    default     : orig
    choices     : orig, dda
