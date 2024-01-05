@@ -28,7 +28,6 @@ struct PutQElem {
   char* rAddr;
   size_t size;
   void* hdl;
-  bool notify;
 };
 
 static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
@@ -58,12 +57,13 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   int left = (rank + nRanks - 1) % nRanks;
   int right = (rank + 1) % nRanks;
 
-  size_t stepSize = NCCL_CTRAN_RING_STEP;
-  size_t stepsPerSend = std::max(1LU, (sendSize + stepSize - 1) / stepSize); // ceilDiv
+  size_t stepSize = std::min(NCCL_CTRAN_RING_STEP, sendSize);
+  size_t stepsPerBlock = std::max(1LU, (sendSize + stepSize - 1) / stepSize); // ceilDiv
   size_t maxOutstandingPuts = NCCL_CTRAN_RING_MAX_OUTSTANDING;
   std::deque<PutQElem> putQ;
   std::deque<CtranMapperRequest*> iputReqs;
-  int step = 0;
+  uint64_t blockNum{0};
+  uint64_t stepInBlock{0};
 
   NCCLCHECKGOTO(
       mapper->searchRegHandle(
@@ -91,29 +91,33 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   timestamp->recvCtrl.push_back(CtranMapperTimestampPoint(right));
 
   // Push addresses for first block onto deque
-  for (int i=0; i<stepsPerSend; ++i) {
+  for (int i=0; i<stepsPerBlock; ++i) {
     char* lAddr = (char*)op->allgather.sendbuff + i * stepSize;
     char* rAddr = (char*)remoteRecvBuff + rank * sendSize + i * stepSize;
     size_t size = std::min(stepSize, sendSize - i * stepSize);
-    putQ.push_back({lAddr, rAddr, size, sendHdl, i == stepsPerSend-1});
+    putQ.push_back({lAddr, rAddr, size, sendHdl});
   }
 
-  while (!putQ.empty() || !iputReqs.empty() || (step < nRanks-1)) {
+  while (!putQ.empty() || !iputReqs.empty() || (blockNum < nRanks-1)) {
     // Check for notifications from left and queue up corresponding sends
-    bool notifyRcvd{false};
-    NCCLCHECKGOTO(mapper->checkNotify(left, &notifyRcvd), res, exit);
-    if (notifyRcvd) {
-      // Don't queue send for final step
-      if (step < nRanks - 2) {
-        int blockId = (rank - step - 1 + nRanks) % nRanks;
-        for (int i=0; i<stepsPerSend; ++i) {
-          char* lAddr = (char*)op->allgather.recvbuff + blockId * sendSize + i * stepSize;
-          char* rAddr = (char*)remoteRecvBuff + blockId * sendSize + i * stepSize;
-          size_t size = std::min(stepSize, sendSize - i * stepSize);
-          putQ.push_back({lAddr, rAddr, size, recvHdl, i == stepsPerSend-1});
-        }
+    while (true) {
+      bool notifyRcvd{false};
+      NCCLCHECKGOTO(mapper->checkNotify(left, &notifyRcvd), res, exit);
+      if (!notifyRcvd) {
+        break;
       }
-      ++step;
+      // Don't queue send for final step
+      if (blockNum < nRanks - 2) {
+        int blockId = (rank - blockNum - 1 + nRanks) % nRanks;
+        char* lAddr = (char*)op->allgather.recvbuff + blockId * sendSize + stepInBlock * stepSize;
+        char* rAddr = (char*)remoteRecvBuff + blockId * sendSize + stepInBlock * stepSize;
+        size_t size = std::min(stepSize, sendSize - stepInBlock * stepSize);
+        putQ.push_back({lAddr, rAddr, size, recvHdl});
+      }
+      if (stepInBlock == stepsPerBlock - 1) {
+        ++blockNum;
+      }
+      stepInBlock = (stepInBlock + 1) % stepsPerBlock;
     }
 
     // Remove any completed puts from putQ, making room for new puts if possible
@@ -127,11 +131,16 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
       }
     }
 
-    // Issue new puts if we're ready to
+    // Issue new puts if we're ready to, up to max outstanding
     while (!putQ.empty() && iputReqs.size() < maxOutstandingPuts) {
       CtranMapperRequest *req;
       const auto& e = putQ.front();
-      NCCLCHECKGOTO(mapper->iput(e.lAddr, e.rAddr, e.size, right, e.hdl, remoteAccessKey, e.notify, &req), res, exit);
+      // Always notify receiver and always get a cqe back
+      NCCLCHECKGOTO(
+        mapper->iput(
+          e.lAddr, e.rAddr, e.size, right, e.hdl, remoteAccessKey, true, &req),
+        res,
+        exit);
       iputReqs.push_back(req);
       putQ.pop_front();
     }
