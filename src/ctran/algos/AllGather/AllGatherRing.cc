@@ -16,6 +16,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   bool localRegSend, localRegRecv;
   void* remoteRecvBuff;
   struct CtranMapperRemoteAccessKey remoteAccessKey;
+  CtranMapper *mapper = comm->ctran->mapper.get();
 
   if (nRanks == 1) {
     return ncclSuccess;
@@ -32,24 +33,24 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   int right = (rank + 1) % nRanks;
 
   NCCLCHECKGOTO(
-      comm->ctran->mapper->searchRegHandle(
+      mapper->searchRegHandle(
           op->allgather.sendbuff, sendSize, &sendHdl, &localRegSend),
       res,
       exit);
 
   NCCLCHECKGOTO(
-      comm->ctran->mapper->searchRegHandle(
+      mapper->searchRegHandle(
           op->allgather.recvbuff, nRanks * sendSize, &recvHdl, &localRegRecv),
       res,
       exit);
 
   NCCLCHECKGOTO(
-      comm->ctran->mapper->irecvCtrl(
+      mapper->irecvCtrl(
           &remoteRecvBuff, &remoteAccessKey, right, &irecvReq),
       res,
       exit);
   NCCLCHECKGOTO(
-      comm->ctran->mapper->isendCtrl(
+      mapper->isendCtrl(
           op->allgather.recvbuff, recvHdl, left, &isendReq),
       res,
       exit);
@@ -57,7 +58,7 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   timestamp->recvCtrl.push_back(CtranMapperTimestampPoint(right));
 
   NCCLCHECKGOTO(
-      comm->ctran->mapper->iput(
+      mapper->iput(
           op->allgather.sendbuff,
           (void*)((uintptr_t)remoteRecvBuff + rank * sendSize),
           sendSize,
@@ -73,9 +74,9 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   for (int i = 0; i < nRanks - 2; i++) {
     int blockId = (rank - i - 1 + nRanks) % nRanks;
 
-    NCCLCHECKGOTO(comm->ctran->mapper->waitNotify(left), res, exit);
+    NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
     NCCLCHECKGOTO(
-        comm->ctran->mapper->iput(
+        mapper->iput(
             (void*)((uintptr_t)op->allgather.recvbuff + blockId * sendSize),
             (void*)((uintptr_t)remoteRecvBuff + blockId * sendSize),
             sendSize,
@@ -89,21 +90,21 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
     timestamp->putIssued.push_back(CtranMapperTimestampPoint(right));
   }
 
-  NCCLCHECKGOTO(comm->ctran->mapper->waitNotify(left), res, exit);
+  NCCLCHECKGOTO(mapper->waitNotify(left), res, exit);
   NCCLCHECKGOTO(isendReq->wait(), res, exit);
 
   NCCLCHECKGOTO(iputReq->wait(), res, exit);
   timestamp->putComplete.push_back(CtranMapperTimestampPoint(right));
 
   if (localRegSend == true) {
-    NCCLCHECKGOTO(comm->ctran->mapper->deregMem(sendHdl), res, exit);
+    NCCLCHECKGOTO(mapper->deregMem(sendHdl), res, exit);
   }
   if (localRegRecv == true) {
-    NCCLCHECKGOTO(comm->ctran->mapper->deregMem(recvHdl), res, exit);
+    NCCLCHECKGOTO(mapper->deregMem(recvHdl), res, exit);
   }
 
-  comm->ctran->mapper->timestamps.push_back(std::move(timestamp));
-  comm->ctran->mapper->reportProfiling();
+  mapper->timestamps.push_back(std::move(timestamp));
+  mapper->reportProfiling();
 
 exit:
   return res;
