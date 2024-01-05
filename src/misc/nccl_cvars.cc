@@ -1,15 +1,202 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <sstream>
+#include <limits>
+#include <chrono>
+#include <iomanip>
+#include <unordered_set>
+#include <strings.h>
+#include <string.h>
+#include <cuda_runtime.h>
+#include "nccl_cvars.h"
+#include "debug.h"
+#include "checks.h"
+
+// Cvar internal logger
+// We need avoid calling into default logger because it may call ncclGetEnv() on
+// demand in ncclDebugInit() and cause circular call & deadlock. Since CVAR_WARN
+// happens usually only at initialization time and is for warning only, we might
+// be OK to use separate logger here and always print to stdout.
+static int pid = getpid();
+static thread_local int tid = syscall(SYS_gettid);
+static char hostname[HOST_NAME_MAX];
+static bool enableCvarWarn = true;
+static int cudaDev = -1;
+
+void initEnvSet(std::unordered_set<std::string>& env);
+void readCvarEnv();
+
+#define CVAR_WARN(fmt, ...)                                 \
+  if (enableCvarWarn) {                                     \
+    printf(                                                 \
+        "%s %s:%d:%d [%d] %s:%d NCCL WARN CVAR: " fmt "\n", \
+        getTime().c_str(),                                  \
+        hostname,                                           \
+        pid,                                                \
+        tid,                                                \
+        cudaDev,                                            \
+        __FUNCTION__,                                       \
+        __LINE__,                                           \
+        ##__VA_ARGS__);                                     \
+  }
+
+#define CVAR_WARN_UNKNOWN_VALUE(name, value)               \
+  do {                                                     \
+    CVAR_WARN("Unknown value %s for env %s", value, name); \
+  } while (0)
+
+static void initCvarLogger() {
+  const char* nccl_debug = getenv("NCCL_DEBUG");
+  if (nccl_debug == NULL || strcasecmp(nccl_debug, "VERSION") == 0) {
+    enableCvarWarn = false;
+  }
+  getHostName(hostname, HOST_NAME_MAX, '.');
+
+  // Used for ncclCvarInit time warning only
+  CUDACHECKIGNORE(cudaGetDevice(&cudaDev));
+}
+
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+    return !std::isspace(ch);
+  }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+  s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+    return !std::isspace(ch);
+  }).base(), s.end());
+}
+
+static std::vector<std::string> tokenizer(std::string str) {
+  std::string delim = ",";
+  std::vector<std::string> tokens;
+
+  while (auto pos = str.find(",")) {
+    std::string newstr = str.substr(0, pos);
+    ltrim(newstr);
+    rtrim(newstr);
+    // Skip empty string
+    if(!newstr.empty()) {
+      if(std::find(tokens.begin(), tokens.end(), newstr) != tokens.end()) {
+        CVAR_WARN("Duplicate token %s found in the value of %s", newstr.c_str(), str.c_str());
+      }
+      tokens.push_back(newstr);
+    }
+    str.erase(0, pos + delim.length());
+    if (pos == std::string::npos) {
+      break;
+    }
+  }
+  return tokens;
+}
+
+static bool env2bool(const char *str_, const char *def) {
+  std::string str(getenv(str_) ? getenv(str_) : def);
+  std::transform(str.cbegin(), str.cend(), str.begin(), [](unsigned char c) { return std::tolower(c); });
+  if (str == "y") return true;
+  else if (str == "n") return false;
+  else if (str == "yes") return true;
+  else if (str == "no") return false;
+  else if (str == "t") return true;
+  else if (str == "f") return false;
+  else if (str == "true") return true;
+  else if (str == "false") return false;
+  else if (str == "1") return true;
+  else if (str == "0") return false;
+  else CVAR_WARN_UNKNOWN_VALUE(str_, str.c_str());
+  return true;
+}
+
+template <typename T>
+static T env2num(const char *str, const char *def) {
+  std::string s(getenv(str) ? getenv(str) : def);
+
+  if (std::find_if(s.begin(), s.end(), ::isdigit) != s.end()) {
+    /* if the string contains a digit, try converting it normally */
+    std::stringstream sstream(s);
+    T ret;
+    sstream >> ret;
+    return ret;
+  } else {
+    /* if there are no digits, see if its a special string such as
+     * "MAX" or "MIN". */
+    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+    if (s == "MAX") {
+      return std::numeric_limits<T>::max();
+    } else if (s == "MIN") {
+      return std::numeric_limits<T>::min();
+    } else {
+      CVAR_WARN("Unrecognized numeral %s\n", s.c_str());
+      return 0;
+    }
+  }
+}
+
+static std::string env2str(const char *str, const char *def_) {
+  const char *def = def_ ? def_ : "";
+  std::string str_s = getenv(str) ? std::string(getenv(str)) : std::string(def);
+  ltrim(str_s);
+  rtrim(str_s);
+  return str_s;
+}
+
+static std::vector<std::string> env2strlist(const char* str, const char* def_) {
+  const char* def = def_ ? def_ : "";
+  std::string str_s(getenv(str) ? getenv(str) : def);
+  return tokenizer(str_s);
+}
+
+static std::tuple<std::string, std::vector<std::string>> env2prefixedStrlist(
+    const char* str,
+    const char* def_,
+    std::vector<std::string> prefixes) {
+  const char* def = def_ ? def_ : "";
+  std::string str_s(getenv(str) ? getenv(str) : def);
+
+  // search if any prefix is specified
+  for (auto prefix : prefixes) {
+    if (!str_s.compare(0, prefix.size(), prefix)) {
+      // if prefix is found, convert the remaining string to stringList
+      std::string slist_s = str_s.substr(prefix.size());
+      return std::make_tuple(prefix, tokenizer(slist_s));
+    }
+  }
+  // if no prefix is found, convert entire string to stringList
+  return std::make_tuple("", tokenizer(str_s));
+}
+
+extern char **environ;
+void ncclCvarInit() {
+  std::unordered_set<std::string> env;
+  initEnvSet(env);
+
+  initCvarLogger();
+
+  // Check if any NCCL_ env var is not in allow list
+  char **s = environ;
+  for (; *s; s++) {
+    if (!strncmp(*s, "NCCL_", strlen("NCCL_"))) {
+      std::string str(*s);
+      str = str.substr(0, str.find("="));
+      if (env.find(str) == env.end()) {
+        CVAR_WARN("Unknown env %s in the NCCL namespace", str.c_str());
+      }
+    }
+  }
+
+  readCvarEnv();
+}
+
 // Automatically generated by ./maint/extractcvars.py --- START
 // DO NOT EDIT!!!
-
-#include <iostream>
-#include <unordered_set>
-#include <string>
-#include <vector>
-#include "nccl_cvars.h"
-#include "nccl_cvars_base.h"
-
 std::string CUDA_LAUNCH_BLOCKING;
 std::string CUDA_LAUNCH_BLOCKING_DEFAULT;
 int64_t NCCL_AGG_CHANNEL_SIZE;
@@ -916,3 +1103,4 @@ void readCvarEnv() {
 }
 
 // Automatically generated by ./maint/extractcvars.py --- END
+

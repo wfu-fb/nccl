@@ -18,7 +18,7 @@ LIBSRCFILES := init.cc init_nvtx.cc channel.cc bootstrap.cc transport.cc enqueue
                 graph/topo.cc graph/paths.cc graph/search.cc graph/connect.cc graph/rings.cc graph/trees.cc graph/tuning.cc graph/xml.cc
 LIBSRCFILES += collectives/all_reduce_sparse_block.cc setinfo.cc commSplitType.cc
 LIBSRCFILES += misc/colltrace.cc misc/tuner.cc
-LIBSRCFILES += misc/nccl_cvars_base.cc misc/nccl_cvars.cc
+LIBSRCFILES += misc/nccl_cvars.cc
 LIBSRCFILES += ctran/backends/ib/CtranIb.cc ctran/backends/ib/CtranIbImpl.cc \
 			   ctran/backends/ib/CtranIbRequest.cc ctran/backends/ib/CtranIbVc.cc
 LIBSRCFILES += ctran/gpe/CtranGpe.cc ctran/gpe/CtranGpeImpl.cc

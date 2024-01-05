@@ -1,13 +1,19 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#ifndef NCCL_CVARS_BASE_H_INCLUDED
-#define NCCL_CVARS_BASE_H_INCLUDED
-
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <sstream>
+#include <limits>
+#include <chrono>
+#include <iomanip>
+#include <unordered_set>
+#include <strings.h>
+#include <string.h>
+#include <cuda_runtime.h>
+#include "nccl_cvars.h"
 #include "debug.h"
 #include "checks.h"
 
@@ -21,6 +27,9 @@ static thread_local int tid = syscall(SYS_gettid);
 static char hostname[HOST_NAME_MAX];
 static bool enableCvarWarn = true;
 static int cudaDev = -1;
+
+void initEnvSet(std::unordered_set<std::string>& env);
+void readCvarEnv();
 
 #define CVAR_WARN(fmt, ...)                                 \
   if (enableCvarWarn) {                                     \
@@ -164,7 +173,26 @@ static std::tuple<std::string, std::vector<std::string>> env2prefixedStrlist(
   return std::make_tuple("", tokenizer(str_s));
 }
 
-void initEnvSet(std::unordered_set<std::string>& env);
-void readCvarEnv();
+extern char **environ;
+void ncclCvarInit() {
+  std::unordered_set<std::string> env;
+  initEnvSet(env);
 
-#endif /* NCCL_CVARS_BASE_H_INCLUDED */
+  initCvarLogger();
+
+  // Check if any NCCL_ env var is not in allow list
+  char **s = environ;
+  for (; *s; s++) {
+    if (!strncmp(*s, "NCCL_", strlen("NCCL_"))) {
+      std::string str(*s);
+      str = str.substr(0, str.find("="));
+      if (env.find(str) == env.end()) {
+        CVAR_WARN("Unknown env %s in the NCCL namespace", str.c_str());
+      }
+    }
+  }
+
+  readCvarEnv();
+}
+
+### AUTOGEN_CONTENT ###
