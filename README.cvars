@@ -268,6 +268,18 @@ Description:
 Type: int
 Default: -1
 
+NCCL_CTRAN_RING_MAX_OUTSTANDING
+Description:
+    Max number of outstanding puts in the ring pipeline.
+Type: int
+Default: 8
+
+NCCL_CTRAN_RING_STEP
+Description:
+    Pipeline step size for the CTRAN ring algorithm.
+Type: uint64_t
+Default: 4194304
+
 NCCL_CTRAN_TOPO_FILE
 Description:
     File that contains topology information in KEY=VALUE format

@@ -800,6 +800,56 @@ TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_default_value) {
   EXPECT_EQ(NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT, -1);
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_0) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", 0);
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_1) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", 9999);
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_2) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_3) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_default_value) {
+  testDefaultValue("NCCL_CTRAN_RING_MAX_OUTSTANDING");
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, 8);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", 0);
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", 9999);
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_default_value) {
+  testDefaultValue("NCCL_CTRAN_RING_STEP");
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, 4194304);
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_value_0) {
   setenv("NCCL_CTRAN_TOPO_FILE", "val1", 1);
   ncclCvarInit();
