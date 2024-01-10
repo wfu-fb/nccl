@@ -99,10 +99,14 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
               putReqPtr),
           res,
           exit);
-      timestamp->putIssued.push_back(CtranMapperTimestampPoint(peer));
+      // Capture duration started from first put
+      if (j == 0) {
+        timestamp->putIssued.push_back(CtranMapperTimestampPoint(peer));
+      }
     }
     // Wait for signal from receives
     NCCLCHECKGOTO(iputReq[i]->wait(), res, exit);
+    // Capture duration ended at last put when it is completed
     timestamp->putComplete.push_back(CtranMapperTimestampPoint(peer));
     NCCLCHECKGOTO(comm->ctran->mapper->waitNotify(peer), res, exit);
   }
