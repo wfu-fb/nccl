@@ -21,7 +21,9 @@ struct CtranMapperRemoteAccessKey {
 class CtranMapper;
 class CtranMapperRequest {
  public:
-  CtranMapperRequest(CtranMapper* mapper);
+  CtranMapperRequest(CtranMapper* mapper) : mapper_(mapper){};
+  CtranMapperRequest(CtranMapper* mapper, int peer)
+      : peer(peer), mapper_(mapper){};
   ~CtranMapperRequest();
 
   /* test whether a request is completed or not */
@@ -29,43 +31,44 @@ class CtranMapperRequest {
   /* wait the complete of this request */
   ncclResult_t wait();
 
-  CtranIbRequest* ibReq;
+  CtranIbRequest* ibReq{nullptr};
+  int peer{-1};
 
  private:
-  CtranMapper* mapper_;
+  CtranMapper* mapper_{nullptr};
   enum {
     INCOMPLETE,
     COMPLETE,
-  } state_;
+  } state_{INCOMPLETE};
 };
 
 struct ncclComm;
 
 class CtranMapperTimestampPoint {
-  public:
-    CtranMapperTimestampPoint(int peer) {
-      this->now = std::chrono::high_resolution_clock::now();
-      this->peer = peer;
-    }
-    ~CtranMapperTimestampPoint() = default;
+ public:
+  CtranMapperTimestampPoint(int peer) {
+    this->now = std::chrono::high_resolution_clock::now();
+    this->peer = peer;
+  }
+  ~CtranMapperTimestampPoint() = default;
 
-    std::chrono::time_point<std::chrono::high_resolution_clock> now;
-    int peer;
+  std::chrono::time_point<std::chrono::high_resolution_clock> now;
+  int peer;
 };
 
 class CtranMapperTimestamp {
-  public:
-    CtranMapperTimestamp(const std::string algo) {
-      this->algo = algo;
-      this->start = std::chrono::high_resolution_clock::now();
-    }
-    ~CtranMapperTimestamp() = default;
+ public:
+  CtranMapperTimestamp(const std::string algo) {
+    this->algo = algo;
+    this->start = std::chrono::high_resolution_clock::now();
+  }
+  ~CtranMapperTimestamp() = default;
 
-    std::vector<CtranMapperTimestampPoint> recvCtrl;
-    std::vector<CtranMapperTimestampPoint> putIssued;
-    std::vector<CtranMapperTimestampPoint> putComplete;
-    std::string algo;
-    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+  std::vector<CtranMapperTimestampPoint> recvCtrl;
+  std::vector<CtranMapperTimestampPoint> putIssued;
+  std::vector<CtranMapperTimestampPoint> putComplete;
+  std::string algo;
+  std::chrono::time_point<std::chrono::high_resolution_clock> start;
 };
 
 class CtranMapperTimer {
@@ -216,6 +219,25 @@ class CtranMapper {
    *   - rank: the rank of the peer to wait for the notification
    */
   ncclResult_t waitNotify(int rank);
+
+  /* Test completion of a vector of requests. Any completed requests will be
+   * removed from the vector. User can query the size of the vector to check the
+   * number of completed requests. Input arguments:
+   *   - reqs: a vector of request objects to test
+   *   - tps: a vector of timestamp points to record the completion time of each
+   *          request
+   */
+  ncclResult_t testSomeRequests(
+      std::vector<std::unique_ptr<CtranMapperRequest>>& reqs,
+      std::vector<CtranMapperTimestampPoint>& tps);
+
+  /* Test notification of a vector of peers. Any completed notification will be
+   * removed from the vector. User can query the size of the vector to check the
+   * number of completed notification. Input arguments:
+   *   - peers: a vector of peer ranks to check the notification
+   */
+  ncclResult_t checkSomeNotify(std::vector<int>& peers);
+
   /* report the Ctran profiling results
    * Input arguments:
    *   - flush: force flushing the profiling result
@@ -224,8 +246,8 @@ class CtranMapper {
   void reportRegSnapshot();
 
   /* Read the provided topology info file and bootstrap all-gather the
-  * information with other ranks
-  */
+   * information with other ranks
+   */
   void bootstrapTopology(ncclComm* comm);
 
   int rank;

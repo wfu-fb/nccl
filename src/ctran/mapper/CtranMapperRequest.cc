@@ -3,12 +3,6 @@
 #include "CtranMapper.h"
 #include "debug.h"
 
-CtranMapperRequest::CtranMapperRequest(CtranMapper* mapper) {
-  this->mapper_ = mapper;
-  this->state_ = CtranMapperRequest::INCOMPLETE;
-  this->ibReq = nullptr;
-}
-
 CtranMapperRequest::~CtranMapperRequest() {
   if (this->ibReq != nullptr) {
     delete this->ibReq;

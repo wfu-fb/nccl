@@ -254,3 +254,32 @@ TEST_F(CtranMapperTest, ReqWait) {
 
   delete req;
 }
+
+TEST_F(CtranMapperTest, ReqTestSome) {
+  mapper = std::unique_ptr<CtranMapper>(new CtranMapper(dummyComm));
+  std::vector<std::unique_ptr<CtranMapperRequest>> reqs;
+  std::vector<CtranMapperTimestampPoint> tps;
+
+  constexpr int numReqs = 10;
+  ncclResult_t res;
+
+  CtranMapperTimestampPoint startTp = CtranMapperTimestampPoint(0);
+  for (int i = 0; i < numReqs; i++) {
+    int peer = i % 2;
+    reqs.push_back(std::unique_ptr<CtranMapperRequest>(
+        new CtranMapperRequest(mapper.get(), peer)));
+  }
+
+  while (!reqs.empty()) {
+    res = mapper->testSomeRequests(reqs, tps);
+    EXPECT_EQ(res, ncclSuccess);
+  }
+
+  EXPECT_EQ(tps.size(), numReqs);
+  CtranMapperTimestampPoint* prevTp = &startTp;
+  for (int i = 0; i < numReqs; i++) {
+    EXPECT_EQ(tps[i].peer, i % 2);
+    EXPECT_GT(tps[i].now, prevTp->now);
+    prevTp = &tps[i];
+  }
+}

@@ -637,7 +637,7 @@ ncclResult_t CtranMapper::isendCtrl(
 
     CtranIbRequest** ibReqPtr = nullptr;
     if (req) {
-      *req = new CtranMapperRequest(this);
+      *req = new CtranMapperRequest(this, rank);
       ibReqPtr = &((*req)->ibReq);
     }
     res = this->pimpl_->ctranIb->isendCtrl(
@@ -657,7 +657,7 @@ ncclResult_t CtranMapper::irecvCtrl(
   if (this->pimpl_->ctranIb != nullptr) {
     CtranIbRequest** ibReqPtr = nullptr;
     if (req) {
-      *req = new CtranMapperRequest(this);
+      *req = new CtranMapperRequest(this, rank);
       ibReqPtr = &((*req)->ibReq);
     }
     res = this->pimpl_->ctranIb->irecvCtrl(buf, &key->ibKey, rank, ibReqPtr);
@@ -683,7 +683,7 @@ ncclResult_t CtranMapper::iput(
             this->pimpl_->mapperRegElemList->lookup(shdl));
     CtranIbRequest** ibReqPtr = nullptr;
     if (req) {
-      *req = new CtranMapperRequest(this);
+      *req = new CtranMapperRequest(this, rank);
       ibReqPtr = &((*req)->ibReq);
     }
     this->pimpl_->ctranIb->iput(
@@ -720,6 +720,50 @@ ncclResult_t CtranMapper::waitNotify(int rank) {
 
 exit:
   return res;
+}
+
+ncclResult_t CtranMapper::testSomeRequests(
+    std::vector<std::unique_ptr<CtranMapperRequest>>& reqs,
+    std::vector<CtranMapperTimestampPoint>& tps) {
+  for (auto it = reqs.begin(); it != reqs.end();) {
+    auto& req = *it;
+    if (req) {
+      // Only icopy request doesn't have peer; expect it is not used in
+      // testSomeRequests with timepoints.
+      if (req->peer == -1) {
+        WARN("Expect peer is specified in request.");
+        return ncclInternalError;
+      }
+
+      bool completed = false;
+      NCCLCHECK(req->test(&completed));
+      if (completed) {
+        tps.push_back(CtranMapperTimestampPoint(req->peer));
+        it = reqs.erase(it);
+      } else {
+        it++;
+      }
+    } else if (!req) {
+      // Remove completed requests
+      it = reqs.erase(it);
+    }
+  }
+  return ncclSuccess;
+}
+
+ncclResult_t CtranMapper::checkSomeNotify(std::vector<int>& peers) {
+  for (auto it = peers.begin(); it != peers.end();) {
+    int peer = *it;
+    bool completed = false;
+    NCCLCHECK(this->checkNotify(peer, &completed));
+    if (completed) {
+      // Remove completed notify peer
+      it = peers.erase(it);
+    } else {
+      it++;
+    }
+  }
+  return ncclSuccess;
 }
 
 void CtranMapper::bootstrapTopology(ncclComm* comm) {
