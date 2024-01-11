@@ -5,6 +5,7 @@
 #include <nccl.h>
 #include <stdlib.h>
 #include "Ctran.h"
+#include "CtranAlgoDev.h"
 #include "checks.h"
 #include "tests_common.cuh"
 
@@ -88,6 +89,69 @@ TEST_F(CtranTest, PostCommDestory) {
   NCCLCHECK_TEST(ncclCommDestroy(comm));
 
   ASSERT_FALSE(ctranInitialized(comm));
+}
+
+TEST_F(CtranTest, AlgoDeviceState) {
+  ncclComm_t comm =
+      createNcclComm(this->globalRank, this->numRanks, this->localRank);
+
+  ASSERT_NE(nullptr, comm);
+  ASSERT_NE(nullptr, comm->ctran);
+
+  ASSERT_NE(nullptr, comm->ctran->algo->devState_d);
+
+  // check contents of devState_d to make sure it is initialized correctly
+  CtranAlgoDeviceState devState;
+  CUDACHECK_TEST(cudaMemcpy(
+      &devState,
+      comm->ctran->algo->devState_d,
+      sizeof(devState),
+      cudaMemcpyDeviceToHost));
+
+  EXPECT_EQ(devState.localRanks, comm->localRanks);
+  EXPECT_EQ(devState.localRank, comm->localRank);
+  EXPECT_EQ(devState.bufSize, NCCL_CTRAN_SHARED_DEVBUF_SIZE);
+
+  for (int i = 0; i < comm->localRanks; i++) {
+    EXPECT_EQ(devState.localRankToRank[i], comm->localRankToRank[i]);
+    for (int j = 0; j < comm->localRanks; j++) {
+      if (i == j) {
+        // Expect null for owner itself
+        EXPECT_EQ(devState.allPeerToBufsMap[i][j], nullptr);
+        EXPECT_EQ(devState.allPeerToBufStatesMap[i][j], nullptr);
+      } else {
+        // Expect IPC buffer is allocated and state is reset for all peers
+        EXPECT_NE(devState.allPeerToBufsMap[i][j], nullptr);
+        EXPECT_NE(devState.allPeerToBufStatesMap[i][j], nullptr);
+
+        // Copy buffer state to host and check values are reset to default
+        struct CtranAlgoDeviceBufState stateVal;
+        CUDACHECK_TEST(cudaMemcpy(
+            &stateVal,
+            devState.allPeerToBufStatesMap[i][j],
+            sizeof(stateVal),
+            cudaMemcpyDeviceToHost));
+        for (int k = 0; k < CTRAN_ALGO_MAX_THREAD_BLOCKS; k++) {
+          EXPECT_EQ(stateVal.stepOnSameBlockIdx[k], CTRAN_ALGO_STEP_RESET);
+        }
+      }
+    }
+  }
+
+  NCCLCHECK_TEST(ncclCommDestroy(comm));
+}
+
+TEST_F(CtranTest, CommAbort) {
+  ncclResult_t res;
+  ncclComm_t comm =
+      createNcclComm(this->globalRank, this->numRanks, this->localRank);
+
+  ASSERT_NE(nullptr, comm);
+  ASSERT_NE(nullptr, comm->ctran);
+
+  // Expect shared resource has been released properly
+  res = ncclCommAbort(comm);
+  ASSERT_EQ(res, ncclSuccess);
 }
 
 int main(int argc, char* argv[]) {

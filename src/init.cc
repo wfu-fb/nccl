@@ -2242,6 +2242,11 @@ ncclResult_t ncclCommAbort(ncclComm_t comm) {
   if (childAbortFlag != NULL) {
     *childAbortFlag = 1;
   }
+
+  /* abort ctran shared resource before aborting socket triggerd by
+   * *comm->abortFlag=1. */
+  CtranAbort(comm);
+
   *comm->abortFlag = 1;
   /* init thread must be joined before we destroy the comm,
    * and we should ignore the init error here. */

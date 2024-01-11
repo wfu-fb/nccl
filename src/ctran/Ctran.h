@@ -4,6 +4,7 @@
 #define CTRAN_COMM_H_
 
 #include <memory>
+#include "CtranAlgo.h"
 #include "CtranGpe.h"
 #include "CtranMapper.h"
 #include "nccl.h"
@@ -55,19 +56,6 @@
     comm->opCount++;                                                                                                             \
   } while (0)
 
-typedef enum {
-  SENDRECV,
-} CtranAlgoType;
-
-typedef enum {
-  UNKNOWN,
-
-  SENDRECV_ORIG,
-  SENDRECV_CTRAN,
-} CtranAlgo;
-
-struct ncclComm;
-
 class Ctran {
  public:
   Ctran(ncclComm* comm);
@@ -78,6 +66,7 @@ class Ctran {
 
   std::unique_ptr<CtranMapper> mapper{nullptr};
   std::unique_ptr<CtranGpe> gpe{nullptr};
+  std::unique_ptr<CtranAlgo> algo{nullptr};
 };
 
 inline bool ctranIsUsed() {
@@ -87,6 +76,11 @@ inline bool ctranIsUsed() {
 ncclResult_t ctranInit(ncclComm* comm);
 bool ctranInitialized(ncclComm* comm);
 ncclResult_t ctranDestroy(ncclComm* comm);
+
+// Called by ncclCommAbort to release any shared resources before bootstrap
+// close. For local resources such as thread and backends, they can be
+// released in ctranDestroy.
+ncclResult_t CtranAbort(ncclComm* comm);
 
 bool ctranSendRecvSupport(int peer, ncclComm_t comm);
 ncclResult_t ctranSend(

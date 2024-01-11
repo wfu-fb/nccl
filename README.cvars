@@ -280,6 +280,14 @@ Description:
 Type: uint64_t
 Default: 4194304
 
+NCCL_CTRAN_SHARED_DEVBUF_SIZE
+Description:
+    Size of shared device memory region allocated for each peer for inter-GPU
+    communication. In total NCCL_CTRAN_SHARED_DEVBUF_SIZE * number of
+    local ranks size of memory will be allocated on each rank.
+Type: uint64_t
+Default: 8388608
+
 NCCL_CTRAN_TOPO_FILE
 Description:
     File that contains topology information in KEY=VALUE format

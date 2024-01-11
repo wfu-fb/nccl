@@ -1,6 +1,8 @@
 #include "Ctran.h"
 #include <nccl.h>
 #include <memory>
+#include "AlgoDirector.h"
+#include "CtranAlgo.h"
 #include "CtranGpe.h"
 #include "CtranMapper.h"
 #include "argcheck.h"
@@ -11,6 +13,13 @@
 Ctran::Ctran(ncclComm* comm) {
   this->mapper = std::unique_ptr<CtranMapper>(new CtranMapper(comm));
   this->gpe = std::unique_ptr<CtranGpe>(new CtranGpe(comm->cudaDev));
+
+  // CtranAlgo relies on AlgoDirector to identify multi-threaded comm
+  if (!comm->algoDirector) {
+    WARN("CtranAlgo requires AlgoDirector to be initialized!");
+    throw std::bad_alloc();
+  }
+  this->algo = std::unique_ptr<CtranAlgo>(new CtranAlgo(comm));
 }
 
 ncclResult_t Ctran::commRegister(void* buff, size_t size, void** handle) {
@@ -45,7 +54,8 @@ ncclResult_t ctranInit(ncclComm* comm) {
 }
 
 bool ctranInitialized(ncclComm* comm) {
-  return comm && !comm->finalizeCalled && comm->ctran && comm->ctran->mapper && comm->ctran->gpe;
+  return comm && !comm->finalizeCalled && comm->ctran && comm->ctran->mapper &&
+      comm->ctran->gpe && comm->ctran->algo;
 }
 
 ncclResult_t ctranDestroy(ncclComm* comm) {
@@ -61,4 +71,15 @@ ncclResult_t ctranDestroy(ncclComm* comm) {
   comm->ctran.reset();
 
   return ret;
+}
+
+ncclResult_t CtranAbort(ncclComm* comm) {
+  // Return error if ctran is not fully initialized
+  if (!ctranInitialized(comm)) {
+    WARN("Ctran is not initialized\n");
+    return ncclInternalError;
+  }
+
+  comm->ctran->algo->releaseSharedResource();
+  return ncclSuccess;
 }

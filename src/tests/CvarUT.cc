@@ -850,6 +850,31 @@ TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_default_value) {
   EXPECT_EQ(NCCL_CTRAN_RING_STEP, 4194304);
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", 0);
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", 9999);
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_default_value) {
+  testDefaultValue("NCCL_CTRAN_SHARED_DEVBUF_SIZE");
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, 8388608);
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_value_0) {
   setenv("NCCL_CTRAN_TOPO_FILE", "val1", 1);
   ncclCvarInit();
