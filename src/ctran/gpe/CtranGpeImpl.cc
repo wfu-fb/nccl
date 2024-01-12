@@ -20,33 +20,55 @@ ncclResult_t CtranGpe::Impl::submit(
     CtranGpeCmd::TypeEnum type,
     std::vector<std::unique_ptr<struct OpElem>> opGroup,
     opFunc func,
+    KernelConfig& kernelConfig,
     const void* ncclKernel) {
-  ncclResult_t res = ncclSuccess;
+  // Set first kernel argument as kernelFlag if GPE op is not empty.
+  // Check it before passing opGroup to cmd
+  std::vector<void*> kernelArgs;
+  void* kernelFlag = opGroup.size() ? this->kernelFlag : nullptr;
+  kernelArgs.push_back(&kernelFlag);
 
-  struct CtranGpeCmd* cmd = new struct CtranGpeCmd;
-  cmd->type = type;
+  // Enqueue op to gpeThread if any op is appended
+  if (!opGroup.empty()) {
+    struct CtranGpeCmd* cmd = new struct CtranGpeCmd;
+    cmd->type = type;
 
-  if (type == CtranGpeCmd::TypeEnum::GRAPH_ENQUEUE) {
-    cudaStream_t stream = opGroup.front()->stream;
-    cmd->coll.opGroup = std::move(opGroup);
-    cmd->coll.func = func;
+    if (type == CtranGpeCmd::TypeEnum::GRAPH_ENQUEUE) {
+      cmd->coll.opGroup = std::move(opGroup);
+      cmd->coll.func = func;
+    }
 
-    /* Enqueue the kernel.  It will not start till all other
-     * operations on this stream have completed. */
-    dim3 grid = {1, 1, 1};
-    dim3 blocks = {1, 1, 1};
-    void* args[] = {&this->kernelFlag};
-    CUDACHECKGOTO(
-        cudaLaunchKernel(ncclKernel, grid, blocks, args, 0, stream), res, exit);
+    this->m.lock();
+    cmdQueue.push(cmd);
+    this->m.unlock();
+    c.notify_one();
   }
+
+  // Enqueue the kernel with arguments.  It will not start till all other
+  // operations on this stream have completed
+  dim3 grid = {kernelConfig.numBlocks, 1, 1};
+  dim3 blocks = {kernelConfig.numThreads, 1, 1};
+
+  // Specify collective arguments
+  kernelArgs.push_back((void*)&kernelConfig.args.devState_d);
+  kernelArgs.push_back((void*)&kernelConfig.args.collective);
+
+  CUDACHECK(cudaLaunchKernel(
+      ncclKernel, grid, blocks, kernelArgs.data(), 0, kernelConfig.stream));
+
+  return ncclSuccess;
+}
+
+ncclResult_t CtranGpe::Impl::terminate() {
+  struct CtranGpeCmd* cmd = new struct CtranGpeCmd;
+  cmd->type = CtranGpeCmd::TypeEnum::TERMINATE;
 
   this->m.lock();
   cmdQueue.push(cmd);
   this->m.unlock();
   c.notify_one();
 
-exit:
-  return res;
+  return ncclSuccess;
 }
 
 void CtranGpe::Impl::gpeThreadFn(CtranGpe::Impl* pimpl, int cudaDev) {

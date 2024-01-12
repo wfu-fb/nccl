@@ -137,10 +137,10 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
       const auto& e = putQ.front();
       // Always notify receiver and always get a cqe back
       NCCLCHECKGOTO(
-        mapper->iput(
+          mapper->iput(
           e.lAddr, e.rAddr, e.size, right, e.hdl, remoteAccessKey, true, &req),
-        res,
-        exit);
+          res,
+          exit);
       iputReqs.push_back(req);
       putQ.pop_front();
     }
@@ -169,7 +169,6 @@ ncclResult_t ctranAllGatherRing(
     ncclDataType_t datatype,
     ncclComm_t comm,
     cudaStream_t stream) {
-  ncclResult_t res = ncclSuccess;
   std::vector<std::unique_ptr<struct OpElem>> opGroup;
   std::unique_ptr<struct OpElem> op;
 
@@ -188,21 +187,27 @@ ncclResult_t ctranAllGatherRing(
   }
 
   op = std::unique_ptr<struct OpElem>(
-      new OpElem(OpElem::opType::ALLGATHER, stream, comm));
+      new OpElem(OpElem::opType::ALLGATHER, comm));
   op->allgather.sendbuff = sendbuff;
   op->allgather.recvbuff = recvbuff;
   op->allgather.sendcount = sendcount;
   op->allgather.datatype = datatype;
-
   opGroup.push_back(std::move(op));
-  NCCLCHECKGOTO(
-      comm->ctran->gpe->submit(
-          std::move(opGroup),
-          impl,
-          reinterpret_cast<void*>(ncclKernelAllGatherCtranRing)),
-      res,
-      fail);
 
-fail:
-  return res;
+  auto config = KernelConfig(KernelConfig::KernelType::ALLGATHER, stream);
+  // kernel arguments are unused for now; needed for NVL path support
+  ctranKernelSetAllGatherArgs(
+      sendbuff,
+      recvbuff,
+      sendcount * ncclTypeSize(datatype),
+      comm->ctran->algo->devState_d,
+      &config.args);
+
+  NCCLCHECK(comm->ctran->gpe->submit(
+      std::move(opGroup),
+      impl,
+      config,
+      reinterpret_cast<void*>(ncclKernelAllGatherCtranRing)));
+
+  return ncclSuccess;
 }

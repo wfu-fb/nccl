@@ -24,6 +24,7 @@ DEVOBJ     := $(OBJDIR)/devlink.o
 RULESFILE  := $(OBJDIR)/Makefile.rules
 
 NVCUFLAGS  += -I. -I.. -I$(BUILDDIR)/include -I../../include --compiler-options "-fPIC -fvisibility=hidden"
+NVCUFLAGS  += -I../../ctran/algos
 
 
 all: $(STATICLIB)

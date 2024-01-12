@@ -19,12 +19,14 @@ inline __device__ void storeInt(int* ptr, int val) {
   asm volatile("st.volatile.global.s32 [%0], %1;" ::"l"(ptr), "r"(val));
 }
 
-static inline __device__ void ncclKernelStallStream(int* flag) {
+static inline __device__ void ncclKernelStartGpe(int* flag) {
   storeInt(flag, KERNEL_STARTED);
-  int curFlag = KERNEL_STARTED;
-  do {
-    curFlag = loadInt(flag);
-  } while (curFlag != KERNEL_TERMINATE);
 }
 
+static inline __device__ void ncclKernelWaitGpeTerminate(int* flag) {
+  int flagVal = KERNEL_STARTED;
+  do {
+    flagVal = loadInt(flag);
+  } while (flagVal != KERNEL_TERMINATE);
+}
 #endif

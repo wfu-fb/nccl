@@ -146,7 +146,6 @@ ncclResult_t ctranAllGatherRd(
       comm,
       stream);
 
-  ncclResult_t res = ncclSuccess;
   std::vector<std::unique_ptr<struct OpElem>> opGroup;
   std::unique_ptr<struct OpElem> op;
 
@@ -163,21 +162,27 @@ ncclResult_t ctranAllGatherRd(
   }
 
   op = std::unique_ptr<struct OpElem>(
-      new OpElem(OpElem::opType::ALLGATHER, stream, comm));
+      new OpElem(OpElem::opType::ALLGATHER, comm));
   op->allgather.sendbuff = sendbuff;
   op->allgather.recvbuff = recvbuff;
   op->allgather.sendcount = sendcount;
   op->allgather.datatype = datatype;
-
   opGroup.push_back(std::move(op));
-  NCCLCHECKGOTO(
-      comm->ctran->gpe->submit(
-          std::move(opGroup),
-          impl,
-          reinterpret_cast<void*>(ncclKernelAllGatherCtranRecDbl)),
-      res,
-      fail);
 
-fail:
-  return res;
+  auto config = KernelConfig(KernelConfig::KernelType::ALLGATHER, stream);
+  // kernel arguments are unused for now; needed for NVL path support
+  ctranKernelSetAllGatherArgs(
+      sendbuff,
+      recvbuff,
+      sendcount * ncclTypeSize(datatype),
+      comm->ctran->algo->devState_d,
+      &config.args);
+
+  NCCLCHECK(comm->ctran->gpe->submit(
+      std::move(opGroup),
+      impl,
+      config,
+      reinterpret_cast<void*>(ncclKernelAllGatherCtranRecDbl)));
+
+  return ncclSuccess;
 }

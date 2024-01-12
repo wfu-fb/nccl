@@ -218,7 +218,6 @@ ncclResult_t ctranRecv(
 }
 
 ncclResult_t ctranGroupEndHook(void) {
-  ncclResult_t res = ncclSuccess;
   ncclComm_t comm;
   cudaStream_t stream;
 
@@ -251,35 +250,32 @@ ncclResult_t ctranGroupEndHook(void) {
     }
 
     if (hasSend && hasRecv) {
-      NCCLCHECKGOTO(
-          comm->ctran->gpe->submit(
-              std::move(toSubmit),
-              sendRecvImpl,
-              reinterpret_cast<void*>(ncclKernelSendRecv)),
-          res,
-          exit);
+      auto config =
+          KernelConfig(KernelConfig::KernelType::SENDRECV, stream);
+      NCCLCHECK(comm->ctran->gpe->submit(
+          std::move(toSubmit),
+          sendRecvImpl,
+          config,
+          reinterpret_cast<void*>(ncclKernelSendRecv)));
     } else if (hasSend) {
-      NCCLCHECKGOTO(
-          comm->ctran->gpe->submit(
-              std::move(toSubmit),
-              sendRecvImpl,
-              reinterpret_cast<void*>(ncclKernelSend)),
-          res,
-          exit);
+      auto config = KernelConfig(KernelConfig::KernelType::SEND, stream);
+      NCCLCHECK(comm->ctran->gpe->submit(
+          std::move(toSubmit),
+          sendRecvImpl,
+          config,
+          reinterpret_cast<void*>(ncclKernelSend)));
     } else if (hasRecv) {
-      NCCLCHECKGOTO(
-          comm->ctran->gpe->submit(
-              std::move(toSubmit),
-              sendRecvImpl,
-              reinterpret_cast<void*>(ncclKernelRecv)),
-          res,
-          exit);
+      auto config = KernelConfig(KernelConfig::KernelType::RECV, stream);
+      NCCLCHECK(comm->ctran->gpe->submit(
+          std::move(toSubmit),
+          sendRecvImpl,
+          config,
+          reinterpret_cast<void*>(ncclKernelRecv)));
     }
 
     toSubmit.clear();
     CtranOpGroup = std::move(pending);
   }
 
-exit:
-  return res;
+  return ncclSuccess;
 }

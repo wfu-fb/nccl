@@ -34,7 +34,11 @@ class CtranGpe::Impl {
       CtranGpeCmd::TypeEnum type,
       std::vector<std::unique_ptr<struct OpElem>> opGroup,
       opFunc func,
+      KernelConfig& kernelConfig,
       const void* ncclKernel);
+
+  ncclResult_t terminate();
+
   static void gpeThreadFn(class CtranGpe::Impl* pimpl, int cudaDev);
 
   std::thread t;
