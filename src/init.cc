@@ -307,7 +307,7 @@ static ncclResult_t ncclInit() {
   if (__atomic_load_n(&initialized, __ATOMIC_ACQUIRE)) return ncclSuccess;
   pthread_mutex_lock(&initLock);
   if (!initialized) {
-    initEnv();
+    initEnvOnce();
     initGdrCopy();
     // Always initialize bootstrap network
     NCCLCHECK(bootstrapNetInit());
@@ -1819,6 +1819,7 @@ static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUni
   ncclResult_t res = ncclSuccess;
   ncclComm_t comm = NULL;
   struct ncclCommInitRankAsyncJob *job = NULL;
+  initEnvOnce();
   if (!NCCL_COMM_ID.empty() && myrank == 0) {
     INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", NCCL_COMM_ID.c_str());
     NCCLCHECKGOTO(bootstrapCreateRoot((struct ncclBootstrapHandle*)&commId, true), res, fail);

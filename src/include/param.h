@@ -12,5 +12,6 @@
 const char* userHomeDir();
 void setEnvFile(const char* fileName);
 void initEnv();
+void initEnvOnce();
 
 #endif

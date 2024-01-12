@@ -60,3 +60,8 @@ void initEnv() {
   setEnvFile(confFilePath);
   ncclCvarInit();
 }
+
+void initEnvOnce() {
+  static pthread_once_t once = PTHREAD_ONCE_INIT;
+  pthread_once(&once, initEnv);
+}
