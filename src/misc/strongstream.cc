@@ -8,6 +8,29 @@
 #include "cudawrap.h"
 #include "checks.h"
 #include "param.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_GRAPH_MIXING_SUPPORT
+   type        : bool
+   default     : true
+   description : |-
+     Enable/disable support for co-occurring outstanding NCCL launches
+     from multiple CUDA graphs or a CUDA graph and non-captured NCCL
+     calls. With support disabled, correctness is only guaranteed if
+     the communicator always avoids both of the following cases:
+     1. Has outstanding parallel graph launches, where parallel
+     means on different streams without dependencies that would
+     otherwise serialize their execution.
+     2. An outstanding graph launch followed by a non-captured
+     launch.  Stream dependencies are irrelevant.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-mixing-support
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 // Tracks the chain of graph nodes for a given graph captured identified by
 // its graph id. This state has to live for as long as captured work is being
@@ -126,8 +149,6 @@ ncclResult_t ncclStrongStreamDestruct(struct ncclStrongStream* ss) {
   return ncclSuccess;
 }
 
-NCCL_PARAM(GraphMixingSupport, "GRAPH_MIXING_SUPPORT", 1)
-
 static void ensureTips(struct ncclStrongStreamGraph* g, int n) {
   if (g->tipCapacity < n) {
     g->tipNodes = (cudaGraphNode_t*)realloc(g->tipNodes, n*sizeof(cudaGraphNode_t));
@@ -139,9 +160,8 @@ ncclResult_t ncclStrongStreamAcquire(
     struct ncclCudaGraph graph, struct ncclStrongStream* ss
   ) {
   #if CUDART_VERSION >= 11030
-    bool mixing = ncclParamGraphMixingSupport();
     if (graph.graph == nullptr) {
-      if (mixing && ss->everCaptured) {
+      if (NCCL_GRAPH_MIXING_SUPPORT && ss->everCaptured) {
         CUDACHECK(cudaStreamWaitEvent(ss->cudaStream, ss->serialEvent, 0));
         ss->serialEventNeedsRecord = false;
       }
@@ -178,7 +198,7 @@ ncclResult_t ncclStrongStreamAcquire(
       g->alive = true;
       NCCLCHECK(ncclCudaGraphAddDestructor(graph, graphDestructor, (void*)g));
 
-      if (mixing && ss->serialEventNeedsRecord) {
+      if (NCCL_GRAPH_MIXING_SUPPORT && ss->serialEventNeedsRecord) {
         // Can only be here if previous release was for uncaptured work that
         // elided updating the event because no capture had yet occurred.
         CUDACHECK(cudaStreamWaitEvent(ss->cudaStream, ss->serialEvent, 0));
@@ -187,7 +207,7 @@ ncclResult_t ncclStrongStreamAcquire(
       ss->serialEventNeedsRecord = false;
 
       // First node in the chain must be a wait on the serialEvent.
-      if (mixing) {
+      if (NCCL_GRAPH_MIXING_SUPPORT) {
         ensureTips(g, 1);
         CUDACHECK(cudaGraphAddEventWaitNode(&g->tipNodes[0], graph.graph, nullptr, 0, ss->serialEvent));
         g->tipCount = 1;
@@ -201,8 +221,7 @@ ncclResult_t ncclStrongStreamAcquire(
 
 ncclResult_t ncclStrongStreamAcquireUncaptured(struct ncclStrongStream* ss) {
   #if CUDART_VERSION >= 11030
-    bool mixing = ncclParamGraphMixingSupport();
-    if (mixing && ss->everCaptured) {
+    if (NCCL_GRAPH_MIXING_SUPPORT && ss->everCaptured) {
       CUDACHECK(cudaStreamWaitEvent(ss->cudaStream, ss->serialEvent, 0));
     }
     ss->serialEventNeedsRecord = true; // Assume the caller is going to add work to stream.
@@ -220,8 +239,7 @@ static ncclResult_t checkGraphId(struct ncclStrongStreamGraph* g, unsigned long 
 
 ncclResult_t ncclStrongStreamRelease(struct ncclCudaGraph graph, struct ncclStrongStream* ss) {
   #if CUDART_VERSION >= 11030
-    bool mixing = ncclParamGraphMixingSupport();
-    if (mixing && ss->serialEventNeedsRecord) {
+    if (NCCL_GRAPH_MIXING_SUPPORT && ss->serialEventNeedsRecord) {
       if (graph.graph == nullptr) {
         if (ss->everCaptured) {
           CUDACHECK(cudaEventRecord(ss->serialEvent, ss->cudaStream));

@@ -6,6 +6,50 @@
 
 #include "comm.h"
 #include "shm.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_SHM_DISABLE
+   type        : bool
+   default     : false
+   description : |-
+     The NCCL_SHM_DISABLE variable disables the Shared Memory (SHM)
+     transports. SHM is used between devices when peer-to-peer cannot
+     happen, therefore, host memory is used. NCCL will use network
+     (i.e. InfiniBand or IP sockets) to communicate between the CPU
+     sockets when SHM is disabled. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-shm-disable
+
+ - name        : NCCL_SHM_USE_CUDA_MEMCPY
+   type        : bool
+   default     : false
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_SHM_MEMCPY_MODE
+   type        : int64_t
+   default     : 1
+   description : |-
+     Hidden variable. No description provided.
+     1 - sender-side
+     2 - receiver-side
+     3 - both
+
+ - name        : NCCL_SHM_LOCALITY
+   type        : int64_t
+   default     : 2
+   description : |-
+     Hidden variable. No description provided.
+     1 - sender-side
+     2 - receiver-side
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
+#define SHM_SEND_SIDE 1
+#define SHM_RECV_SIDE 2
 
 struct shmConnectInfo {
   char shmName[7];
@@ -35,14 +79,8 @@ struct shmRecvResources {
   ncclShmHandle_t hostHandle;
 };
 
-#define SHM_SEND_SIDE 1
-#define SHM_RECV_SIDE 2
-NCCL_PARAM(ShmDisable, "SHM_DISABLE", 0);
-NCCL_PARAM(ShmUseCudaMemcpy, "SHM_USE_CUDA_MEMCPY", 0);
-NCCL_PARAM(ShmMemcpyMode, "SHM_MEMCPY_MODE", SHM_SEND_SIDE); // 1 is sender-side, 2 is receiver-side, 3 is both
 static int useMemcpySend = 0;
 static int useMemcpyRecv = 0;
-NCCL_PARAM(ShmLocality, "SHM_LOCALITY", SHM_RECV_SIDE); // 1 is sender-size, 2 is receiver-size
 static int shmLocality = 0;
 static void initCeOperation();
 
@@ -51,7 +89,7 @@ static ncclResult_t shmCanConnect(int* ret, struct ncclTopoSystem* topo, struct 
   *ret = 0;
   initCeOperation();
 
-  if (ncclParamShmDisable() == 1) return ncclSuccess;
+  if (NCCL_SHM_DISABLE) return ncclSuccess;
 
   int useNet = 0;
   NCCLCHECK(ncclTopoCheckNet(topo, info1->busId, info2->busId, &useNet));
@@ -416,8 +454,8 @@ struct ncclTransport shmTransport = {
 static void initCeOperation() {
   static int init = 0;
   if (!init) {
-    useMemcpySend = ncclParamShmUseCudaMemcpy() && (ncclParamShmMemcpyMode() & 1);
-    useMemcpyRecv = ncclParamShmUseCudaMemcpy() && (ncclParamShmMemcpyMode() & 2);
+    useMemcpySend = NCCL_SHM_USE_CUDA_MEMCPY && (NCCL_SHM_MEMCPY_MODE & 1);
+    useMemcpyRecv = NCCL_SHM_USE_CUDA_MEMCPY && (NCCL_SHM_MEMCPY_MODE & 2);
     if (useMemcpySend) {
       shmTransport.send.proxyConnect = shmSendProxyConnect;
       shmTransport.send.proxyFree = shmSendProxyFree;
@@ -428,7 +466,7 @@ static void initCeOperation() {
       shmTransport.recv.proxyFree = shmRecvProxyFree;
       shmTransport.recv.proxyProgress = shmRecvProxyProgress;
     }
-    shmLocality = ncclParamShmLocality();
+    shmLocality = NCCL_SHM_LOCALITY;
     if (shmLocality != SHM_SEND_SIDE && shmLocality != SHM_RECV_SIDE) {
       WARN("Ignoring SHM locality, must be 1 (sender side) or 2 (receiver side, default)");
       shmLocality = SHM_RECV_SIDE;

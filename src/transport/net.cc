@@ -13,6 +13,44 @@
 #include "shm.h"
 #include "p2p.h"
 #include "profiler.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NET_SHARED_BUFFERS
+   type        : int64_t
+   default     : -2
+   description : |-
+     Allows the usage of shared buffers for inter-node point-to-point
+     communication. This will use a single large pool for all remote
+     peers, having a constant memory usage instead of increasing
+     linearly with the number of remote peers. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-shared-buffers
+
+ - name        : NCCL_NET_SHARED_COMMS
+   type        : bool
+   default     : true
+   description : |-
+     Reuse the same connections in the context of PXN. This allows for
+     message aggregation but can also decrease the entropy of network
+     packets. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-shared-comms
+
+ - name        : NCCL_GDRCOPY_SYNC_ENABLE
+   type        : bool
+   default     : true
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_GDRCOPY_FLUSH_ENABLE
+   type        : bool
+   default     : false
+   description : |-
+     When enabled uses a PCI-E read to flush GDRDMA buffers.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static_assert(sizeof(ncclNetHandle_t) <= CONNECT_SIZE, "NET Connect info is too large");
 
@@ -150,9 +188,6 @@ static ncclResult_t canConnect(int* ret, struct ncclTopoSystem* topo, struct ncc
   return ncclSuccess;
 }
 
-NCCL_PARAM(NetSharedBuffers, "NET_SHARED_BUFFERS", -2);
-NCCL_PARAM(NetSharedComms, "NET_SHARED_COMMS", 1);
-
 struct setupReq {
   int tpRank;
   int tpLocalRank;
@@ -174,7 +209,7 @@ static ncclResult_t sendSetup(struct ncclComm* comm, struct ncclTopoGraph* graph
   struct setupReq req = { 0 };
   int tpProxyRank;
 
-  send->conn.shared = req.shared = graph ? 0 : ncclParamNetSharedBuffers() != -2 ? ncclParamNetSharedBuffers() : 1;
+  send->conn.shared = req.shared = graph ? 0 : NCCL_NET_SHARED_BUFFERS != NCCL_NET_SHARED_BUFFERS_DEFAULT ? NCCL_NET_SHARED_BUFFERS : 1;
   req.channelId = channelId;
   req.connIndex = connIndex;
 
@@ -201,16 +236,11 @@ static ncclResult_t sendSetup(struct ncclComm* comm, struct ncclTopoGraph* graph
   return ncclSuccess;
 }
 
-// GDRCOPY support: TAIL_ENABLE When enabled locates the RX proxy tail in CUDA memory
-NCCL_PARAM(GdrCopySyncEnable, "GDRCOPY_SYNC_ENABLE", 1);
-// GDRCOPY support: FLUSH_ENABLE When enabled uses a PCI-E read to flush GDRDMA buffers
-NCCL_PARAM(GdrCopyFlushEnable, "GDRCOPY_FLUSH_ENABLE", 0);
-
 /* Setup recv connector */
 static ncclResult_t recvSetup(struct ncclComm* comm, struct ncclTopoGraph* graph, struct ncclPeerInfo* myInfo, struct ncclPeerInfo* peerInfo, struct ncclConnect* connectInfo, struct ncclConnector* recv, int channelId, int connIndex) {
   struct setupReq req = { 0 };
 
-  recv->conn.shared = req.shared = graph ? 0 : ncclParamNetSharedBuffers() != -2 ? ncclParamNetSharedBuffers() : 1;
+  recv->conn.shared = req.shared = graph ? 0 : NCCL_NET_SHARED_BUFFERS != NCCL_NET_SHARED_BUFFERS_DEFAULT ? NCCL_NET_SHARED_BUFFERS : 1;
   req.channelId = channelId;
   req.connIndex = connIndex;
 
@@ -656,7 +686,7 @@ static ncclResult_t sendProxyConnect(struct ncclProxyConnection* connection, str
     }
     connection->proxyAppendPtr = localPeers[resources->tpLocalRank]->send.proxyAppend + resources->channelId;
 
-    if (resources->maxRecvs > 1 && ncclParamNetSharedComms()) {
+    if (resources->maxRecvs > 1 && NCCL_NET_SHARED_COMMS) {
       // Connect or reuse connection for a netdev/remote rank.
       if (progressState->netComms[resources->netDev] == NULL) {
         NCCLCHECK(ncclCalloc(progressState->netComms + resources->netDev, proxyState->tpnRanks));
@@ -737,7 +767,7 @@ static ncclResult_t sendProxyConnect(struct ncclProxyConnection* connection, str
   } else {
     NCCLCHECK(netCreateShm(map->mems+NCCL_NET_MAP_HOSTMEM));
   }
-  if (ncclGdrCopy && map->sameProcess && ncclParamGdrCopySyncEnable()) {
+  if (ncclGdrCopy && map->sameProcess && NCCL_GDRCOPY_SYNC_ENABLE) {
     uint64_t *cpuPtr, *gpuPtr;
     NCCLCHECK(ncclGdrCudaCalloc(&cpuPtr, &gpuPtr, 1, &resources->gdrDesc));
 
@@ -805,7 +835,7 @@ static ncclResult_t recvProxyConnect(struct ncclProxyConnection* connection, str
     }
     connection->proxyAppendPtr = localPeers[resources->tpLocalRank]->recv.proxyAppend + resources->channelId;
 
-    if (resources->maxRecvs > 1 && ncclParamNetSharedComms()) {
+    if (resources->maxRecvs > 1 && NCCL_NET_SHARED_COMMS) {
       // Connect or reuse connection for a netdev/remote rank.
       if (progressState->netComms[resources->netDev] == NULL) {
         NCCLCHECK(ncclCalloc(progressState->netComms + resources->netDev, proxyState->tpnRanks));
@@ -886,14 +916,14 @@ static ncclResult_t recvProxyConnect(struct ncclProxyConnection* connection, str
     uint64_t *cpuPtr, *gpuPtr;
     NCCLCHECK(ncclGdrCudaCalloc(&cpuPtr, &gpuPtr, 2, &resources->gdrDesc));
 
-    if (ncclParamGdrCopySyncEnable()) {
+    if (NCCL_GDRCOPY_SYNC_ENABLE) {
       resources->gdcSync = cpuPtr;
       struct connectMapMem* gdcMem = map->mems+NCCL_NET_MAP_GDCMEM;
       gdcMem->cpuPtr = (char*)cpuPtr;
       gdcMem->gpuPtr = (char*)gpuPtr;
       gdcMem->size = sizeof(uint64_t);
     }
-    if (ncclParamGdrCopyFlushEnable()) resources->gdcFlush = cpuPtr + 1;
+    if (NCCL_GDRCOPY_FLUSH_ENABLE) resources->gdcFlush = cpuPtr + 1;
   }
 
   resources->sendMem = (struct ncclSendMem*) NCCL_NET_MAP_GET_POINTER(map, cpu, sendMem);
@@ -956,7 +986,7 @@ static ncclResult_t sendProxyFree(struct ncclProxyConnection* connection, struct
     if (mems[NCCL_NET_MAP_GDCMEM].cpuPtr) NCCLCHECK(ncclGdrCudaFree(resources->gdrDesc));
     if (resources->shared) {
       NCCLCHECK(sharedNetBuffersDestroy(proxyState, resources->tpLocalRank, 0, connection));
-      if (resources->maxRecvs > 1 && ncclParamNetSharedComms()) {
+      if (resources->maxRecvs > 1 && NCCL_NET_SHARED_COMMS) {
         struct ncclSharedNetComms* comms = proxyState->progressState.netComms[resources->netDev]+resources->tpRemoteRank;
         comms->sendRefCount[resources->channelId]--;
         if (comms->sendRefCount[resources->channelId] == 0) NCCLCHECK(proxyState->ncclNet->closeSend(comms->sendComm[resources->channelId]));
@@ -997,7 +1027,7 @@ static ncclResult_t recvProxyFree(struct ncclProxyConnection* connection, struct
     if (mems[NCCL_NET_MAP_GDCMEM].cpuPtr) NCCLCHECK(ncclGdrCudaFree(resources->gdrDesc));
     if (resources->shared) {
       NCCLCHECK(sharedNetBuffersDestroy(proxyState, resources->tpLocalRank, 1, connection));
-      if (resources->maxRecvs > 1 && ncclParamNetSharedComms()) {
+      if (resources->maxRecvs > 1 && NCCL_NET_SHARED_COMMS) {
         struct ncclSharedNetComms* comms = proxyState->progressState.netComms[resources->netDev] + resources->tpRemoteProxyRank;
         comms->recvRefCount[resources->channelId]--;
         if (comms->recvRefCount[resources->channelId] == 0) NCCLCHECK(proxyState->ncclNet->closeRecv(comms->recvComm[resources->channelId]));

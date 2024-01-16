@@ -9,6 +9,37 @@
 #include "utils.h"
 #include "shm.h"
 #include "p2p.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_P2P_USE_CUDA_MEMCPY
+   type        : int64_t
+   default     : 0
+   description : |-
+     CE memcpy support.
+
+ - name        : NCCL_P2P_READ_ENABLE
+   type        : int64_t
+   default     : -2
+   description : |-
+     Setting this to non zero causes P2P to use Reads rather than
+     Writes.
+
+ - name        : NCCL_P2P_DIRECT_DISABLE
+   type        : bool
+   default     : false
+   description : |-
+     The NCCL_P2P_DIRECT_DISABLE variable forbids NCCL to directly
+     access user buffers through P2P between GPUs of the same process.
+     This is useful when user buffers are allocated with APIs which do
+     not automatically make them accessible to other GPUs managed by
+     the same process and with P2P access. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-direct-disable
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 enum p2pType { P2P_DIRECT, P2P_INTERMEDIATE, P2P_IPC, P2P_CUMEM };
 
@@ -94,8 +125,6 @@ static int busIdToCudaDev(int64_t busId) {
   return -1;
 }
 
-// CE memcpy support
-NCCL_PARAM(P2pUseCudaMemcpy, "P2P_USE_CUDA_MEMCPY", 0);
 static int useMemcpy = 0;
 static void initCeOperation();
 
@@ -272,18 +301,14 @@ ncclResult_t ncclP2pImportShareableBuffer(struct ncclComm *comm, int tpPeer, siz
   return ncclSuccess;
 }
 
-// Setting this to non zero causes P2P to use Reads rather than Writes
-NCCL_PARAM(P2pReadEnable, "P2P_READ_ENABLE", -2);
-NCCL_PARAM(P2pDirectDisable, "P2P_DIRECT_DISABLE", 0);
-
 static ncclResult_t p2pGetInfo(struct ncclTopoSystem* topo, struct ncclPeerInfo* info1, struct ncclPeerInfo* info2, int* read, int* intermediateRank) {
   int p2p;
   // Queries the topology to see if the GPUs are Ampere and
   // connected via NVLink, if so we enable P2P Read by default
   NCCLCHECK(ncclTopoCheckP2p(topo, info1->busId, info2->busId, &p2p, read, intermediateRank));
 
-  int readEnable = ncclParamP2pReadEnable();
-  if (readEnable != -2) *read = readEnable;
+  int readEnable = NCCL_P2P_READ_ENABLE;
+  if (readEnable != NCCL_P2P_READ_ENABLE_DEFAULT) *read = readEnable;
   return ncclSuccess;
 }
 
@@ -354,7 +379,7 @@ ncclResult_t p2pSendSetup(struct ncclComm* comm, struct ncclTopoGraph* graph, st
 
   if (intermediateRank == -1) {
     info->rank = myInfo->rank;
-    if (myInfo->pidHash == peerInfo->pidHash && ncclParamP2pDirectDisable() == 0 && useMemcpy == 0) {
+    if (myInfo->pidHash == peerInfo->pidHash && !NCCL_P2P_DIRECT_DISABLE && useMemcpy == 0) {
       resources->type = P2P_DIRECT;
       send->conn.flags |= info->read ? NCCL_DIRECT_READ : NCCL_DIRECT_WRITE;
       INFO(NCCL_INIT|NCCL_P2P, "Channel %02d/%01d : %d[%d] -> %d[%d] via P2P/direct pointer%s",
@@ -418,7 +443,7 @@ ncclResult_t p2pRecvSetup(struct ncclComm* comm, struct ncclTopoGraph* graph, st
 
   if (intermediateRank == -1) {
     info->rank = myInfo->rank;
-    if (myInfo->pidHash == peerInfo->pidHash && ncclParamP2pDirectDisable() == 0 && useMemcpy == 0) {
+    if (myInfo->pidHash == peerInfo->pidHash && !NCCL_P2P_DIRECT_DISABLE && useMemcpy == 0) {
       resources->type = P2P_DIRECT;
       recv->conn.flags |= info->read ? NCCL_DIRECT_READ : NCCL_DIRECT_WRITE;
     } else {
@@ -754,7 +779,7 @@ struct ncclTransport p2pTransport = {
 static void initCeOperation() {
   static int init = 0;
   if (!init) {
-    useMemcpy = ncclParamP2pUseCudaMemcpy();
+    useMemcpy = NCCL_P2P_USE_CUDA_MEMCPY;
     if (useMemcpy) {
       p2pTransport.send.proxyConnect = p2pSendProxyConnect;
       p2pTransport.send.proxyProgress = p2pSendProxyProgress;

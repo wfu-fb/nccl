@@ -7,6 +7,7 @@
 #include "net.h"
 #include "bootstrap.h"
 #include "checks.h"
+#include "nccl_cvars.h"
 
 #include <string.h>
 #include <errno.h>
@@ -14,6 +15,25 @@
 //#include <sys/types.h>
 //#include <sys/stat.h>
 //#include <unistd.h>
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NET_PLUGIN
+   type        : string
+   default     : "libnccl-net.so"
+   description : |-
+     Set it to a suffix string to choose among multiple NCCL net
+     plugins. This setting will cause NCCL to look for file
+     "libnccl-net-<suffix>.so" instead of the default
+     "libnccl-net.so". For example, setting NCCL_NET_PLUGIN=aws will
+     cause NCCL to use "libnccl-net-aws.so" (provided that it exists on
+     the system). Setting NCCL_NET_PLUGIN=none will cause NCCL not to
+     use any plugin. More information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-plugin
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static ncclNet_v7_t ncclNet_v5_as_v7;
 static ncclNet_v7_t ncclNet_v6_as_v7;
@@ -215,12 +235,11 @@ enum ncclNetState ncclCollNetStates[3] = { ncclNetStateInit, ncclNetStateInit, n
 
 ncclResult_t ncclNetPluginInit() {
   char ncclNetPluginName[128];
-  const char* envPluginName = ncclGetEnv("NCCL_NET_PLUGIN");
-  if (envPluginName && strlen(envPluginName)) {
-    snprintf(ncclNetPluginName, 128, "libnccl-net-%s.so", envPluginName);
+  if (!NCCL_NET_PLUGIN.empty()) {
+    snprintf(ncclNetPluginName, 128, "libnccl-net-%s.so", NCCL_NET_PLUGIN.c_str());
     INFO(NCCL_INIT, "Plugin name set by env to %s", ncclNetPluginName);
   } else {
-    sprintf(ncclNetPluginName, "libnccl-net.so");
+    sprintf(ncclNetPluginName, "%s", NCCL_NET_PLUGIN_DEFAULT.c_str());
   }
   void* netPluginLib = dlopen(ncclNetPluginName, RTLD_NOW | RTLD_LOCAL);
   if (netPluginLib == nullptr) {

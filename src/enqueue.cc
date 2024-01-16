@@ -12,9 +12,47 @@
 #include "channel.h"
 #include "cudawrap.h"
 #include "transport.h"
+#include "nccl_cvars.h"
 
 #include <cstring> // std::memcpy
 #include <cinttypes> // PRIx64
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_L1_SHARED_MEMORY_CARVEOUT
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_P2P_LL_THRESHOLD
+   type        : int64_t
+   default     : 16384
+   description : |-
+     The NCCL_P2P_LL_THRESHOLD is the maximum message size that NCCL
+     will use LL for P2P operations. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-ll-threshold
+
+ - name        : NCCL_GRAPH_REGISTER
+   type        : int64_t
+   default     : 1
+   description : |-
+     Enable user buffer registration when NCCL calls are captured by
+     CUDA Graphs. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-register
+
+ - name        : NCCL_MEM_SYNC_DOMAIN
+   type        : enum
+   default     : remote
+   choices     : local, remote
+   description : |-
+     Hidden variable. No description provided.
+     More information on CUDA memsync domains can be found here:
+     https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#using-domains-in-cuda
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 enum ncclRegBufferType {
   NCCL_REGULAR_BUFFER = 0,
@@ -25,14 +63,12 @@ enum ncclRegBufferType {
 
 static ncclResult_t computeColl(struct ncclInfo* info /* input */, int* workFuncIndex, struct ncclWorkElem* work, struct ncclProxyOp* proxyOp /* output */);
 
-NCCL_PARAM(L1SharedMemoryCarveout, "L1_SHARED_MEMORY_CARVEOUT", 0);
-
 // Returns maximum kernel stack size of all CUDA kernels
 ncclResult_t ncclInitKernelsForDevice(int cudaArch, size_t* maxStackSize) {
   ncclResult_t result = ncclSuccess;
 
   if (maxStackSize) *maxStackSize = 0;
-  int carveout = ncclParamL1SharedMemoryCarveout();
+  int carveout = NCCL_L1_SHARED_MEMORY_CARVEOUT;
 
   for (int k=0; k < ncclDevKernelCount; k++) {
     void* fn = ncclDevKernelList[k];
@@ -282,8 +318,6 @@ static ncclResult_t addCollToPlan(
   return ncclSuccess;
 }
 
-NCCL_PARAM(P2pLLThreshold, "P2P_LL_THRESHOLD", 16384);
-
 // Put p2p op in plan assuming there is space in nWorkBudget, so you must
 // ensure *nWorkBudget >= 1 upon entry.
 static ncclResult_t addP2pToPlan(
@@ -304,7 +338,7 @@ static ncclResult_t addP2pToPlan(
   // 1 is connIndex
   struct ncclConnInfo* conn = isSendNotRecv ?
     &comm->channels[channelId].peers[peer]->send[1].conn : &comm->channels[channelId].peers[peer]->recv[1].conn;
-  info.protocol = ((conn->buffs[NCCL_PROTO_LL] != nullptr) && bytes <= ncclParamP2pLLThreshold()) ? NCCL_PROTO_LL : NCCL_PROTO_SIMPLE;
+  info.protocol = ((conn->buffs[NCCL_PROTO_LL] != nullptr) && bytes <= NCCL_P2P_LL_THRESHOLD) ? NCCL_PROTO_LL : NCCL_PROTO_SIMPLE;
 
   struct ncclProxyOp proxyOp = {};
   NCCLCHECK(ncclProxyComputeP2p(&info, &proxyOp));
@@ -354,9 +388,6 @@ static void finishPlan(struct ncclKernelPlan* plan) {
   plan->threadPerBlock = std::max(plan->threadPerBlock, 3*WARP_SIZE);
 }
 
-int64_t ncclParamLocalRegister();
-NCCL_PARAM(GraphRegister, "GRAPH_REGISTER", 1);
-
 static ncclResult_t registerIntraNodeBuffers(
     struct ncclComm* comm, struct ncclKernelPlan* plan, struct ncclInfo* info,
     void* outRegBufSend[NCCL_MAX_LOCAL_RANKS],
@@ -380,7 +411,7 @@ static ncclResult_t registerIntraNodeBuffers(
       recvbuff = NULL;
 
     /* first try local registration. */
-    if (ncclParamLocalRegister()) {
+    if (NCCL_LOCAL_REGISTER) {
       CUDACHECK(cudaPointerGetAttributes(&sattr, info->sendbuff));
       CUDACHECK(cudaPointerGetAttributes(&rattr, info->recvbuff));
       query = true;
@@ -388,7 +419,7 @@ static ncclResult_t registerIntraNodeBuffers(
         ncclNvlsLocalRegisterBuffer(comm, sendbuff, recvbuff, info->sendbuffSize, info->recvbuffSize, &regBufUsed, outRegBufSend, outRegBufRecv);
     }
 
-    if (regBufUsed == false && plan->persistent && ncclParamGraphRegister()) {
+    if (regBufUsed == false && plan->persistent && NCCL_GRAPH_REGISTER) {
       if (!query) {
         CUDACHECK(cudaPointerGetAttributes(&sattr, info->sendbuff));
         CUDACHECK(cudaPointerGetAttributes(&rattr, info->recvbuff));
@@ -480,7 +511,7 @@ static ncclResult_t scheduleCollTasksToPlan(
   } else {
     // Latency increases as scale increases
     // We would thus want to increase the chunk size to compensate for the lost efficiency
-    bytePerChannel[/*collNetSupport=*/0] = NCCL_AGG_CHANNEL_SIZE * std::min(16, comm->nRanks);
+    bytePerChannel[/*collNetSupport=*/0] = NCCL_AGG_CHANNEL_SIZE_DEF * std::min(16, comm->nRanks);
     bytePerChannel[/*collNetSupport=*/1] = 256<<10; // Hand-tuned
   }
 
@@ -627,13 +658,12 @@ static ncclResult_t scheduleP2pTasksToPlan(
     while (nChannelsMax*nRanks > comm->p2pnChannels*4 && nChannelsMax > 1) nChannelsMax /= 2;
   }
 
-  bool fuseOk;
+  bool fuseOk = false;
   // We can perform 8 send/recv per round per CTA. Make sure we jump between fused blocks at node boundaries.
   while (tasks->nTasksP2p != 0) {
     for (int i=0; i < tasks->p2pOrderSteps; i++) {
       int sendPeer = sendOrder[i];
       int recvPeer = recvOrder[i];
-      if ((i % (NCCL_MAX_WORK_ELEMENTS_P2P/2)) == 0) fuseOk = false;
       struct ncclTaskP2p* send = sendPeer != -1 ? ncclIntruQueueHead(&peers[sendPeer].sendQueue) : NULL;
       struct ncclTaskP2p* recv = recvPeer != -1 ? ncclIntruQueueHead(&peers[recvPeer].recvQueue) : NULL;
       if (sendPeer == comm->rank) {
@@ -669,6 +699,7 @@ static ncclResult_t scheduleP2pTasksToPlan(
         if (send) sendBytes -= send->chunk*sendChunkBytesMax;
 
         do {
+          if ((i % (NCCL_MAX_WORK_ELEMENTS_P2P/2)) == 0) fuseOk = false;
           ssize_t recvChunkBytes = std::min(recvBytes, recvChunkBytesMax); // -1 preserved
           ssize_t sendChunkBytes = std::min(sendBytes, sendChunkBytesMax);
           if (recvChunkBytes != 0) {
@@ -879,6 +910,14 @@ static ncclResult_t reclaimPlan(struct ncclComm* comm, struct ncclCommCallback* 
   if (plan->persistent) {
     comm->persistentRefs -= 1;
     NCCLCHECK(ncclCudaFree(plan->workHead));
+    for (int c=0; c < plan->channelUbound; c++) {
+      struct ncclProxyOp* q = ncclIntruQueueHead(&plan->channels[c].proxyOpQueue);
+      while (q != nullptr) {
+        struct ncclProxyOp* q1 = q->enqNext;
+        ncclMemoryPoolFree(&plan->memPool_ncclProxyOp, q);
+        q = q1;
+      }
+    }
     while (!ncclIntruQueueEmpty(&plan->ipcMemQueue)) {
       struct ncclPointerList* q = ncclIntruQueueDequeue(&plan->ipcMemQueue);
       CUDACHECKIGNORE(cudaIpcCloseMemHandle(q->ptr));
@@ -1026,11 +1065,6 @@ ncclResult_t ncclLaunchKernelBefore_NoUncapturedCuda(struct ncclComm* comm, stru
   return ncclSuccess;
 }
 
-#if CUDART_VERSION >= 12000
-// NCCL uses the "Remote" Mem Sync domain by default
-NCCL_PARAM(MemSyncDomain, "MEM_SYNC_DOMAIN", cudaLaunchMemSyncDomainRemote);
-#endif
-
 ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan) {
   struct ncclTasks* tasks = &comm->tasks;
   void *fn = plan->kernelFn;
@@ -1072,7 +1106,11 @@ ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan
     if (compCap >= 90 && driverVersion >= 12000) {
       // Set the NCCL Mem Sync domain on CUDA 12.0 and later (sm90)
       launchAttrs[attrs].id = cudaLaunchAttributeMemSyncDomain;
-      launchAttrs[attrs++].val.memSyncDomain = (cudaLaunchMemSyncDomain) ncclParamMemSyncDomain();
+      if (NCCL_MEM_SYNC_DOMAIN == NCCL_MEM_SYNC_DOMAIN::local) {
+        launchAttrs[attrs++].val.memSyncDomain = cudaLaunchMemSyncDomainDefault;
+      } else {
+        launchAttrs[attrs++].val.memSyncDomain = cudaLaunchMemSyncDomainRemote;
+      }
     }
     #endif
     launchConfig.gridDim = grid;
@@ -1093,9 +1131,16 @@ ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan
 
 ncclResult_t ncclLaunchKernelAfter_NoCuda(struct ncclComm* comm, struct ncclKernelPlan* plan) {
   if (!(plan->persistent || comm->persistentRefs != 0 || ncclCudaLaunchBlocking)) {
-    // If this isn't being captured and there aren't any CUDA graphs alive
-    // then we don't need to do our proxyOp pushing on the host stream.
+    // We are not using the host stream for proxy ops and reclaimation submission.
     NCCLCHECK(hostStreamPlanTask(comm, plan));
+  } else {
+    // We are using the host stream for proxy ops and reclaimation submission.
+    // Only plans with proxy ops have a callback pushed by ncclLaunchPrepare.
+    // Since non-persistent plans also require reclaimation, we have to do it
+    // here.
+    if (!plan->persistent && !plan->hasProxyOps) {
+      ncclIntruQueueMpscEnqueue(&comm->callbackQueue, &plan->reclaimer);
+    }
   }
   return ncclSuccess;
 }

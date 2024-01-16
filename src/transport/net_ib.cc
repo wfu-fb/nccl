@@ -24,6 +24,138 @@
 #include "timer.h"
 
 #include "ibvwrap.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_IB_GID_INDEX
+   type        : int64_t
+   default     : 0
+   description : |-
+     The NCCL_IB_GID_INDEX variable defines the Global ID index used
+     in RoCE mode. See the InfiniBand show_gids command in order to
+     set this value.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-gid-index
+
+ - name        : NCCL_IB_TIMEOUT
+   type        : int64_t
+   default     : 18
+   description : |-
+     The NCCL_IB_TIMEOUT variable controls the InfiniBand Verbs
+     Timeout.  For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-timeout
+
+ - name        : NCCL_IB_RETRY_CNT
+   type        : int64_t
+   default     : 7
+   description : |-
+     The NCCL_IB_RETRY_CNT variable controls the InfiniBand retry
+     count. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-retry-cnt
+
+ - name        : NCCL_IB_PKEY
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_IB_USE_INLINE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_IB_SL
+   type        : int64_t
+   default     : 0
+   description : |-
+     Defines the InfiniBand Service Level. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-sl
+
+ - name        : NCCL_IB_TC
+   type        : int64_t
+   default     : 0
+   description : |-
+     Defines the InfiniBand traffic class field. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-tc
+
+ - name        : NCCL_IB_AR_THRESHOLD
+   type        : int64_t
+   default     : 8192
+   description : |-
+     Threshold after which we send InfiniBand data in a separate
+     message which can leverage adaptive routing. For more
+     information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-ar-threshold
+
+ - name        : NCCL_IB_PCI_RELAXED_ORDERING
+   type        : int64_t
+   default     : 2
+   description : |-
+     Enable use of Relaxed Ordering for the IB Verbs transport.
+     Relaxed Ordering can greatly help the performance of InfiniBand
+     networks in virtualized environments. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-pci-relaxed-ordering
+
+ - name        : NCCL_IB_ADAPTIVE_ROUTING
+   type        : int64_t
+   default     : -2
+   description : |-
+     Enable use of Adaptive Routing capable data transfers for the IB
+     Verbs transport. Adaptive routing can improve the performance of
+     communications at scale. A system defined Adaptive Routing
+     enabled SL has to be selected accordingly (cf. NCCL_IB_SL). For
+     more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-adaptive-routing
+
+ - name        : NCCL_IB_DISABLE
+   type        : int64_t
+   default     : 0
+   description : |-
+     The NCCL_IB_DISABLE variable disables the IB/RoCE transport that
+     is to be used by NCCL. Instead, NCCL will fallback to using IP
+     sockets. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-disable
+
+ - name        : NCCL_IB_MERGE_VFS
+   type        : int64_t
+   default     : 1
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_IB_QPS_PER_CONNECTION
+   type        : int64_t
+   default     : 1
+   description : |-
+     Number of IB queue pairs to use for each connection between two
+     ranks. This can be useful on multi-level fabrics which need
+     multiple queue pairs to have good routing entropy. See
+     NCCL_IB_SPLIT_DATA_ON_QPS for different ways to split data on
+     multiple QPs, as it can affect performance. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-qps-per-connection
+
+ - name        : NCCL_GDR_FLUSH_DISABLE
+   type        : int64_t
+   default     : 0
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_IB_SPLIT_DATA_ON_QPS
+   type        : int64_t
+   default     : 1
+   description : |-
+     This parameter controls how we use the queue pairs when we create
+     more than one. Set to 1 (split mode, default), each message will
+     be split evenly on each queue pair. This may cause a visible
+     latency degradation if we use many QPs. Set to 0 (round-robin
+     mode), queue pairs will be used in round-robin mode for each
+     message we send. Operations which do not send multiple messages
+     will not use all QPs. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-split-data-on-qps
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 #define MAXNAMESIZE 64
 static char ncclIbIfName[MAX_IF_NAME_SIZE+1];
@@ -72,17 +204,6 @@ struct userIbDev userIbDevs[MAX_IB_DEVS];
 pthread_mutex_t ncclIbLock = PTHREAD_MUTEX_INITIALIZER;
 static int ncclIbRelaxedOrderingEnabled = 0;
 
-NCCL_PARAM(IbGidIndex, "IB_GID_INDEX", 0);
-NCCL_PARAM(IbTimeout, "IB_TIMEOUT", 18);
-NCCL_PARAM(IbRetryCnt, "IB_RETRY_CNT", 7);
-NCCL_PARAM(IbPkey, "IB_PKEY", 0);
-NCCL_PARAM(IbUseInline, "IB_USE_INLINE", 0);
-NCCL_PARAM(IbSl, "IB_SL", 0);
-NCCL_PARAM(IbTc, "IB_TC", 0);
-NCCL_PARAM(IbArThreshold, "IB_AR_THRESHOLD", 8192);
-NCCL_PARAM(IbPciRelaxedOrdering, "IB_PCI_RELAXED_ORDERING", 2);
-NCCL_PARAM(IbAdaptiveRouting, "IB_ADAPTIVE_ROUTING", -2);
-
 pthread_t ncclIbAsyncThread;
 static void* ncclIbAsyncThreadMain(void* args) {
   struct ibv_context* context = (struct ibv_context*)args;
@@ -98,9 +219,6 @@ static void* ncclIbAsyncThreadMain(void* args) {
   return NULL;
 }
 
-NCCL_PARAM(IbDisable, "IB_DISABLE", 0);
-NCCL_PARAM(IbMergeVfs, "IB_MERGE_VFS", 1);
-
 static ncclResult_t ncclIbGetPciPath(char* devName, char** path, int* realPort) {
   char devicePath[PATH_MAX];
   snprintf(devicePath, PATH_MAX, "/sys/class/infiniband/%s/device", devName);
@@ -111,7 +229,7 @@ static ncclResult_t ncclIbGetPciPath(char* devName, char** path, int* realPort) 
     // Merge multi-port NICs into the same PCI device
     p[strlen(p)-1] = '0';
     // Also merge virtual functions (VF) into the same device
-    if (ncclParamIbMergeVfs()) p[strlen(p)-3] = p[strlen(p)-4] = '0';
+    if (NCCL_IB_MERGE_VFS) p[strlen(p)-3] = p[strlen(p)-4] = '0';
     // And keep the real port aside (the ibv port is always 1 on recent cards)
     *realPort = 0;
     for (int d=0; d<ncclNIbDevs; d++) {
@@ -147,7 +265,7 @@ static int ncclIbSpeed(int speed) {
 
 // Determine whether RELAXED_ORDERING is enabled and possible
 static int ncclIbRelaxedOrderingCapable(void) {
-  int roMode = ncclParamIbPciRelaxedOrdering();
+  int roMode = NCCL_IB_PCI_RELAXED_ORDERING;
   ncclResult_t r = ncclInternalError;
   if (roMode == 1 || roMode == 2) {
     // Query IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING support
@@ -157,7 +275,7 @@ static int ncclIbRelaxedOrderingCapable(void) {
 }
 
 ncclResult_t ncclIbInit(ncclDebugLogger_t logFunction) {
-  if (ncclParamIbDisable()) return ncclInternalError;
+  if (NCCL_IB_DISABLE) return ncclInternalError;
   static int shownIbHcaEnv = 0;
   if(wrap_ibv_symbols() != ncclSuccess) { return ncclInternalError; }
 
@@ -236,7 +354,7 @@ ncclResult_t ncclIbInit(ncclDebugLogger_t logFunction) {
           // Enable ADAPTIVE_ROUTING by default on IB networks
           // But allow it to be overloaded by an env parameter
           ncclIbDevs[ncclNIbDevs].ar = (portAttr.link_layer == IBV_LINK_LAYER_INFINIBAND) ? 1 : 0;
-          if (ncclParamIbAdaptiveRouting() != -2) ncclIbDevs[ncclNIbDevs].ar = ncclParamIbAdaptiveRouting();
+          if (NCCL_IB_ADAPTIVE_ROUTING != NCCL_IB_ADAPTIVE_ROUTING_DEFAULT) ncclIbDevs[ncclNIbDevs].ar = NCCL_IB_ADAPTIVE_ROUTING;
 
           pthread_create(&ncclIbAsyncThread, NULL, ncclIbAsyncThreadMain, context);
           ncclSetThreadName(ncclIbAsyncThread, "NCCL IbAsync %2d", ncclNIbDevs);
@@ -498,8 +616,6 @@ struct ncclIbRecvComm {
 };
 static_assert((offsetof(struct ncclIbRecvComm, remFifo) % 32) == 0, "ncclIbSendComm fifo must be 32-byte aligned");
 
-NCCL_PARAM(IbQpsPerConn, "IB_QPS_PER_CONNECTION", 1);
-
 ncclResult_t ncclIbInitVerbs(int dev, struct ibv_context* ctx, struct ncclIbVerbs* verbs) {
   verbs->dev = dev;
 
@@ -517,7 +633,7 @@ ncclResult_t ncclIbInitVerbs(int dev, struct ibv_context* ctx, struct ncclIbVerb
   pthread_mutex_unlock(&ncclIbDevs[dev].lock);
 
   // Recv requests can generate 2 completions (one for the post FIFO, one for the Recv).
-  NCCLCHECK(wrap_ibv_create_cq(&verbs->cq, ctx, 2*MAX_REQUESTS*ncclParamIbQpsPerConn(), NULL, NULL, 0));
+  NCCLCHECK(wrap_ibv_create_cq(&verbs->cq, ctx, 2*MAX_REQUESTS*NCCL_IB_QPS_PER_CONNECTION, NULL, NULL, 0));
   return ncclSuccess;
 }
 
@@ -546,12 +662,12 @@ ncclResult_t ncclIbCreateQp(uint8_t ib_port, struct ncclIbVerbs* verbs, int acce
   qpInitAttr.cap.max_recv_wr = MAX_REQUESTS;
   qpInitAttr.cap.max_send_sge = 1;
   qpInitAttr.cap.max_recv_sge = 1;
-  qpInitAttr.cap.max_inline_data = ncclParamIbUseInline() ? sizeof(struct ncclIbSendFifo) : 0;
+  qpInitAttr.cap.max_inline_data = NCCL_IB_USE_INLINE ? sizeof(struct ncclIbSendFifo) : 0;
   NCCLCHECK(wrap_ibv_create_qp(qp, verbs->pd, &qpInitAttr));
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_INIT;
-  qpAttr.pkey_index = ncclParamIbPkey();
+  qpAttr.pkey_index = NCCL_IB_PKEY;
   qpAttr.port_num = ib_port;
   qpAttr.qp_access_flags = access_flags;
   NCCLCHECK(wrap_ibv_modify_qp(*qp, &qpAttr, IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS));
@@ -572,14 +688,14 @@ ncclResult_t ncclIbRtrQp(struct ibv_qp* qp, uint32_t qpn, struct ncclIbQpInfo* i
     qpAttr.ah_attr.grh.dgid.global.subnet_prefix = info->spn;
     qpAttr.ah_attr.grh.dgid.global.interface_id = info->iid;
     qpAttr.ah_attr.grh.flow_label = 0;
-    qpAttr.ah_attr.grh.sgid_index = ncclParamIbGidIndex();
+    qpAttr.ah_attr.grh.sgid_index = NCCL_IB_GID_INDEX;
     qpAttr.ah_attr.grh.hop_limit = 255;
-    qpAttr.ah_attr.grh.traffic_class = ncclParamIbTc();
+    qpAttr.ah_attr.grh.traffic_class = NCCL_IB_TC;
   } else {
     qpAttr.ah_attr.is_global = 0;
     qpAttr.ah_attr.dlid = info->lid;
   }
-  qpAttr.ah_attr.sl = ncclParamIbSl();
+  qpAttr.ah_attr.sl = NCCL_IB_SL;
   qpAttr.ah_attr.src_path_bits = 0;
   qpAttr.ah_attr.port_num = info->ib_port;
   NCCLCHECK(wrap_ibv_modify_qp(qp, &qpAttr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER));
@@ -590,8 +706,8 @@ ncclResult_t ncclIbRtsQp(struct ibv_qp* qp) {
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_RTS;
-  qpAttr.timeout = ncclParamIbTimeout();
-  qpAttr.retry_cnt = ncclParamIbRetryCnt();
+  qpAttr.timeout = NCCL_IB_TIMEOUT;
+  qpAttr.retry_cnt = NCCL_IB_RETRY_CNT;
   qpAttr.rnr_retry = 7;
   qpAttr.sq_psn = 0;
   qpAttr.max_rd_atomic = 1;
@@ -647,7 +763,7 @@ ib_connect_check:
   NCCLCHECK(ncclIbInitVerbs(dev, ctx, &comm->verbs));
   uint8_t ib_port;
   ib_port = ncclIbDevs[dev].port;
-  comm->nqps = ncclParamIbQpsPerConn();
+  comm->nqps = NCCL_IB_QPS_PER_CONNECTION;
   for (int q=0; q<comm->nqps; q++) {
     NCCLCHECK(ncclIbCreateQp(ib_port, &comm->verbs, IBV_ACCESS_REMOTE_WRITE, comm->qps+q));
   }
@@ -676,7 +792,7 @@ ib_connect_check:
   qpInfo.lid = portAttr.lid;
   qpInfo.link_layer = comm->gidInfo.link_layer = portAttr.link_layer;
   if (qpInfo.link_layer == IBV_LINK_LAYER_ETHERNET) {
-    NCCLCHECK(wrap_ibv_query_gid(ncclIbDevs[dev].context, ncclIbDevs[dev].port, ncclParamIbGidIndex(), &comm->gidInfo.localGid));
+    NCCLCHECK(wrap_ibv_query_gid(ncclIbDevs[dev].context, ncclIbDevs[dev].port, NCCL_IB_GID_INDEX, &comm->gidInfo.localGid));
     qpInfo.spn = comm->gidInfo.localGid.global.subnet_prefix;
     qpInfo.iid = comm->gidInfo.localGid.global.interface_id;
   }
@@ -687,7 +803,7 @@ ib_connect_check:
   } else { // RoCE
     for (int q=0; q<comm->nqps; q++)
       INFO(NCCL_NET,"NET/IB: Dev %d Port %d qpn %d mtu %d query_ece={supported=%d, vendor_id=0x%x, options=0x%x, comp_mask=0x%x} GID %ld (%lX/%lX)",
-        dev, ncclIbDevs[dev].port, qpInfo.qpn[q], qpInfo.mtu, qpInfo.ece_supported[q], qpInfo.ece[q].vendor_id, qpInfo.ece[q].options, qpInfo.ece[q].comp_mask, ncclParamIbGidIndex(),
+        dev, ncclIbDevs[dev].port, qpInfo.qpn[q], qpInfo.mtu, qpInfo.ece_supported[q], qpInfo.ece[q].vendor_id, qpInfo.ece[q].options, qpInfo.ece[q].comp_mask, NCCL_IB_GID_INDEX,
         qpInfo.spn, qpInfo.iid);
   }
 
@@ -744,8 +860,6 @@ ib_send_ready:
   return ncclSuccess;
 }
 
-NCCL_PARAM(IbGdrFlushDisable, "GDR_FLUSH_DISABLE", 0);
-
 ncclResult_t ncclIbAccept(void* listenComm, void** recvComm, ncclNetDeviceHandle_t** /*recvDevComm*/) {
   struct ncclIbListenComm* lComm = (struct ncclIbListenComm*)listenComm;
   struct ncclIbCommStage* stage = &lComm->stage;
@@ -794,11 +908,11 @@ ib_recv:
   ib_port = ncclIbDevs[lComm->dev].port;
   struct ibv_port_attr portAttr;
   NCCLCHECK(wrap_ibv_query_port(ctx, ib_port, &portAttr));
-  NCCLCHECK(wrap_ibv_query_gid(ctx, ib_port, ncclParamIbGidIndex(), &rComm->gidInfo.localGid));
+  NCCLCHECK(wrap_ibv_query_gid(ctx, ib_port, NCCL_IB_GID_INDEX, &rComm->gidInfo.localGid));
 
   // QP Creation
   NCCLCHECK(ncclIbInitVerbs(lComm->dev, ctx, &rComm->verbs));
-  rComm->nqps = ncclParamIbQpsPerConn();
+  rComm->nqps = NCCL_IB_QPS_PER_CONNECTION;
   for (int q=0; q<rComm->nqps; q++) {
     NCCLCHECK(ncclIbCreateQp(ib_port, &rComm->verbs, IBV_ACCESS_REMOTE_WRITE, rComm->qps+q));
   }
@@ -831,11 +945,11 @@ ib_recv:
   rComm->remFifo.addr = remQpInfo.fifoAddr;
   NCCLCHECK(wrap_ibv_reg_mr(&rComm->remFifo.mr, rComm->verbs.pd, &rComm->remFifo.elems, sizeof(struct ncclIbSendFifo)*MAX_REQUESTS*NCCL_NET_IB_MAX_RECVS, IBV_ACCESS_REMOTE_WRITE|IBV_ACCESS_LOCAL_WRITE|IBV_ACCESS_REMOTE_READ));
   rComm->remFifo.sge.lkey = rComm->remFifo.mr->lkey;
-  if (ncclParamIbUseInline()) rComm->remFifo.flags = IBV_SEND_INLINE;
+  if (NCCL_IB_USE_INLINE) rComm->remFifo.flags = IBV_SEND_INLINE;
 
   // Allocate Flush dummy buffer for GPU Direct RDMA
   rComm->gpuFlush.enabled = ((ncclIbGdrSupport(lComm->dev) == ncclSuccess || ncclIbDmaBufSupport(lComm->dev) == ncclSuccess)
-                             && (ncclParamIbGdrFlushDisable() == 0)) ? 1 : 0;
+                             && (NCCL_GDR_FLUSH_DISABLE == 0)) ? 1 : 0;
   if (rComm->gpuFlush.enabled) {
     NCCLCHECK(wrap_ibv_reg_mr(&rComm->gpuFlush.hostMr, rComm->verbs.pd, &rComm->gpuFlush.hostMem, sizeof(int), IBV_ACCESS_LOCAL_WRITE));
     rComm->gpuFlush.sge.addr = (uint64_t)&rComm->gpuFlush.hostMem;
@@ -1002,8 +1116,6 @@ returning:
   return res;
 }
 
-NCCL_PARAM(IbSplitDataOnQps, "IB_SPLIT_DATA_ON_QPS", 1);
-
 ncclResult_t ncclIbMultiSend(struct ncclIbSendComm* comm, int slot) {
   struct ncclIbRequest** reqs = comm->fifoReqs[slot];
   volatile struct ncclIbSendFifo* slots = comm->fifo[slot];
@@ -1044,7 +1156,7 @@ ncclResult_t ncclIbMultiSend(struct ncclIbSendComm* comm, int slot) {
   }
 
   struct ibv_send_wr* lastWr = comm->wrs+nreqs-1;
-  if (nreqs > 1 || (comm->ar && reqs[0]->send.size > ncclParamIbArThreshold())) {
+  if (nreqs > 1 || (comm->ar && reqs[0]->send.size > NCCL_IB_AR_THRESHOLD)) {
     // When using ADAPTIVE_ROUTING, send the bulk of the data first as an
     // RDMA_WRITE, then a 0-byte RDMA_WRITE_WITH_IMM to trigger a remote
     // completion.
@@ -1059,7 +1171,7 @@ ncclResult_t ncclIbMultiSend(struct ncclIbSendComm* comm, int slot) {
 
   // Multi-QP: make sure IB writes are multiples of 128B so that LL and LL128 protocols still work
   const int align = 128;
-  const int nqps = ncclParamIbSplitDataOnQps() ? comm->nqps : 1;
+  const int nqps = NCCL_IB_SPLIT_DATA_ON_QPS ? comm->nqps : 1;
   for (int q=0; q<nqps; q++) {
     for (int r=0; r<nreqs; r++) {
       int chunkSize = DIVUP(DIVUP(reqs[r]->send.size, nqps), align) * align;
@@ -1138,7 +1250,7 @@ ncclResult_t ncclIbIsend(void* sendComm, void* data, int size, int tag, void* mh
     req->send.data = data;
     req->send.lkey = mr->lkey;
     req->send.offset = 0;
-    req->events = ncclParamIbSplitDataOnQps() ? comm->nqps : 1;
+    req->events = NCCL_IB_SPLIT_DATA_ON_QPS ? comm->nqps : 1;
     if (comm->gidInfo.link_layer == IBV_LINK_LAYER_ETHERNET) req->gidInfo = &comm->gidInfo;
     *request = reqs[r] = req;
 
@@ -1244,7 +1356,7 @@ ncclResult_t ncclIbIrecv(void* recvComm, int n, void** data, int* sizes, int* ta
   wr.num_sge = 0;
 
   TIME_START(1);
-  const int nqps = ncclParamIbSplitDataOnQps() ? comm->nqps : 1;
+  const int nqps = NCCL_IB_SPLIT_DATA_ON_QPS ? comm->nqps : 1;
   for (int q=0; q<nqps; q++) {
     struct ibv_qp* qp = comm->qps[comm->qpIndex];
     struct ibv_recv_wr* bad_wr;

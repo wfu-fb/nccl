@@ -8,11 +8,34 @@
 #include "debug.h"
 #include "param.h"
 #include "cudawrap.h"
+#include "nccl_cvars.h"
 
 #include <dlfcn.h>
 
-// This env var (NCCL_CUMEM_ENABLE) toggles cuMem API usage
-NCCL_PARAM(CuMemEnable, "CUMEM_ENABLE", -2);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CUMEM_ENABLE
+   type        : int64_t
+   default     : -2
+   description : |-
+     Use CUDA cuMem* functions to allocate memory in NCCL.  This
+     parameter toggles cuMem API usage.
+
+ - name        : CUDA_LAUNCH_BLOCKING
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_CUDA_PATH
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static int ncclCuMemSupported = 0;
 
@@ -44,7 +67,7 @@ error:
 
 int ncclCuMemEnable() {
   // NCCL_CUMEM_ENABLE=-2 means auto-detect CUMEM support
-  int param = ncclParamCuMemEnable();
+  int param = NCCL_CUMEM_ENABLE;
   return  param >= 0 ? param : (param == -2 && ncclCuMemSupported);
 }
 
@@ -164,8 +187,8 @@ static ncclResult_t initResult;
 
 static void initOnceFunc() {
   do {
-    const char* val = ncclGetEnv("CUDA_LAUNCH_BLOCKING");
-    ncclCudaLaunchBlocking = val!=nullptr && val[0]!=0 && !(val[0]=='0' && val[1]==0);
+    ncclCudaLaunchBlocking = !CUDA_LAUNCH_BLOCKING.empty() && CUDA_LAUNCH_BLOCKING[0]!=0 &&
+      !(CUDA_LAUNCH_BLOCKING[0]=='0' && CUDA_LAUNCH_BLOCKING[1]==0);
   } while (0);
 
   CUresult res;
@@ -173,16 +196,15 @@ static void initOnceFunc() {
    * Load CUDA driver library
    */
   char path[1024];
-  const char *ncclCudaPath = ncclGetEnv("NCCL_CUDA_PATH");
-  if (ncclCudaPath == NULL)
+  if (NCCL_CUDA_PATH.empty())
     snprintf(path, 1024, "%s", "libcuda.so");
   else
-    snprintf(path, 1024, "%s/%s", ncclCudaPath, "libcuda.so");
+    snprintf(path, 1024, "%s/%s", NCCL_CUDA_PATH.c_str(), "libcuda.so");
 
   (void) dlerror(); // Clear any previous errors
   cudaLib = dlopen(path, RTLD_LAZY);
   if (cudaLib == NULL) {
-    WARN("Failed to find CUDA library %s (NCCL_CUDA_PATH='%s') : %s", path, ncclCudaPath ? ncclCudaPath : "", dlerror());
+    WARN("Failed to find CUDA library %s (NCCL_CUDA_PATH='%s') : %s", path, NCCL_CUDA_PATH.c_str(), dlerror());
     goto error;
   }
 

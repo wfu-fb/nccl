@@ -8,8 +8,21 @@
 #include "core.h"
 
 #include "nvmlwrap.h"
+#include "nccl_cvars.h"
 
 #include <stdlib.h>
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_HOSTID
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 // Get current Compute Capability
 int ncclCudaCompCap() {
@@ -85,15 +98,14 @@ uint64_t getHash(const char* string, int n) {
 #define HOSTID_FILE "/proc/sys/kernel/random/boot_id"
 uint64_t getHostHash(void) {
   char hostHash[1024];
-  const char *hostId;
 
   // Fall back is the full hostname if something fails
   (void) getHostName(hostHash, sizeof(hostHash), '\0');
   int offset = strlen(hostHash);
 
-  if ((hostId = ncclGetEnv("NCCL_HOSTID")) != NULL) {
-    INFO(NCCL_ENV, "NCCL_HOSTID set by environment to %s", hostId);
-    strncpy(hostHash, hostId, sizeof(hostHash));
+  if (!NCCL_HOSTID.empty()) {
+    INFO(NCCL_ENV, "NCCL_HOSTID set by environment to %s", NCCL_HOSTID.c_str());
+    strncpy(hostHash, NCCL_HOSTID.c_str(), sizeof(hostHash));
   } else {
     FILE *file = fopen(HOSTID_FILE, "r");
     if (file != NULL) {
