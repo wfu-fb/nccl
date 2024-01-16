@@ -1,0 +1,934 @@
+(c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+
+Automatically generated
+  by ./maint/extractcvars.py
+DO NOT EDIT!!!
+
+CUDA_LAUNCH_BLOCKING
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_AGG_CHANNEL_SIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
+NCCL_ALGO
+Description:
+    The NCCL_ALGO variable defines which algorithms NCCL will use.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-algo
+Type: string
+Default: 
+
+NCCL_ALLOC_P2P_NET_LL_BUFFERS
+Description:
+    NCCL_ALLOC_P2P_NET_LL_BUFFERS instructs communicators to allocate
+    dedicated LL buffers for all P2P network connections. This
+    enables all ranks to use LL for latency-bound send and receive
+    operations below NCCL_P2P_LL_THRESHOLD sizes. Intranode P2P
+    transfers always have dedicated LL buffers allocated. If running
+    all-to-all workloads with high numbers of ranks, this will result
+    in a high scaling memory overhead. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-alloc-p2p-net-ll-buffers
+Type: int64_t
+Default: 0
+
+NCCL_BUFFSIZE
+Description:
+    The NCCL_BUFFSIZE variable controls the size of the buffer used
+    by NCCL when communicating data between pairs of GPUs. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-buffsize
+Type: int64_t
+Default: -2
+
+NCCL_CGA_CLUSTER_SIZE
+Description:
+    Set CUDA Cooperative Group Array (CGA) cluster size. On sm90 and
+    later we have an extra level of hierarchy where we can group
+    together several blocks within the Grid, called Thread Block
+    Clusters. Setting this to non-zero will cause NCCL to launch the
+    communication kernels with the Cluster Dimension attribute set
+    accordingly. Setting this environment variable will override the
+    cgaClusterSize configuration in all communicators (see
+        ncclConfig_t); if not set (undefined), CGA cluster size will
+    be determined by the configuration; if not passing configuration,
+    NCCL will automatically choose the best value. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cga-cluster-size
+Type: int64_t
+Default: -1
+
+NCCL_CHECK_POINTERS
+Description:
+    The NCCL_CHECK_POINTERS variable enables checking of the CUDA
+    memory pointers on each collective call. Checks are useful during
+    development but can increase the latency. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-check-pointers
+Type: int64_t
+Default: 0
+
+NCCL_CHUNK_SIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_COLLNET_ENABLE
+Description:
+    Enable the use of CollNet plugin. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-enable
+Type: string
+Default: 
+
+NCCL_COLLNET_NODE_THRESHOLD
+Description:
+    A threshold for number of nodes below which CollNet will not be
+    enabled. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-collnet-node-threshold
+Type: int64_t
+Default: 2
+
+NCCL_COMM_BLOCKING
+Description:
+    The NCCL_COMM_BLOCKING variable controls whether NCCL calls are
+    allowed to block or not. This includes all calls to NCCL,
+    including init/finalize functions, as well as communication
+    functions which may also block due to the lazy initialization of
+    connections for send/receive calls. Setting this environment
+    variable will override the blocking configuration in all
+    communicators (see ncclConfig_t); if not set (undefined),
+    communicator behavior will be determined by the configuration; if
+    not passing configuration, communicators are blocking. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-comm-blocking
+Type: int64_t
+Default: -1
+
+NCCL_COMM_ID
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_COMM_SPLIT_SHARE_RESOURCES
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -1
+
+NCCL_CONNECT_ROUND_MAX_PEERS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 128
+
+NCCL_CREATE_THREAD_CONTEXT
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_CROSS_NIC
+Description:
+    The NCCL_CROSS_NIC variable controls whether NCCL should allow
+    rings/trees to use different NICs, causing inter-node
+    communication to use different NICs on different nodes. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cross-nic
+Type: int64_t
+Default: 2
+
+NCCL_CUDA_PATH
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_CUMEM_ENABLE
+Description:
+    Use CUDA cuMem* functions to allocate memory in NCCL.  This
+    parameter toggles cuMem API usage.
+Type: int64_t
+Default: -2
+
+NCCL_DEBUG
+Description:
+    The NCCL_DEBUG variable controls the debug information that is
+    displayed from NCCL. This variable is commonly used for
+    debugging. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug
+Type: string
+Default: 
+
+NCCL_DEBUG_FILE
+Description:
+    The NCCL_DEBUG_FILE variable directs the NCCL debug logging
+    output to a file. The filename format can be set to
+    filename.%h.%p where %h is replaced with the hostname and %p is
+    replaced with the process PID. This does not accept the "~"
+    character as part of the path, please convert to a relative or
+    absolute path first. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug-file
+Type: string
+Default: 
+
+NCCL_DEBUG_SUBSYS
+Description:
+    The NCCL_DEBUG_SUBSYS variable allows the user to filter the
+    NCCL_DEBUG=INFO output based on subsystems. A comma separated
+    list of the subsystems to include in the NCCL debug log traces.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug-subsys
+Type: string
+Default: 
+
+NCCL_DMABUF_ENABLE
+Description:
+    Enable GPU Direct RDMA buffer registration using the Linux
+    dma-buf subsystem. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-dmabuf-enable
+Type: int64_t
+Default: 1
+
+NCCL_GDRCOPY_ENABLE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_GDRCOPY_FIFO_ENABLE
+Description:
+    Hidden variable. No description provided.
+    When enabled locates a workFifo in CUDA memory
+Type: int64_t
+Default: 1
+
+NCCL_GDRCOPY_FLUSH_ENABLE
+Description:
+    When enabled uses a PCI-E read to flush GDRDMA buffers.
+Type: bool
+Default: False
+
+NCCL_GDRCOPY_SYNC_ENABLE
+Description:
+    Hidden variable. No description provided.
+Type: bool
+Default: True
+
+NCCL_GDR_FLUSH_DISABLE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_GRAPH_DUMP_FILE
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_GRAPH_DUMP_FILE_RANK
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_GRAPH_FILE
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_GRAPH_MIXING_SUPPORT
+Description:
+    Enable/disable support for co-occurring outstanding NCCL launches
+    from multiple CUDA graphs or a CUDA graph and non-captured NCCL
+    calls. With support disabled, correctness is only guaranteed if
+    the communicator always avoids both of the following cases:
+    1. Has outstanding parallel graph launches, where parallel
+    means on different streams without dependencies that would
+    otherwise serialize their execution.
+    2. An outstanding graph launch followed by a non-captured
+    launch.  Stream dependencies are irrelevant.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-mixing-support
+Type: bool
+Default: True
+
+NCCL_GRAPH_REGISTER
+Description:
+    Enable user buffer registration when NCCL calls are captured by
+    CUDA Graphs. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-graph-register
+Type: int64_t
+Default: 1
+
+NCCL_HOSTID
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_IB_ADAPTIVE_ROUTING
+Description:
+    Enable use of Adaptive Routing capable data transfers for the IB
+    Verbs transport. Adaptive routing can improve the performance of
+    communications at scale. A system defined Adaptive Routing
+    enabled SL has to be selected accordingly (cf. NCCL_IB_SL). For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-adaptive-routing
+Type: int64_t
+Default: -2
+
+NCCL_IB_AR_THRESHOLD
+Description:
+    Threshold after which we send InfiniBand data in a separate
+    message which can leverage adaptive routing. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-ar-threshold
+Type: int64_t
+Default: 8192
+
+NCCL_IB_DISABLE
+Description:
+    The NCCL_IB_DISABLE variable disables the IB/RoCE transport that
+    is to be used by NCCL. Instead, NCCL will fallback to using IP
+    sockets. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-disable
+Type: int64_t
+Default: 0
+
+NCCL_IB_GID_INDEX
+Description:
+    The NCCL_IB_GID_INDEX variable defines the Global ID index used
+    in RoCE mode. See the InfiniBand show_gids command in order to
+    set this value.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-gid-index
+Type: int64_t
+Default: 0
+
+NCCL_IB_MERGE_VFS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
+NCCL_IB_PCI_RELAXED_ORDERING
+Description:
+    Enable use of Relaxed Ordering for the IB Verbs transport.
+    Relaxed Ordering can greatly help the performance of InfiniBand
+    networks in virtualized environments. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-pci-relaxed-ordering
+Type: int64_t
+Default: 2
+
+NCCL_IB_PKEY
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_IB_QPS_PER_CONNECTION
+Description:
+    Number of IB queue pairs to use for each connection between two
+    ranks. This can be useful on multi-level fabrics which need
+    multiple queue pairs to have good routing entropy. See
+    NCCL_IB_SPLIT_DATA_ON_QPS for different ways to split data on
+    multiple QPs, as it can affect performance. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-qps-per-connection
+Type: int64_t
+Default: 1
+
+NCCL_IB_RETRY_CNT
+Description:
+    The NCCL_IB_RETRY_CNT variable controls the InfiniBand retry
+    count. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-retry-cnt
+Type: int64_t
+Default: 7
+
+NCCL_IB_SL
+Description:
+    Defines the InfiniBand Service Level. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-sl
+Type: int64_t
+Default: 0
+
+NCCL_IB_SPLIT_DATA_ON_QPS
+Description:
+    This parameter controls how we use the queue pairs when we create
+    more than one. Set to 1 (split mode, default), each message will
+    be split evenly on each queue pair. This may cause a visible
+    latency degradation if we use many QPs. Set to 0 (round-robin
+    mode), queue pairs will be used in round-robin mode for each
+    message we send. Operations which do not send multiple messages
+    will not use all QPs. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-split-data-on-qps
+Type: int64_t
+Default: 1
+
+NCCL_IB_TC
+Description:
+    Defines the InfiniBand traffic class field. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-tc
+Type: int64_t
+Default: 0
+
+NCCL_IB_TIMEOUT
+Description:
+    The NCCL_IB_TIMEOUT variable controls the InfiniBand Verbs
+    Timeout.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ib-timeout
+Type: int64_t
+Default: 18
+
+NCCL_IB_USE_INLINE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_IGNORE_CPU_AFFINITY
+Description:
+    The NCCL_IGNORE_CPU_AFFINITY variable can be used to cause NCCL
+    to ignore the job’s supplied CPU affinity and instead use the GPU
+    affinity only.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-ignore-cpu-affinity
+Type: int64_t
+Default: 0
+
+NCCL_IGNORE_DISABLED_P2P
+Description:
+    Ignore disabling P2P.
+Type: int64_t
+Default: 0
+
+NCCL_L1_SHARED_MEMORY_CARVEOUT
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_LAUNCH_MODE
+Description:
+    The NCCL_LAUNCH_MODE variable controls how NCCL launches CUDA
+    kernels. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-launch-mode
+Type: string
+Default: 
+
+NCCL_LL128_BUFFSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
+NCCL_LL128_NTHREADS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
+NCCL_LL_BUFFSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: -2
+
+NCCL_LOCAL_REGISTER
+Description:
+    Enable user local buffer registration when users explicitly call
+    ncclCommRegister. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-local-register
+Type: int64_t
+Default: 1
+
+NCCL_MAX_CTAS
+Description:
+    Set the maximal number of CTAs NCCL should use. Setting this
+    environment variable will override the maxCTAs configuration in
+    all communicators (see ncclConfig_t); if not set (undefined),
+    maximal CTAs will be determined by the configuration; if not
+    passing configuration, NCCL will automatically choose the best
+    value. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-ctas
+Type: int64_t
+Default: -1
+
+NCCL_MAX_NCHANNELS
+Description:
+    The NCCL_MAX_NCHANNELS variable limits the number of channels
+    NCCL can use. Reducing the number of channels also reduces the
+    number of CUDA blocks used for communication, hence the impact on
+    GPU computing resources.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-nchannels
+Type: int64_t
+Default: -2
+
+NCCL_MAX_NRINGS
+Description:
+    Deprecated version of NCCL_MAX_NCHANNELS. Please use
+    NCCL_MAX_NCHANNELS instead.
+Type: int64_t
+Default: -2
+
+NCCL_MAX_P2P_NCHANNELS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: MAX
+
+NCCL_MEM_SYNC_DOMAIN
+Description:
+    Hidden variable. No description provided.
+    More information on CUDA memsync domains can be found here:
+    https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#using-domains-in-cuda
+Type: enum
+Default: remote
+
+NCCL_MIN_CTAS
+Description:
+    Set the minimal number of CTAs NCCL should use. Setting this
+    environment variable will override the minCTAs configuration in
+    all communicators (see ncclConfig_t); if not set (undefined),
+    minimal CTAs will be determined by the configuration; if not
+    passing configuration, NCCL will automatically choose the best
+    value. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-ctas
+Type: int64_t
+Default: -1
+
+NCCL_MIN_NCHANNELS
+Description:
+    The NCCL_MIN_NCHANNELS variable controls the minimum number of
+    channels you want NCCL to use. Increasing the number of channels
+    also increases the number of CUDA blocks NCCL uses, which may be
+    useful to improve performance; however, it uses more CUDA compute
+    resources.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-nchannels
+Type: int64_t
+Default: -2
+
+NCCL_MIN_NRINGS
+Description:
+    Deprecated version of NCCL_MIN_NCHANNELS. Please use
+    NCCL_MIN_NCHANNELS instead.
+Type: int64_t
+Default: -2
+
+NCCL_MIN_P2P_NCHANNELS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
+NCCL_NCHANNELS_PER_NET_PEER
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 2
+
+NCCL_NET (internal variable within NCCL: NCCL_NETWORK)
+Description:
+    Forces NCCL to use a specific network, for example to make sure
+    NCCL uses an external plugin and doesn’t automatically fall back
+    on the internal IB or Socket implementation. Setting this
+    environment variable will override the netName configuration in
+    all communicators (see ncclConfig_t); if not set (undefined), the
+    network module will be determined by the configuration; if not
+    passing configuration, NCCL will automatically choose the best
+    network module. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net
+Type: string
+Default: 
+
+NCCL_NET_DISABLE_INTRA
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_NET_FORCE_FLUSH
+Description:
+    Hidden variable. No description provided.  Set to 0 to disable
+    the flush on Hopper when using GDR.
+Type: int64_t
+Default: 0
+
+NCCL_NET_GDR_LEVEL
+Description:
+    The NCCL_NET_GDR_LEVEL variable allows the user to finely control
+    when to use GPU Direct RDMA between a NIC and a GPU. The level
+    defines the maximum distance between the NIC and the GPU. A
+    string representing the path type should be used to specify the
+    topographical cutoff for GpuDirect. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-gdr-level-formerly-nccl-ib-gdr-level
+Type: string
+Default: 
+
+NCCL_NET_GDR_READ
+Description:
+    The NCCL_NET_GDR_READ variable enables GPU Direct RDMA when
+    sending data as long as the GPU-NIC distance is within the
+    distance specified by NCCL_NET_GDR_LEVEL. Before 2.4.2, GDR read
+    is disabled by default, i.e. when sending data, the data is first
+    stored in CPU memory, then goes to the InfiniBand card. Since
+    2.4.2, GDR read is enabled by default for NVLink-based platforms.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-gdr-read
+Type: int64_t
+Default: -2
+
+NCCL_NET_OVERHEAD
+Description:
+    Hidden variable. No description provided.
+    Network post overhead in ns (1000 = 1 us)
+Type: int64_t
+Default: -2
+
+NCCL_NET_PLUGIN
+Description:
+    Set it to a suffix string to choose among multiple NCCL net
+    plugins. This setting will cause NCCL to look for file
+    "libnccl-net-<suffix>.so" instead of the default
+    "libnccl-net.so". For example, setting NCCL_NET_PLUGIN=aws will
+    cause NCCL to use "libnccl-net-aws.so" (provided that it exists on
+    the system). Setting NCCL_NET_PLUGIN=none will cause NCCL not to
+    use any plugin. More information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-plugin
+Type: string
+Default: libnccl-net.so
+
+NCCL_NET_SHARED_BUFFERS
+Description:
+    Allows the usage of shared buffers for inter-node point-to-point
+    communication. This will use a single large pool for all remote
+    peers, having a constant memory usage instead of increasing
+    linearly with the number of remote peers. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-shared-buffers
+Type: int64_t
+Default: -2
+
+NCCL_NET_SHARED_COMMS
+Description:
+    Reuse the same connections in the context of PXN. This allows for
+    message aggregation but can also decrease the entropy of network
+    packets. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-net-shared-comms
+Type: bool
+Default: True
+
+NCCL_NSOCKS_PERTHREAD
+Description:
+    The NCCL_NSOCKS_PERTHREAD variable specifies the number of
+    sockets opened by each helper thread of the socket transport. In
+    environments where per-socket speed is limited, setting this
+    variable larger than 1 may improve the network performance. For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nsocks-perthread
+Type: int
+Default: -2
+
+NCCL_NTHREADS
+Description:
+    The NCCL_NTHREADS variable sets the number of CUDA threads per
+    CUDA block. NCCL will launch one CUDA block per communication
+    channel. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nthreads
+Type: int64_t
+Default: -2
+
+NCCL_NVB_DISABLE
+Description:
+    Disable intra-node communication through NVLink via an
+    intermediate GPU.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvb-disable
+Type: int64_t
+Default: 0
+
+NCCL_NVB_PRECONNECT
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 1
+
+NCCL_NVLS_ENABLE
+Description:
+    Enable the use of NVLink SHARP (NVLS). NVLink SHARP is available
+    in third-generation NVSwitch systems (NVLink4) with Hopper and
+    later GPU architectures, allowing collectives such as
+    ncclAllReduce to be offloaded to the NVSwitch domain. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nvls-enable
+Type: int64_t
+Default: 2
+
+NCCL_NVLS_NCHANNELS
+Description:
+    Hidden variable. No description provided.
+Type: int
+Default: 16
+
+NCCL_P2P_DIRECT_DISABLE
+Description:
+    The NCCL_P2P_DIRECT_DISABLE variable forbids NCCL to directly
+    access user buffers through P2P between GPUs of the same process.
+    This is useful when user buffers are allocated with APIs which do
+    not automatically make them accessible to other GPUs managed by
+    the same process and with P2P access. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-direct-disable
+Type: bool
+Default: False
+
+NCCL_P2P_DISABLE
+Description:
+    The NCCL_P2P_DISABLE variable disables the peer to peer (P2P)
+    transport, which uses CUDA direct access between GPUs, using NVLink
+    or PCI. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-disable
+Type: bool
+Default: False
+
+NCCL_P2P_LEVEL
+Description:
+    The NCCL_P2P_LEVEL variable allows the user to finely control
+    when to use the peer to peer (P2P) transport between GPUs. The
+    level defines the maximum distance between GPUs where NCCL will
+    use the P2P transport. A short string representing the path type
+    should be used to specify the topographical cutoff for using the
+    P2P transport. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-level
+Type: string
+Default: 
+
+NCCL_P2P_LL_THRESHOLD
+Description:
+    The NCCL_P2P_LL_THRESHOLD is the maximum message size that NCCL
+    will use LL for P2P operations. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-ll-threshold
+Type: int64_t
+Default: 16384
+
+NCCL_P2P_NET_CHUNKSIZE
+Description:
+    The NCCL_P2P_NET_CHUNKSIZE controls the size of messages sent
+    through the network for ncclSend/ncclRecv operations. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-net-chunksize
+Type: int64_t
+Default: 131072
+
+NCCL_P2P_NVL_CHUNKSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 524288
+
+NCCL_P2P_PCI_CHUNKSIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 131072
+
+NCCL_P2P_PXN_LEVEL
+Description:
+    Control in which cases PXN is used for send/receive operations.
+        0: don't use PXN for P2P
+        1: use PXN if needed
+        2: use PXN as much as possible to maximize aggregation
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-p2p-pxn-level
+Type: int64_t
+Default: 2
+
+NCCL_P2P_READ_ENABLE
+Description:
+    Setting this to non zero causes P2P to use Reads rather than
+    Writes.
+Type: int64_t
+Default: -2
+
+NCCL_P2P_USE_CUDA_MEMCPY
+Description:
+    CE memcpy support.
+Type: int64_t
+Default: 0
+
+NCCL_PROGRESS_APPENDOP_FREQ
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 8
+
+NCCL_PROTO
+Description:
+    The NCCL_PROTO variable defines which protocol NCCL will use.
+    Comma-separated list of protocols (not case sensitive) among: LL,
+    LL128, Simple. To specify protocols to exclude (instead of
+    include), start the list with ^. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-proto
+Type: string
+Default: 
+
+NCCL_PROXY_APPEND_BATCH_SIZE
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 16
+
+NCCL_PROXY_DUMP_SIGNAL
+Description:
+    Hidden variable. No description provided.
+    Set to SIGUSR1 or SIGUSR2 to help debug proxy state during hangs.
+Type: int64_t
+Default: -1
+
+NCCL_PROXY_PROFILE
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_PXN_DISABLE
+Description:
+    Disable inter-node communication using a non-local NIC, using
+    NVLink and an intermediate GPU.  For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-pxn-disable
+Type: int64_t
+Default: 0
+
+NCCL_REPORT_CONNECT_PROGRESS
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_SET_STACK_SIZE
+Description:
+    Set CUDA kernel stack size to the maximum stack size amongst all
+    NCCL kernels. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-stack-size
+Type: int64_t
+Default: 0
+
+NCCL_SET_THREAD_NAME
+Description:
+    Change the name of NCCL threads to ease debugging and analysis.
+    For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-thread-name
+Type: int64_t
+Default: 0
+
+NCCL_SHM_DISABLE
+Description:
+    The NCCL_SHM_DISABLE variable disables the Shared Memory (SHM)
+    transports. SHM is used between devices when peer-to-peer cannot
+    happen, therefore, host memory is used. NCCL will use network
+    (i.e. InfiniBand or IP sockets) to communicate between the CPU
+    sockets when SHM is disabled. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-shm-disable
+Type: bool
+Default: False
+
+NCCL_SHM_LOCALITY
+Description:
+    Hidden variable. No description provided.
+    1 - sender-side
+    2 - receiver-side
+Type: int64_t
+Default: 2
+
+NCCL_SHM_MEMCPY_MODE
+Description:
+    Hidden variable. No description provided.
+    1 - sender-side
+    2 - receiver-side
+    3 - both
+Type: int64_t
+Default: 1
+
+NCCL_SHM_USE_CUDA_MEMCPY
+Description:
+    Hidden variable. No description provided.
+Type: bool
+Default: False
+
+NCCL_SOCKET_FAMILY
+Description:
+    The NCCL_SOCKET_FAMILY variable allows users to force NCCL to use
+    only IPv4 or IPv6 interface. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-family
+Type: string
+Default: 
+
+NCCL_SOCKET_IFNAME
+Description:
+    The NCCL_SOCKET_IFNAME variable specifies which IP interface to
+    use for communication. For more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
+Type: string
+Default: 
+
+NCCL_SOCKET_NTHREADS
+Description:
+    The NCCL_SOCKET_NTHREADS variable specifies the number of CPU
+    helper threads used per network connection for socket transport.
+    Increasing this value may increase the socket transport
+    performance, at the cost of higher CPU usage. For more
+    information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-nthreads
+Type: int
+Default: -2
+
+NCCL_THREAD_THRESHOLDS
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_TOPO_DUMP_FILE
+Description:
+    Path to an XML file to dump the topology after detection. For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-topo-dump-file
+Type: string
+Default: 
+
+NCCL_TOPO_DUMP_FILE_RANK
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_TOPO_FILE
+Description:
+    Path to an XML file to load before detecting the topology. By
+    default, NCCL will load
+    /var/run/nvidia-topologyd/virtualTopology.xml if present. For
+    more information:
+    https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-topo-file
+Type: string
+Default: /var/run/nvidia-topologyd/virtualTopology.xml
+
+NCCL_TUNER_PLUGIN
+Description:
+    Hidden variable. No description provided.
+Type: string
+Default: 
+
+NCCL_WARN_ENABLE_DEBUG_INFO
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 0
+
+NCCL_WORK_FIFO_DEPTH
+Description:
+    Hidden variable. No description provided.
+Type: int64_t
+Default: 65536

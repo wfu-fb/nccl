@@ -11,6 +11,18 @@
 #include "timer.h"
 #include "alloc.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_PROXY_PROFILE
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 static const char* profilingStateSendStr[] = { "BufferWait", "GPUWait", "SendWait", "", "End" };
 static const char* profilingStateRecvStr[] = { "BufferWait", "RecvWait", "FlushWait", "GPUWait", "End" };
 static const char* profilingEventStr[] = { "SendRecv", "Sleep", "Idle", "Append" };
@@ -61,9 +73,8 @@ void ncclProfilingDump() {
   static int dumpDone = 0;
   if (dumpDone) return;
   dumpDone = 1;
-  const char* str = ncclGetEnv("NCCL_PROXY_PROFILE");
-  if (!str) { free(profilingEvents); return; }
-  FILE* f = fopen(str, "w");
+  if (NCCL_PROXY_PROFILE.empty()) { free(profilingEvents); return; }
+  FILE* f = fopen(NCCL_PROXY_PROFILE.c_str(), "w");
   fprintf(f, "[\n");
 
   for (int i=0; i<profilingIndex; i++) {

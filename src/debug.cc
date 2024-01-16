@@ -10,6 +10,58 @@
 #include <stdarg.h>
 #include <sys/syscall.h>
 #include "param.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_SET_THREAD_NAME
+   type        : int64_t
+   default     : 0
+   description : |-
+     Change the name of NCCL threads to ease debugging and analysis.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-set-thread-name
+
+ - name        : NCCL_DEBUG
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_DEBUG variable controls the debug information that is
+     displayed from NCCL. This variable is commonly used for
+     debugging. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug
+
+ - name        : NCCL_DEBUG_SUBSYS
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_DEBUG_SUBSYS variable allows the user to filter the
+     NCCL_DEBUG=INFO output based on subsystems. A comma separated
+     list of the subsystems to include in the NCCL debug log traces.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug-subsys
+
+ - name        : NCCL_DEBUG_FILE
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_DEBUG_FILE variable directs the NCCL debug logging
+     output to a file. The filename format can be set to
+     filename.%h.%p where %h is replaced with the hostname and %p is
+     replaced with the process PID. This does not accept the "~"
+     character as part of the path, please convert to a relative or
+     absolute path first. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-debug-file
+
+ - name        : NCCL_WARN_ENABLE_DEBUG_INFO
+   type        : int64_t
+   default     : 0
+   description : |-
+    Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 int ncclDebugLevel = -1;
 static int pid = -1;
@@ -26,9 +78,9 @@ static __thread int tid = -1;
 void ncclDebugInit() {
   pthread_mutex_lock(&ncclDebugLock);
   if (ncclDebugLevel != -1) { pthread_mutex_unlock(&ncclDebugLock); return; }
-  const char* nccl_debug = ncclGetEnv("NCCL_DEBUG");
+  const char* nccl_debug = NCCL_DEBUG.c_str();
   int tempNcclDebugLevel = -1;
-  if (nccl_debug == NULL) {
+  if (NCCL_DEBUG.empty()) {
     tempNcclDebugLevel = NCCL_LOG_NONE;
   } else if (strcasecmp(nccl_debug, "VERSION") == 0) {
     tempNcclDebugLevel = NCCL_LOG_VERSION;
@@ -46,8 +98,8 @@ void ncclDebugInit() {
    * This can be a comma separated list such as INIT,COLL
    * or ^INIT,COLL etc
    */
-  const char* ncclDebugSubsysEnv = ncclGetEnv("NCCL_DEBUG_SUBSYS");
-  if (ncclDebugSubsysEnv != NULL) {
+  const char* ncclDebugSubsysEnv = NCCL_DEBUG_SUBSYS.c_str();
+  if (!NCCL_DEBUG_SUBSYS.empty()) {
     int invert = 0;
     if (ncclDebugSubsysEnv[0] == '^') { invert = 1; ncclDebugSubsysEnv++; }
     ncclDebugMask = invert ? ~0ULL : 0ULL;
@@ -98,8 +150,8 @@ void ncclDebugInit() {
    * then create the debug file. But don't bother unless the
    * NCCL_DEBUG level is > VERSION
    */
-  const char* ncclDebugFileEnv = ncclGetEnv("NCCL_DEBUG_FILE");
-  if (tempNcclDebugLevel > NCCL_LOG_VERSION && ncclDebugFileEnv != NULL) {
+  const char* ncclDebugFileEnv = NCCL_DEBUG_FILE.c_str();
+  if (tempNcclDebugLevel > NCCL_LOG_VERSION && !NCCL_DEBUG_FILE.empty()) {
     int c = 0;
     char debugFn[PATH_MAX+1] = "";
     char *dfn = debugFn;
@@ -172,6 +224,7 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
   if (level == NCCL_LOG_WARN) {
     len = snprintf(buffer, sizeof(buffer), "\n%s:%d:%d [%d] %s:%d NCCL WARN ",
                    hostname, pid, tid, cudaDev, filefunc, line);
+    if (NCCL_WARN_ENABLE_DEBUG_INFO) ncclDebugLevel = NCCL_LOG_INFO;
   } else if (level == NCCL_LOG_INFO) {
     len = snprintf(buffer, sizeof(buffer), "%s:%d:%d [%d] NCCL INFO ", hostname, pid, tid, cudaDev);
   } else if (level == NCCL_LOG_TRACE && flags == NCCL_CALL) {
@@ -193,13 +246,11 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
   }
 }
 
-NCCL_PARAM(SetThreadName, "SET_THREAD_NAME", 0);
-
 void ncclSetThreadName(pthread_t thread, const char *fmt, ...) {
   // pthread_setname_np is nonstandard GNU extension
   // needs the following feature test macro
 #ifdef _GNU_SOURCE
-  if (ncclParamSetThreadName() != 1) return;
+  if (NCCL_SET_THREAD_NAME != 1) return;
   char threadName[NCCL_THREAD_NAMELEN];
   va_list vargs;
   va_start(vargs, fmt);

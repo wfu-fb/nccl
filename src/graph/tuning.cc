@@ -8,9 +8,59 @@
 #include "device.h"
 #include "comm.h"
 #include "topo.h"
+#include "nccl_cvars.h"
 
-NCCL_PARAM(Nthreads, "NTHREADS", -2);
-NCCL_PARAM(Ll128Nthreads, "LL128_NTHREADS", -2);
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_NTHREADS
+   type        : int64_t
+   default     : -2
+   description : |-
+     The NCCL_NTHREADS variable sets the number of CUDA threads per
+     CUDA block. NCCL will launch one CUDA block per communication
+     channel. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-nthreads
+
+ - name        : NCCL_LL128_NTHREADS
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+
+ - name        : NCCL_NET_OVERHEAD
+   type        : int64_t
+   default     : -2
+   description : |-
+     Hidden variable. No description provided.
+     Network post overhead in ns (1000 = 1 us)
+
+ - name        : NCCL_PROTO
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_PROTO variable defines which protocol NCCL will use.
+     Comma-separated list of protocols (not case sensitive) among: LL,
+     LL128, Simple. To specify protocols to exclude (instead of
+     include), start the list with ^. For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-proto
+
+ - name        : NCCL_ALGO
+   type        : string
+   default     : ""
+   description : |-
+     The NCCL_ALGO variable defines which algorithms NCCL will use.
+     For more information:
+     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-algo
+
+ - name        : NCCL_THREAD_THRESHOLDS
+   type        : string
+   default     : ""
+   description : |-
+     Hidden variable. No description provided.
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 static int getNthreads(const char* name, int env, int min, int max, int def) {
   int nt = env;
@@ -105,11 +155,8 @@ static const double perChMaxTreeBws[3][3] = {
   /* Hopper (N1/N2/N4) */ {38.7, 41.4, 36.0},
 };
 
-// Network post overhead in ns (1000 = 1 us)
-NCCL_PARAM(NetOverhead, "NET_OVERHEAD", -2);
-
 static float getNetOverhead(struct ncclComm* comm) {
-  if (ncclParamNetOverhead() != -2) return ncclParamNetOverhead() * .001;
+  if (NCCL_NET_OVERHEAD != NCCL_NET_OVERHEAD_DEFAULT) return NCCL_NET_OVERHEAD * .001;
   int cpuArch, cpuVendor, cpuModel;
   NCCLCHECK(ncclTopoCpuType(comm->topo, &cpuArch, &cpuVendor, &cpuModel));
   if (cpuArch == NCCL_TOPO_CPU_ARCH_X86 && cpuVendor == NCCL_TOPO_CPU_VENDOR_INTEL) return 1.0;
@@ -120,17 +167,17 @@ static float getNetOverhead(struct ncclComm* comm) {
 ncclResult_t ncclTopoTuneModel(struct ncclComm* comm, int minCompCap, int maxCompCap, struct ncclTopoGraph** graphs) {
   int simpleDefaultThreads = (graphs[NCCL_ALGO_RING]->bwIntra*graphs[NCCL_ALGO_RING]->nChannels <= PCI_BW) ? 256 : NCCL_SIMPLE_MAX_NTHREADS;
   comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_SIMPLE] =
-    getNthreads("NCCL_NTHREADS", ncclParamNthreads(), 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, simpleDefaultThreads);
+    getNthreads("NCCL_NTHREADS", NCCL_NTHREADS, 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, simpleDefaultThreads);
   comm->maxThreads[NCCL_ALGO_TREE][NCCL_PROTO_SIMPLE] =
-    getNthreads("NCCL_NTHREADS", ncclParamNthreads(), 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, NCCL_SIMPLE_MAX_NTHREADS);
+    getNthreads("NCCL_NTHREADS", NCCL_NTHREADS, 2*WARP_SIZE, NCCL_SIMPLE_MAX_NTHREADS, NCCL_SIMPLE_MAX_NTHREADS);
   comm->maxThreads[NCCL_ALGO_COLLNET_DIRECT][NCCL_PROTO_SIMPLE] =
     comm->maxThreads[NCCL_ALGO_COLLNET_CHAIN][NCCL_PROTO_SIMPLE] =
     comm->maxThreads[NCCL_ALGO_NVLS][NCCL_PROTO_SIMPLE] =
     comm->maxThreads[NCCL_ALGO_NVLS_TREE][NCCL_PROTO_SIMPLE] = NCCL_MAX_NTHREADS;
   comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_LL] = comm->maxThreads[NCCL_ALGO_TREE][NCCL_PROTO_LL] =
-    getNthreads("NCCL_NTHREADS", ncclParamNthreads(), 2*WARP_SIZE, NCCL_LL_MAX_NTHREADS, NCCL_LL_MAX_NTHREADS);
+    getNthreads("NCCL_NTHREADS", NCCL_NTHREADS, 2*WARP_SIZE, NCCL_LL_MAX_NTHREADS, NCCL_LL_MAX_NTHREADS);
   comm->maxThreads[NCCL_ALGO_RING][NCCL_PROTO_LL128] = comm->maxThreads[NCCL_ALGO_TREE][NCCL_PROTO_LL128] =
-    getNthreads("NCCL_LL128_NTHREADS", ncclParamLl128Nthreads(), NCCL_LL128_MAX_NTHREADS/4, NCCL_LL128_MAX_NTHREADS, NCCL_LL128_MAX_NTHREADS);
+    getNthreads("NCCL_LL128_NTHREADS", NCCL_LL128_NTHREADS, NCCL_LL128_MAX_NTHREADS/4, NCCL_LL128_MAX_NTHREADS, NCCL_LL128_MAX_NTHREADS);
 
   int nNodes = comm->nNodes;
   int nRanks = comm->nRanks;
@@ -251,15 +298,13 @@ ncclResult_t ncclTopoTuneModel(struct ncclComm* comm, int minCompCap, int maxCom
   int protoEnable[NCCL_NUM_PROTOCOLS] = { 1, 2, 1 };
   int algoEnable[NCCL_NUM_ALGORITHMS] = { 1, 1, 1, 1, 1, 1 };
 
-  const char *protoStr = ncclGetEnv("NCCL_PROTO");
-  if (protoStr) {
-    INFO(NCCL_ENV, "NCCL_PROTO set by environment to %s", protoStr);
-    NCCLCHECK(parseList(protoStr, ncclProtoStr, NCCL_NUM_PROTOCOLS, protoEnable));
+  if (!NCCL_PROTO.empty()) {
+    INFO(NCCL_ENV, "NCCL_PROTO set by environment to %s", NCCL_PROTO.c_str());
+    NCCLCHECK(parseList(NCCL_PROTO.c_str(), ncclProtoStr, NCCL_NUM_PROTOCOLS, protoEnable));
   }
-  const char *algoStr = ncclGetEnv("NCCL_ALGO");
-  if (algoStr) {
-    INFO(NCCL_ENV, "NCCL_ALGO set by environment to %s", algoStr);
-    NCCLCHECK(parseList(algoStr, ncclAlgoStr, NCCL_NUM_ALGORITHMS, algoEnable));
+  if (!NCCL_ALGO.empty()) {
+    INFO(NCCL_ENV, "NCCL_ALGO set by environment to %s", NCCL_ALGO.c_str());
+    NCCLCHECK(parseList(NCCL_ALGO.c_str(), ncclAlgoStr, NCCL_NUM_ALGORITHMS, algoEnable));
   }
 
   if (comm->nNodes == 1) algoEnable[NCCL_ALGO_NVLS_TREE] = 0;
@@ -365,11 +410,10 @@ ncclResult_t ncclTopoTuneModel(struct ncclComm* comm, int minCompCap, int maxCom
   comm->threadThresholds[NCCL_ALGO_COLLNET_CHAIN][NCCL_PROTO_SIMPLE] = 512;
 
   // Override defaults with user env
-  const char* str = ncclGetEnv("NCCL_THREAD_THRESHOLDS");
-  if (str) {
-    INFO(NCCL_ENV, "NCCL_THREAD_THRESHOLDS set by environment to %s", str);
+  if (!NCCL_THREAD_THRESHOLDS.empty()) {
+    INFO(NCCL_ENV, "NCCL_THREAD_THRESHOLDS set by environment to %s", NCCL_THREAD_THRESHOLDS.c_str());
     ssize_t t[2][NCCL_NUM_PROTOCOLS] = {{ -2, -2, -2 }, { -2, -2, -2 }};
-    sscanf(str, "%ld %ld %ld %ld %ld %ld", t[0], t[0]+1, t[0]+2, t[1], t[1]+1, t[1]+2);
+    sscanf(NCCL_THREAD_THRESHOLDS.c_str(), "%ld %ld %ld %ld %ld %ld", t[0], t[0]+1, t[0]+2, t[1], t[1]+1, t[1]+2);
     for (int a=0; a<2; a++) {
       for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
         if (t[a][p] >= 0) comm->threadThresholds[a][p] = t[a][p];

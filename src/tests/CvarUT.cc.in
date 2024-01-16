@@ -1,0 +1,78 @@
+// (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+#include <nccl.h>
+#include <stdlib.h>
+#include <set>
+#include <vector>
+#include "../include/nccl_cvars.h"
+
+class NCCLEnvironment : public ::testing::Environment {
+ public:
+  void SetUp() override {
+    // Turn off NCCL debug logging, allow user to turn on via command line
+    setenv("NCCL_DEBUG", "WARN", 0);
+  }
+  ~NCCLEnvironment() override {}
+};
+
+class CvarTest : public ::testing::Test {
+ public:
+  CvarTest() = default;
+};
+
+/**
+* Utility functions
+*/
+template <typename T>
+void checkListValues(std::vector<T> vals, std::vector<T> cvar) {
+  for (int i = 0; i < vals.size(); i++) {
+    EXPECT_EQ(cvar[i], vals[i]);
+  }
+}
+
+void testDefaultValue(const char* cvarName) {
+  unsetenv(cvarName);
+  ncclCvarInit();
+}
+
+template <typename T>
+void testNumValue(const char* cvarName, T val) {
+  std::ostringstream varOSS;
+  varOSS << val;
+  std::string varStr = varOSS.str();
+  setenv(cvarName, varStr.c_str(), 1);
+  ncclCvarInit();
+}
+
+void testWarn(const char* cvarName, std::string expectedKeyword) {
+  testing::internal::CaptureStdout();
+  ncclCvarInit();
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_THAT(output, testing::HasSubstr(expectedKeyword));
+
+  // Unset to avoid warning in later tests
+  unsetenv(cvarName);
+}
+
+TEST_F(CvarTest, UnknownEnv) {
+  setenv("NCCL_DUMMY_ENV", "dummy", 1);
+  testWarn("NCCL_DUMMY_ENV", "Unknown env");
+}
+
+/**
+* START of generated tests
+*/
+
+## NCCL_CVAR_TESTS_DECL ##
+
+/**
+* END of generated tests
+*/
+
+int main(int argc, char* argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::AddGlobalTestEnvironment(new NCCLEnvironment);
+  return RUN_ALL_TESTS();
+}
