@@ -538,6 +538,64 @@ TEST_F(CvarTest, NCCL_CROSS_NIC_default_value) {
   EXPECT_EQ(NCCL_CROSS_NIC, 2);
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y0) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "y", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y1) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "yes", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y2) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "true", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y3) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "1", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n0) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "n", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n1) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "no", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n2) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "false", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n3) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "0", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_default_value) {
+  testDefaultValue("NCCL_CTRAN_AG_RD_RTR");
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_warn_unknown_val) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "dummy", 1);
+  testWarn("NCCL_CTRAN_AG_RD_RTR", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_single_choice_0) {
   setenv("NCCL_CTRAN_BACKENDS", "ib", 1);
   ncclCvarInit();

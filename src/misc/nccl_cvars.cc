@@ -241,6 +241,8 @@ int64_t NCCL_CREATE_THREAD_CONTEXT;
 int64_t NCCL_CREATE_THREAD_CONTEXT_DEFAULT;
 int64_t NCCL_CROSS_NIC;
 int64_t NCCL_CROSS_NIC_DEFAULT;
+bool NCCL_CTRAN_AG_RD_RTR;
+bool NCCL_CTRAN_AG_RD_RTR_DEFAULT;
 std::vector<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS;
 std::vector<enum NCCL_CTRAN_BACKENDS> NCCL_CTRAN_BACKENDS_DEFAULT;
 int NCCL_CTRAN_IB_MAX_QPS;
@@ -497,6 +499,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_CONNECT_ROUND_SIZE");
   env.insert("NCCL_CREATE_THREAD_CONTEXT");
   env.insert("NCCL_CROSS_NIC");
+  env.insert("NCCL_CTRAN_AG_RD_RTR");
   env.insert("NCCL_CTRAN_BACKENDS");
   env.insert("NCCL_CTRAN_IB_MAX_QPS");
   env.insert("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD");
@@ -706,6 +709,9 @@ void readCvarEnv() {
 
   NCCL_CROSS_NIC = env2num<int64_t>("NCCL_CROSS_NIC", "2");
   NCCL_CROSS_NIC_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "2");
+
+  NCCL_CTRAN_AG_RD_RTR = env2bool("NCCL_CTRAN_AG_RD_RTR", "True");
+  NCCL_CTRAN_AG_RD_RTR_DEFAULT = env2bool("NCCL_ENV_DO_NOT_SET", "True");
 
   {
     NCCL_CTRAN_BACKENDS.clear();

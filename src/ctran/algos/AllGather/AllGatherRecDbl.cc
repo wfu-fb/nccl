@@ -4,6 +4,18 @@
 #include "Ctran.h"
 #include "comm.h"
 
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+
+ - name        : NCCL_CTRAN_AG_RD_RTR
+   type        : bool
+   default     : true
+   description : |-
+     Whether to wait for ready-to-receive at beginning of each iteration
+
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
+
 static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
   ncclResult_t res = ncclSuccess;
   struct OpElem* op = opGroup.front().get();
@@ -50,22 +62,29 @@ static ncclResult_t impl(std::vector<std::unique_ptr<struct OpElem>> opGroup) {
 
   // Exchange memory handles with relevant peerse
   for (size_t i = 0; i < nSteps; i++) {
-    size_t peer = peers[i];
-
     NCCLCHECKGOTO(
         comm->ctran->mapper->irecvCtrl(
-            &remoteRecvBuffs[i], &remoteAccessKeys[i], peer, &irecvReq[i]),
+            &remoteRecvBuffs[i], &remoteAccessKeys[i], peers[i], &irecvReq[i]),
         res,
         exit);
 
-    NCCLCHECKGOTO(
-        comm->ctran->mapper->isendCtrl(recvbuff, recvHdl, peer, &isendReq[i]),
-        res,
-        exit);
+    if (!NCCL_CTRAN_AG_RD_RTR) {
+      NCCLCHECKGOTO(
+          comm->ctran->mapper->isendCtrl(recvbuff, recvHdl, peers[i], &isendReq[i]),
+          res,
+          exit);
+    }
   }
 
   for (size_t i = 0; i < nSteps; i++) {
     auto peer = peers[i];
+
+    if (NCCL_CTRAN_AG_RD_RTR) {
+      NCCLCHECKGOTO(
+          comm->ctran->mapper->isendCtrl(recvbuff, recvHdl, peer, &isendReq[i]),
+          res,
+          exit);
+    }
 
     // Block until we have handle for this peer
     NCCLCHECKGOTO(irecvReq[i]->wait(), res, exit);

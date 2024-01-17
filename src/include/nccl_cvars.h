@@ -85,6 +85,9 @@ extern int64_t NCCL_CREATE_THREAD_CONTEXT_DEFAULT;
 extern int64_t NCCL_CROSS_NIC;
 extern int64_t NCCL_CROSS_NIC_DEFAULT;
 
+extern bool NCCL_CTRAN_AG_RD_RTR;
+extern bool NCCL_CTRAN_AG_RD_RTR_DEFAULT;
+
 enum class NCCL_CTRAN_BACKENDS {
   ib,
 };
