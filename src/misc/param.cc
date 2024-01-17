@@ -18,12 +18,12 @@
 #include <pthread.h>
 #include <pwd.h>
 
-const char* userHomeDir() {
+static const char* userHomeDir() {
   struct passwd *pwUser = getpwuid(getuid());
   return pwUser == NULL ? NULL : pwUser->pw_dir;
 }
 
-void setEnvFile(const char* fileName) {
+static void setEnvFile(const char* fileName) {
   FILE * file = fopen(fileName, "r");
   if (file == NULL) return;
 

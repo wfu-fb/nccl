@@ -9,8 +9,6 @@
 
 #include <stdint.h>
 
-const char* userHomeDir();
-void setEnvFile(const char* fileName);
 void initEnv();
 
 #endif
