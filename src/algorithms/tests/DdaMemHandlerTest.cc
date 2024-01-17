@@ -36,7 +36,6 @@ TEST(DdaMemHandler, ThreadedRanks) {
     CUDACHECKIGNORE(cudaSetDevice(rank));
     ncclComm_t comm;
     NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks, commId, rank));
-    DdaThreadedData::get()->registerRank(comm->commHash, rank);
 
     // add local dev addresses
     DdaMemHandler handler(comm);
@@ -48,7 +47,6 @@ TEST(DdaMemHandler, ThreadedRanks) {
       handler.add(rank1_addr1);
     }
     NCCLCHECKIGNORE(handler.exchangeMemHandles());
-    DdaThreadedData::get()->unregisterRank(comm->commHash, rank);
     VLOG(1) << "rank " << rank << ": exchangeMemHandles done.";
 
     // verify memory addresses
