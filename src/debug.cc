@@ -73,7 +73,6 @@ static __thread int tid = -1;
 void ncclDebugInit() {
   pthread_mutex_lock(&ncclDebugLock);
   if (ncclDebugLevel != -1) { pthread_mutex_unlock(&ncclDebugLock); return; }
-  initEnvOnce();
   const char* nccl_debug = NCCL_DEBUG.c_str();
   int tempNcclDebugLevel = -1;
   if (NCCL_DEBUG.empty()) {

@@ -49,7 +49,18 @@ void setEnvFile(const char* fileName) {
   fclose(file);
 }
 
+static pthread_mutex_t initEnvLock = PTHREAD_MUTEX_INITIALIZER;
+static bool isInitialized = false;
+
 void initEnv() {
+  /* make sure initEnv is called only once.  Use a lock in case
+   * multiple threads initialize it simultaneously. */
+  if (__atomic_load_n(&isInitialized, __ATOMIC_ACQUIRE)) {
+    return;
+  }
+  pthread_mutex_lock(&initEnvLock);
+  isInitialized = true;
+
   char confFilePath[1024];
   const char * userDir = userHomeDir();
   if (userDir) {
@@ -59,9 +70,7 @@ void initEnv() {
   sprintf(confFilePath, "/etc/nccl.conf");
   setEnvFile(confFilePath);
   ncclCvarInit();
-}
 
-void initEnvOnce() {
-  static pthread_once_t once = PTHREAD_ONCE_INIT;
-  pthread_once(&once, initEnv);
+  __atomic_store_n(&isInitialized, true, __ATOMIC_RELEASE);
+  pthread_mutex_unlock(&initEnvLock);
 }

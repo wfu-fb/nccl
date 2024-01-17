@@ -307,7 +307,6 @@ static ncclResult_t ncclInit() {
   if (__atomic_load_n(&initialized, __ATOMIC_ACQUIRE)) return ncclSuccess;
   pthread_mutex_lock(&initLock);
   if (!initialized) {
-    initEnvOnce();
     initGdrCopy();
     // Always initialize bootstrap network
     NCCLCHECK(bootstrapNetInit());
@@ -322,6 +321,7 @@ static ncclResult_t ncclInit() {
 
 NCCL_API(ncclResult_t, ncclGetVersion, int* version);
 ncclResult_t ncclGetVersion(int* version) {
+  initEnv();
   if (version == NULL) return ncclInvalidArgument;
   *version = NCCL_VERSION_CODE;
   return ncclSuccess;
@@ -329,6 +329,7 @@ ncclResult_t ncclGetVersion(int* version) {
 
 NCCL_API(ncclResult_t, ncclGetUniqueId, ncclUniqueId* out);
 ncclResult_t ncclGetUniqueId(ncclUniqueId* out) {
+  initEnv();
   NCCLCHECK(ncclInit());
   NCCLCHECK(PtrCheck(out, "GetUniqueId", "out"));
   ncclResult_t res = bootstrapGetUniqueId((struct ncclBootstrapHandle*)out);
@@ -1819,7 +1820,6 @@ static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUni
   ncclResult_t res = ncclSuccess;
   ncclComm_t comm = NULL;
   struct ncclCommInitRankAsyncJob *job = NULL;
-  initEnvOnce();
   if (!NCCL_COMM_ID.empty() && myrank == 0) {
     INFO(NCCL_ENV, "NCCL_COMM_ID set by environment to %s", NCCL_COMM_ID.c_str());
     NCCLCHECKGOTO(bootstrapCreateRoot((struct ncclBootstrapHandle*)&commId, true), res, fail);
@@ -1882,6 +1882,8 @@ constexpr nvtxPayloadSchemaEntry_t CommInitRankSchema[] = {
 
 NCCL_API(ncclResult_t, ncclCommInitRank, ncclComm_t* newcomm, int nranks, ncclUniqueId commId, int myrank);
 ncclResult_t ncclCommInitRank(ncclComm_t* newcomm, int nranks, ncclUniqueId commId, int myrank) {
+  initEnv();
+
   // Load the CUDA driver and dlsym hooks (can fail on old drivers)
   (void)ncclCudaLibraryInit();
 
@@ -1907,6 +1909,8 @@ ncclResult_t ncclCommInitAll(ncclComm_t* comms, int ndev, const int* devlist) {
     {0, NVTX_PAYLOAD_ENTRY_TYPE_INT, "No. of devices"}
   };
   NVTX3_FUNC_WITH_PARAMS(CommInitAll, CommInitAllSchema, ndev)
+
+  initEnv();
 
   // Load the CUDA driver and dlsym hooks (can fail on old drivers)
   (void)ncclCudaLibraryInit();
@@ -1971,6 +1975,8 @@ ncclResult_t ncclCommInitRankConfig(ncclComm_t *newcomm, int nranks, ncclUniqueI
   ncclResult_t ret = ncclSuccess;
   ncclConfig_t internalConfig = NCCL_CONFIG_INITIALIZER;
   ncclConfig_t *internalConfigPtr = NULL;
+
+  initEnv();
   NCCLCHECK(ncclGroupStartInternal());
 
   (void)ncclCudaLibraryInit();
