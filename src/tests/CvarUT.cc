@@ -626,6 +626,31 @@ TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_warn_dup_val) {
   testWarn("NCCL_CTRAN_BACKENDS", "Duplicate token");
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", 0);
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", 9999);
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_default_value) {
+  testDefaultValue("NCCL_CTRAN_IB_CTRL_TC");
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, 192);
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_0) {
   testNumValue<int>("NCCL_CTRAN_IB_MAX_QPS", 0);
   EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, 0);

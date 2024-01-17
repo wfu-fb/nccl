@@ -33,6 +33,13 @@
      Once we hit the maximum number of QPs (see NCCL_CTRAN_IB_MAX_QPS), the
      data is split across all available QPs.
 
+ - name        : NCCL_CTRAN_IB_CTRL_TC
+   type        : uint64_t
+   default     : 192
+   description : |-
+     Traffic class to use for control QPs. Note: To match NCCL_IB_TC, this directly
+     sets the TC field, so multiply your DSCP value by 4.
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -219,7 +226,7 @@ ncclResult_t CtranIb::Impl::VirtualConn::setupVc(void *remoteBusCard, uint32_t *
     qpAttr.ah_attr.grh.flow_label = 0;
     qpAttr.ah_attr.grh.sgid_index = NCCL_IB_GID_INDEX;
     qpAttr.ah_attr.grh.hop_limit = 255;
-    qpAttr.ah_attr.grh.traffic_class = NCCL_IB_TC;
+    qpAttr.ah_attr.grh.traffic_class = NCCL_CTRAN_IB_CTRL_TC;
   } else {
     qpAttr.ah_attr.is_global = 0;
     qpAttr.ah_attr.dlid = remoteBusCardStruct->u.ib.lid;
@@ -233,6 +240,11 @@ ncclResult_t CtranIb::Impl::VirtualConn::setupVc(void *remoteBusCard, uint32_t *
     wrap_ibv_modify_qp(this->controlQp_, &qpAttr,
                        IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
                        IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER), res, exit);
+
+  if (this->linkLayer_ == IBV_LINK_LAYER_ETHERNET) {
+    // Only use NCCL_CTRAN_IB_CTRL_TC for the control QP; switch back to NCCL_IB_TC for data QPs
+    qpAttr.ah_attr.grh.traffic_class = NCCL_IB_TC;
+  }
 
   for (int i = 0; i < NCCL_CTRAN_IB_MAX_QPS; i++) {
     qpAttr.dest_qp_num = remoteBusCardStruct->dataQpn[i];
