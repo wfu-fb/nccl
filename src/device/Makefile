@@ -70,7 +70,7 @@ $(OBJDIR)/gensrc/rules.mk: $(OBJDIR)/gensrc ;
 -include $(OBJDIR)/gensrc/rules.mk
 # "gensrc/rules.mk" populates $(LIB_OBJS_GEN)
 
-SRCS = common.cu onerank.cu
+SRCS = common.cu onerank.cu all_reduce_dda.cu
 
 LIB_OBJS = $(patsubst %, $(OBJDIR)/%.o, $(SRCS)) $(LIB_OBJS_GEN)
 

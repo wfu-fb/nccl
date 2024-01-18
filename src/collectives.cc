@@ -30,6 +30,14 @@ NCCL_API(ncclResult_t, ncclAllReduce, const void* sendbuff, void* recvbuff, size
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream);
 ncclResult_t ncclAllReduce(const void* sendbuff, void* recvbuff, size_t count,
     ncclDataType_t datatype, ncclRedOp_t op, ncclComm* comm, cudaStream_t stream) {
+  if (comm->algoDirector && comm->algoDirector->allReduce) {
+    // try to get meta customized algo
+    auto algo = comm->algoDirector->allReduce->getAlgoAllReduce(sendbuff, recvbuff, count, datatype, op, comm, stream);
+    if (algo) {
+      return algo->allReduce();
+    }
+  }
+
   struct NvtxParamsAllReduce {
     size_t bytes;
     ncclRedOp_t op;

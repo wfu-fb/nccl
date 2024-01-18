@@ -14,6 +14,21 @@ LIBSRCFILES := \
 	$(wildcard graph/*.cc) \
 	$(wildcard misc/*.cc) \
 	$(wildcard transport/*.cc)
+LIBSRCFILES += algorithms/AlgoDirector.cc \
+               algorithms/AlgoInit.cc \
+               algorithms/AlgoManagerBase.cc \
+               algorithms/AlgoUtils.cc \
+               algorithms/DdaMemHandler.cc \
+               algorithms/DdaThreadedData.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsFlatIpc.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsFlatThreaded.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsTreeIpc.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsTreeThreaded.cc \
+               algorithms/allreduce/AlgoAllReduceDdaNvsScatGatIpc.cc \
+               algorithms/allreduce/AlgoManagerAllReduce.cc
+
+INCLUDES := -Iinclude
+INCLUDES += -Ialgorithms -Ialgorithms/allreduce
 
 ##### lib files
 LIBNAME     := libnccl.so
@@ -113,8 +128,8 @@ $(PKGDIR)/%.pc : %.pc
 $(OBJDIR)/%.o : %.cc $(INCTARGETS)
 	@printf "Compiling  %-35s > %s\n" $< $@
 	mkdir -p `dirname $@`
-	$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) -Iinclude -c $< -o $@
-	@$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) -Iinclude -M $< > $(@:%.o=%.d.tmp)
+	$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+	@$(CXX) -I. -I$(INCDIR) $(CXXFLAGS) $(INCLUDES) -M $< > $(@:%.o=%.d.tmp)
 	@sed "0,/^.*:/s//$(subst /,\/,$@):/" $(@:%.o=%.d.tmp) > $(@:%.o=%.d)
 	@sed -e 's/.*://' -e 's/\\$$//' < $(@:%.o=%.d.tmp) | fmt -1 | \
                 sed -e 's/^ *//' -e 's/$$/:/' >> $(@:%.o=%.d)

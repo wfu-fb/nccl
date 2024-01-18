@@ -14,6 +14,7 @@
 #include "proxy.h"
 #include "strongstream.h"
 #include "nccl_net.h"
+#include "AlgoDirector.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -387,6 +388,8 @@ struct ncclComm {
 
   // Tuning plugin
   ncclTuner_t* tuner;
+
+  std::unique_ptr<nccl::algorithms::AlgoDirector> algoDirector{nullptr};
 };
 
 enum ncclLaunchMode {

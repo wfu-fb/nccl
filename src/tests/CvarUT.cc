@@ -136,6 +136,28 @@ TEST_F(CvarTest, NCCL_ALLOC_P2P_NET_LL_BUFFERS_value_3) {
   EXPECT_EQ(NCCL_ALLOC_P2P_NET_LL_BUFFERS, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_single_choice_0) {
+  setenv("NCCL_ALLREDUCE_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLREDUCE_ALGO, NCCL_ALLREDUCE_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_single_choice_1) {
+  setenv("NCCL_ALLREDUCE_ALGO", "dda", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLREDUCE_ALGO, NCCL_ALLREDUCE_ALGO::dda);
+}
+
+TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_default_choice) {
+  testDefaultValue("NCCL_ALLREDUCE_ALGO");
+  EXPECT_EQ(NCCL_ALLREDUCE_ALGO, NCCL_ALLREDUCE_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLREDUCE_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLREDUCE_ALGO", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_BUFFSIZE_value_0) {
   testNumValue<int64_t>("NCCL_BUFFSIZE", 0);
   EXPECT_EQ(NCCL_BUFFSIZE, 0);
@@ -430,6 +452,106 @@ TEST_F(CvarTest, NCCL_CUMEM_ENABLE_value_3) {
 TEST_F(CvarTest, NCCL_CUMEM_ENABLE_default_value) {
   testDefaultValue("NCCL_CUMEM_ENABLE");
   EXPECT_EQ(NCCL_CUMEM_ENABLE, -2);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_MAX_BLOCKS_value_0) {
+  testNumValue<int>("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", 0);
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, 0);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_MAX_BLOCKS_value_1) {
+  testNumValue<int>("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", 9999);
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_MAX_BLOCKS_value_2) {
+  testNumValue<int>("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_MAX_BLOCKS_value_3) {
+  testNumValue<int>("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_MAX_BLOCKS_default_value) {
+  testDefaultValue("NCCL_DDA_ALLREDUCE_MAX_BLOCKS");
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, 24);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD_value_0) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD_value_1) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD_value_2) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD_value_3) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD");
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD, 1048576);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_value_0) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_TREE_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_value_1) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_TREE_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_value_2) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_TREE_THRESHOLD, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_value_3) {
+  testNumValue<uint64_t>("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_TREE_THRESHOLD, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_TREE_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_DDA_ALLREDUCE_TREE_THRESHOLD");
+  EXPECT_EQ(NCCL_DDA_ALLREDUCE_TREE_THRESHOLD, 262144);
+}
+
+TEST_F(CvarTest, NCCL_DDA_TMPBUFF_SIZE_value_0) {
+  testNumValue<uint64_t>("NCCL_DDA_TMPBUFF_SIZE", 0);
+  EXPECT_EQ(NCCL_DDA_TMPBUFF_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_DDA_TMPBUFF_SIZE_value_1) {
+  testNumValue<uint64_t>("NCCL_DDA_TMPBUFF_SIZE", 9999);
+  EXPECT_EQ(NCCL_DDA_TMPBUFF_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_DDA_TMPBUFF_SIZE_value_2) {
+  testNumValue<uint64_t>("NCCL_DDA_TMPBUFF_SIZE", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_DDA_TMPBUFF_SIZE, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_DDA_TMPBUFF_SIZE_value_3) {
+  testNumValue<uint64_t>("NCCL_DDA_TMPBUFF_SIZE", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_DDA_TMPBUFF_SIZE, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_DDA_TMPBUFF_SIZE_default_value) {
+  testDefaultValue("NCCL_DDA_TMPBUFF_SIZE");
+  EXPECT_EQ(NCCL_DDA_TMPBUFF_SIZE, 33554432);
 }
 
 TEST_F(CvarTest, NCCL_DEBUG_value_0) {

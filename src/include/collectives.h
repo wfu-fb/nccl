@@ -9,6 +9,8 @@
 
 #include "nccl.h"
 
+#include <stdint.h>
+
 // CHUNKSIZE must be a multiple of SLICESIZE
 #define ALLREDUCE_SLICESTEPS (NCCL_STEPS/4)
 #define ALLREDUCE_CHUNKSTEPS (NCCL_STEPS/2)
@@ -44,5 +46,33 @@ inline int ncclTypeSize(ncclDataType_t type) {
     return -1;
   }
 }
+
+struct DdaDeviceState {
+  uintptr_t* threadedBarrierMbox;
+  uintptr_t* ipcBarrierMbox;
+  void* tmpbuff;
+};
+
+// DDA kernels
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_Flat(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_Tree(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, const T* sendbuff, T* recvbuff, size_t count);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_Flat_ipc(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, T* recvbuff, size_t count);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_Tree_ipc(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, T* recvbuff, size_t count);
+template <typename T, uint32_t NRANKS>
+__global__ void ncclKernel_AllReduce_DDA_ScatGat_ipc(
+  uintptr_t barrierFlag, DdaDeviceState* devStates,
+  int rank, T* sendbuff, T* recvbuff, size_t count);
 
 #endif

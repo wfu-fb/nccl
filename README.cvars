@@ -37,6 +37,14 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_ALLREDUCE_ALGO
+Description:
+    The algorithm to use for Allreduce communication
+    orig - Copy-based algorithm
+    dda - Direct Data Access algorithms
+Type: enum
+Default: orig
+
 NCCL_BUFFSIZE
 Description:
     The NCCL_BUFFSIZE variable controls the size of the buffer used
@@ -155,6 +163,30 @@ Description:
     parameter toggles cuMem API usage.
 Type: int64_t
 Default: -2
+
+NCCL_DDA_ALLREDUCE_MAX_BLOCKS
+Description:
+    DDA Allreduce max number of blocks.
+Type: int
+Default: 24
+
+NCCL_DDA_ALLREDUCE_SCATGAT_THRESHOLD
+Description:
+    Message size at which DDA Allreduce switches to the scatter-gather algorithm.
+Type: uint64_t
+Default: 1048576
+
+NCCL_DDA_ALLREDUCE_TREE_THRESHOLD
+Description:
+    Message size at which DDA Allreduce switches to the tree algorithm.
+Type: uint64_t
+Default: 262144
+
+NCCL_DDA_TMPBUFF_SIZE
+Description:
+    DDA temporary buffer size.
+Type: uint64_t
+Default: 33554432
 
 NCCL_DEBUG
 Description:
