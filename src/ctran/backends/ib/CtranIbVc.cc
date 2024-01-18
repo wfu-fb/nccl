@@ -441,7 +441,7 @@ ncclResult_t CtranIb::Impl::VirtualConn::processCqe(enum ibv_wc_opcode opcode, i
           this->sendCtrl_.freeMsgs_.pop_front();
 
           cmsg->remoteAddr = reinterpret_cast<uint64_t>(enqueuedWrs->enqueued.send.buf);
-          cmsg->rkey = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(enqueuedWrs->enqueued.send.ibRegElem));
+          cmsg->rkey = reinterpret_cast<struct ibv_mr *>(enqueuedWrs->enqueued.send.ibRegElem)->rkey;
           NCCLCHECKGOTO(this->postSendCtrlMsg(cmsg), res, exit);
 
           this->sendCtrl_.postedMsgs_.push_back(cmsg);
