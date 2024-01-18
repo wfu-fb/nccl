@@ -5,5 +5,5 @@
 #include <nccl.h>
 
 TEST(Version, Code) {
-  EXPECT_EQ(NCCL_VERSION_CODE, 21903);
+  EXPECT_EQ(NCCL_VERSION_CODE, 21904);
 }
