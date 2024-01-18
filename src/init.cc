@@ -198,8 +198,8 @@
      https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cga-cluster-size
 
  - name        : NCCL_MAX_CTAS
-   type        : int64_t
-   default     : -1
+   type        : int
+   default     : MIN
    description : |-
      Set the maximal number of CTAs NCCL should use. Setting this
      environment variable will override the maxCTAs configuration in
@@ -210,8 +210,8 @@
      https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-ctas
 
  - name        : NCCL_MIN_CTAS
-   type        : int64_t
-   default     : -1
+   type        : int
+   default     : MIN
    description : |-
      Set the minimal number of CTAs NCCL should use. Setting this
      environment variable will override the minCTAs configuration in

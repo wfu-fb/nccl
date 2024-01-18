@@ -21,7 +21,7 @@
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
  - name        : NCCL_L1_SHARED_MEMORY_CARVEOUT
-   type        : int64_t
+   type        : int
    default     : 0
    description : |-
      Hidden variable. No description provided.
@@ -404,7 +404,7 @@ static ncclResult_t registerIntraNodeBuffers(
     void *recvbuff = info->recvbuff;
     cudaPointerAttributes sattr, rattr;
     bool query = false;
-    
+
     if (info->coll == ncclFuncAllGather)
       sendbuff = NULL;
     else if (info->coll == ncclFuncReduceScatter)

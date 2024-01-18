@@ -411,7 +411,7 @@ Default: 0
 NCCL_L1_SHARED_MEMORY_CARVEOUT
 Description:
     Hidden variable. No description provided.
-Type: int64_t
+Type: int
 Default: 0
 
 NCCL_LAUNCH_MODE
@@ -457,8 +457,8 @@ Description:
     passing configuration, NCCL will automatically choose the best
     value. For more information:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-max-ctas
-Type: int64_t
-Default: -1
+Type: int
+Default: MIN
 
 NCCL_MAX_NCHANNELS
 Description:
@@ -500,8 +500,8 @@ Description:
     passing configuration, NCCL will automatically choose the best
     value. For more information:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-ctas
-Type: int64_t
-Default: -1
+Type: int
+Default: MIN
 
 NCCL_MIN_NCHANNELS
 Description:

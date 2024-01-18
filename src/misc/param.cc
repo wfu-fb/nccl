@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <pwd.h>
+#include "nccl_cvars.h"
 
 const char* userHomeDir() {
   struct passwd *pwUser = getpwuid(getuid());
@@ -57,6 +58,7 @@ void initEnv() {
   }
   sprintf(confFilePath, "/etc/nccl.conf");
   setEnvFile(confFilePath);
+  ncclCvarInit();
 }
 
 void ncclLoadParam(char const* env, int64_t deftVal, int64_t uninitialized, int64_t* cache) {
