@@ -19,12 +19,12 @@ namespace algorithms {
  * - manages all the available algorithm instances for a given collective
  * - selects an optimal algorithm based on the input and environments
  */
-AlgoDirector::AlgoDirector(ncclComm_t comm, int forceInit) : comm_(comm) {
+AlgoDirector::AlgoDirector(ncclComm_t comm) : comm_(comm) {
   // register rank
   DdaThreadedData::get()->registerRank(comm->commHash, comm->rank);
 
-  if ((NCCL_ALLREDUCE_ALGO == NCCL_ALLREDUCE_ALGO::dda) || forceInit) {
-    // initialize allreduce if dda is enabled or forced
+  if (NCCL_ALLREDUCE_ALGO == NCCL_ALLREDUCE_ALGO::dda) {
+    // initialize allreduce if dda is enabled
 
     // enable peer access (support for NVS full-mesh topology only)
     for (int i = 0; i < comm->nRanks; ++i) {

@@ -15,7 +15,7 @@ namespace algorithms {
  */
 class AlgoDirector {
  public:
-  AlgoDirector(ncclComm_t comm, int forceInit);
+  AlgoDirector(ncclComm_t comm);
   ~AlgoDirector();
 
   std::unique_ptr<AlgoManagerAllReduce> allReduce;

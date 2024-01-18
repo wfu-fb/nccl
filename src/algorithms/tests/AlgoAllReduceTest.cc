@@ -1,6 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <thread>
+#include <stdlib.h>
 
 #include <fmt/format.h>
 #include <glog/logging.h>
@@ -11,6 +12,7 @@
 #include "AlgoInit.h"
 #include "checks.h"
 #include "comm.h"
+#include "nccl_cvars.h"
 
 namespace nccl {
 namespace algorithms {
@@ -92,7 +94,6 @@ class GpuAgent {
     CUDACHECKIGNORE(cudaSetDevice(rank_));
     CUDACHECKIGNORE(cudaStreamCreate(&stream));
     NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks_, commId_, rank_));
-    NCCLCHECKIGNORE(algoInit(comm, true));
 
     // init host/dev buffs
     for (int i = 0; i < nIter_; ++i) {
@@ -160,6 +161,7 @@ class GpuAgent {
 };
 
 TEST(AlgoAllReduceTest, NvsFlatThreaded) {
+  setenv("NCCL_ALLREDUCE_ALGO", "dda", 1);
   const int count = 32;
   const int nRanks = 2;
   const int nIter = 10;
@@ -204,6 +206,7 @@ TEST(AlgoAllReduceTest, NvsFlatThreaded) {
 }
 
 TEST(AlgoAllReduceTest, NvsTreeThreaded) {
+  setenv("NCCL_ALLREDUCE_ALGO", "dda", 1);
   const int count = 32;
   const int nRanks = 2;
   const int nIter = 10;

@@ -20,10 +20,10 @@ namespace algorithms {
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
-ncclResult_t algoInit(ncclComm_t comm, bool forceInit) {
+ncclResult_t algoInit(ncclComm_t comm) {
   // initiate AlgoDirector
   comm->algoDirector = std::unique_ptr<nccl::algorithms::AlgoDirector>(
-      new nccl::algorithms::AlgoDirector(comm, forceInit));
+      new nccl::algorithms::AlgoDirector(comm));
   return ncclSuccess;
 }
 

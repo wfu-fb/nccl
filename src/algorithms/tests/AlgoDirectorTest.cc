@@ -1,6 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <thread>
+#include <stdlib.h>
 
 #include <fmt/format.h>
 #include <glog/logging.h>
@@ -16,6 +17,7 @@ namespace nccl {
 namespace algorithms {
 
 TEST(AlgoDirectorTest, Create) {
+  setenv("NCCL_ALLREDUCE_ALGO", "dda", 1);
   ncclUniqueId commId;
   cudaStream_t stream;
   ncclComm_t comm;
@@ -27,7 +29,6 @@ TEST(AlgoDirectorTest, Create) {
   NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
   CUDACHECKIGNORE(cudaStreamCreate(&stream));
   NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks, commId, 0));
-  NCCLCHECKIGNORE(algoInit(comm, true));
 
   CUDACHECKIGNORE(cudaSetDevice(0));
   CUDACHECKIGNORE(cudaMalloc(&sendbuff_d, count * sizeof(float)));
