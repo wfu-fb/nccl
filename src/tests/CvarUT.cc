@@ -267,6 +267,28 @@ TEST_F(CvarTest, NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE_default_value) {
   EXPECT_EQ(NCCL_ALLREDUCE_SPARSE_BLOCK_THREAD_BLOCK_SIZE, -1);
 }
 
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_single_choice_0) {
+  setenv("NCCL_ALLTOALL_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLTOALL_ALGO, NCCL_ALLTOALL_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_single_choice_1) {
+  setenv("NCCL_ALLTOALL_ALGO", "ctran", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLTOALL_ALGO, NCCL_ALLTOALL_ALGO::ctran);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_default_choice) {
+  testDefaultValue("NCCL_ALLTOALL_ALGO");
+  EXPECT_EQ(NCCL_ALLTOALL_ALGO, NCCL_ALLTOALL_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLTOALL_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLTOALL_ALGO", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_BUFFSIZE_value_0) {
   testNumValue<int64_t>("NCCL_BUFFSIZE", 0);
   EXPECT_EQ(NCCL_BUFFSIZE, 0);
@@ -594,6 +616,81 @@ TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_default_value) {
 TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_warn_unknown_val) {
   setenv("NCCL_CTRAN_AG_RD_RTR", "dummy", 1);
   testWarn("NCCL_CTRAN_AG_RD_RTR", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_0) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_1) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_2) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_3) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, -1);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_0) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_1) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_2) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_3) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, -1);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALL_THRESHOLD");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, 32768);
 }
 
 TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_single_choice_0) {

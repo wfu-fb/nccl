@@ -13,6 +13,7 @@ OBJDIR := $(BUILDDIR)/obj/collectives/device
 LIBSRCFILES := all_reduce.cu broadcast.cu reduce.cu all_gather.cu reduce_scatter.cu sendrecv.cu onerank_reduce.cu
 LIBSRCFILES += all_reduce_dda.cu
 LIBSRCFILES += all_reduce_sparse_block.cu
+LIBSRCFILES += all_to_all_ctran.cu
 LIBSRCFILES += ../../ctran/gpe/CtranGpeKernel.cu
 
 LIBSRCFILES += functions.cu
@@ -24,7 +25,7 @@ DEVOBJ     := $(OBJDIR)/devlink.o
 RULESFILE  := $(OBJDIR)/Makefile.rules
 
 NVCUFLAGS  += -I. -I.. -I$(BUILDDIR)/include -I../../include --compiler-options "-fPIC -fvisibility=hidden"
-NVCUFLAGS  += -I../../ctran/algos
+NVCUFLAGS  += -I../../ctran/algos -I../../ctran/gpe
 
 
 all: $(STATICLIB)
@@ -43,6 +44,7 @@ $(RULESFILE) : gen_rules.sh
 LIBOBJ     := $(GENOBJS) $(OBJDIR)/functions.o $(OBJDIR)/onerank_reduce.o
 LIBOBJ     += $(OBJDIR)/all_reduce_dda.o
 LIBOBJ     += $(OBJDIR)/all_reduce_sparse_block.o
+LIBOBJ     += $(OBJDIR)/all_to_all_ctran.o
 LIBOBJ     += $(OBJDIR)/CtranGpeKernel.o
 
 -include $(DEPFILES)

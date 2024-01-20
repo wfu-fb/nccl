@@ -99,8 +99,10 @@ class AllToAllTest : public ::testing::Test {
 #endif
 
     // run alltoall
-    auto res = ncclAllToAll(sendBuf, recvBuf, count, ncclInt, comm, stream);
-    ASSERT_EQ(res, ncclSuccess);
+    for (int i = 0; i<5; i++) {
+      auto res = ncclAllToAll(sendBuf, recvBuf, count, ncclInt, comm, stream);
+      ASSERT_EQ(res, ncclSuccess);
+    }
     CUDACHECK_TEST(cudaStreamSynchronize(stream));
 
     for (int r = 0; r < this->numRanks; r++) {
@@ -133,6 +135,13 @@ class AllToAllTest : public ::testing::Test {
 
 TEST_F(AllToAllTest, OutOfPlace) {
   run();
+}
+
+TEST_F(AllToAllTest, Ctran) {
+  setenv("NCCL_ALLTOALL_ALGO", "ctran", 1);
+  ncclCvarInit();
+  run();
+  unsetenv("NCCL_ALLTOALL_ALGO");
 }
 
 TEST_F(AllToAllTest, InvalidSendbuf) {

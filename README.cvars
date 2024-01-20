@@ -77,6 +77,14 @@ Description:
 Type: int
 Default: -1
 
+NCCL_ALLTOALL_ALGO
+Description:
+    The algorithm to use for alltoall communication
+    orig - Copy-based communication
+    ctran - Ctran-based communication
+Type: enum
+Default: orig
+
 NCCL_BUFFSIZE
 Description:
     The NCCL_BUFFSIZE variable controls the size of the buffer used
@@ -195,6 +203,30 @@ Description:
     Whether to wait for ready-to-receive at beginning of each iteration
 Type: bool
 Default: True
+
+NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS
+Description:
+    Number of thread blocks to use for AllToAll.
+    Setting it to a negative number means that NCCL will automatically
+    pick a value.
+Type: int
+Default: -1
+
+NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE
+Description:
+    Number of threads in each thread block to use for AllToAll.
+    Setting it to a negative number means that NCCL will automatically
+    pick a value.
+Type: int
+Default: -1
+
+NCCL_CTRAN_ALLTOALL_THRESHOLD
+Description:
+    Minimal message size in bytes to send to (receive from) each rank to use
+    CTran AllToAll. Messages smaller than the threshold may benefit from
+    the default eager copy based algorithm.
+Type: uint64_t
+Default: 32768
 
 NCCL_CTRAN_BACKENDS
 Description:

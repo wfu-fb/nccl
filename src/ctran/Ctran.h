@@ -33,6 +33,15 @@
      ctring - Ctran-based ring algorithm
      ctrd - Ctran-based recursive doubling algorithm
 
+ - name        : NCCL_ALLTOALL_ALGO
+   type        : enum
+   default     : orig
+   choices     : orig, ctran
+   description : |-
+     The algorithm to use for alltoall communication
+     orig - Copy-based communication
+     ctran - Ctran-based communication
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -120,6 +129,19 @@ ncclResult_t ctranAllGatherRing(
     const void* sendbuff,
     void* recvbuff,
     size_t sendcount,
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream);
+
+bool ctranAllToAllSupport(
+    const size_t count,
+    ncclDataType_t datatype,
+    ncclComm_t comm);
+
+ncclResult_t ctranAllToAll(
+    const void* sendbuff,
+    void* recvbuff,
+    const size_t count,
     ncclDataType_t datatype,
     ncclComm_t comm,
     cudaStream_t stream);

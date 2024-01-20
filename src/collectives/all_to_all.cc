@@ -34,6 +34,13 @@ ncclResult_t ncclAllToAll(
     return ncclSuccess;
   }
 
+  if (ctranAllToAllSupport(count, datatype, comm) &&
+      NCCL_ALLTOALL_ALGO == NCCL_ALLTOALL_ALGO::ctran) {
+    return ctranAllToAll(sendbuff, recvbuff, count, datatype, comm, stream);
+  }
+
+  // fallback to default send/recv based alltoallv
+
   NCCLCHECK(ncclGroupStart());
   for (int r = 0; r < comm->nRanks; r++) {
     if (count) {
