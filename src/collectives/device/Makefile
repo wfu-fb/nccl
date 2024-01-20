@@ -14,6 +14,7 @@ LIBSRCFILES := all_reduce.cu broadcast.cu reduce.cu all_gather.cu reduce_scatter
 LIBSRCFILES += all_reduce_dda.cu
 LIBSRCFILES += all_reduce_sparse_block.cu
 LIBSRCFILES += all_to_all_ctran.cu
+LIBSRCFILES += all_to_allv_ctran.cu
 LIBSRCFILES += ../../ctran/gpe/CtranGpeKernel.cu
 
 LIBSRCFILES += functions.cu
@@ -45,6 +46,7 @@ LIBOBJ     := $(GENOBJS) $(OBJDIR)/functions.o $(OBJDIR)/onerank_reduce.o
 LIBOBJ     += $(OBJDIR)/all_reduce_dda.o
 LIBOBJ     += $(OBJDIR)/all_reduce_sparse_block.o
 LIBOBJ     += $(OBJDIR)/all_to_all_ctran.o
+LIBOBJ     += $(OBJDIR)/all_to_allv_ctran.o
 LIBOBJ     += $(OBJDIR)/CtranGpeKernel.o
 
 -include $(DEPFILES)

@@ -18,6 +18,7 @@ struct OpElem {
     SEND,
     RECV,
     ALLTOALL,
+    ALLTOALLV,
   } type;
   cudaStream_t stream;
   ncclComm_t comm;
@@ -47,6 +48,15 @@ struct OpElem {
       size_t count;
       ncclDataType_t datatype;
     } alltoall;
+    struct {
+      const void* sendbuff;
+      std::vector<size_t> sendcounts;
+      std::vector<size_t> sdispls;
+      void* recvbuff;
+      std::vector<size_t> recvcounts;
+      std::vector<size_t> rdispls;
+      ncclDataType_t datatype;
+    } alltoallv;
   };
 
  public:
@@ -64,6 +74,7 @@ struct KernelConfig {
     RECV,
     SENDRECV,
     ALLTOALL,
+    ALLTOALLV,
   } type;
   unsigned int numBlocks{1};
   unsigned int numThreads{1};
@@ -156,4 +167,10 @@ extern __global__ void ncclKernelAllToAll(
     int* flag,
     CtranAlgoDeviceState* devState,
     CtranKernelAllToAllArgs args);
+
+template <typename T>
+extern __global__ void ncclKernelAllToAllv(
+    int* flag,
+    CtranAlgoDeviceState* devState,
+    CtranKernelAllToAllvArgs args);
 #endif

@@ -42,6 +42,15 @@
      orig - Copy-based communication
      ctran - Ctran-based communication
 
+ - name        : NCCL_ALLTOALLV_ALGO
+   type        : enum
+   default     : orig
+   choices     : orig, ctran
+   description : |-
+     The algorithm to use for alltoallv communication
+     orig - Copy-based communication
+     ctran - Ctran-based communication
+
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
@@ -142,6 +151,17 @@ ncclResult_t ctranAllToAll(
     const void* sendbuff,
     void* recvbuff,
     const size_t count,
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream);
+
+ncclResult_t ctranAllToAllv(
+    const void* sendbuff,
+    const size_t sendcounts[],
+    const size_t sdispls[],
+    void* recvbuff,
+    const size_t recvcounts[],
+    const size_t rdispls[],
     ncclDataType_t datatype,
     ncclComm_t comm,
     cudaStream_t stream);

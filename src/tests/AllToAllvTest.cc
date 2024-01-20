@@ -149,9 +149,17 @@ class AllToAllvTest : public ::testing::Test {
   cudaStream_t stream;
 };
 
-TEST_F(AllToAllvTest, AllToAllv) {
+TEST_F(AllToAllvTest, OutOfPlace) {
   run();
 }
+
+TEST_F(AllToAllvTest, Ctran) {
+  setenv("NCCL_ALLTOALLV_ALGO", "ctran", 1);
+  ncclCvarInit();
+  run();
+  unsetenv("NCCL_ALLTOALLV_ALGO");
+}
+
 
 TEST_F(AllToAllvTest, InvalidSendbuf) {
 #ifdef NCCL_ALLTOALLV_SUPPORTED

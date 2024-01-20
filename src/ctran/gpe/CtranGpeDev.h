@@ -47,6 +47,16 @@ struct CtranKernelAllToAllArgs {
   size_t count;
 };
 
+struct CtranKernelAllToAllvArgs {
+  const void* sendbuff;
+  void* recvbuff;
+  size_t selfCount;
+  size_t selfSendDispl;
+  size_t selfRecvDispl;
+  KernelP2pElem* sendElemsList;
+  KernelP2pElem* recvElemsList;
+};
+
 struct CtranKernelArgs {
   CtranAlgoDeviceState* devState_d;
   union {
@@ -55,6 +65,7 @@ struct CtranKernelArgs {
     CtranKernelRecvArgs recv;
     CtranKernelSendRecvArgs sendrecv;
     CtranKernelAllToAllArgs alltoall;
+    CtranKernelAllToAllvArgs alltoallv;
   } collective;
 };
 

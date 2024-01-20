@@ -1,3 +1,4 @@
+#include "Ctran.h"
 #include "argcheck.h"
 #include "comm.h"
 #include "nccl.h"
@@ -34,6 +35,21 @@ ncclResult_t ncclAllToAllv(
     return ncclInvalidArgument;
   }
 
+  if (ctranInitialized(comm) &&
+      NCCL_ALLTOALLV_ALGO == NCCL_ALLTOALLV_ALGO::ctran) {
+    return ctranAllToAllv(
+        sendbuff,
+        sendcounts,
+        sdispls,
+        recvbuff,
+        recvcounts,
+        rdispls,
+        datatype,
+        comm,
+        stream);
+  }
+
+  // fallback to default send/recv based alltoallv
   NCCLCHECK(ncclGroupStart());
   for (int r = 0; r < comm->nRanks; r++) {
     if (sendcounts[r]) {

@@ -77,6 +77,14 @@ Description:
 Type: int
 Default: -1
 
+NCCL_ALLTOALLV_ALGO
+Description:
+    The algorithm to use for alltoallv communication
+    orig - Copy-based communication
+    ctran - Ctran-based communication
+Type: enum
+Default: orig
+
 NCCL_ALLTOALL_ALGO
 Description:
     The algorithm to use for alltoall communication
@@ -203,6 +211,20 @@ Description:
     Whether to wait for ready-to-receive at beginning of each iteration
 Type: bool
 Default: True
+
+NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS
+Description:
+    Number of thread blocks used for intra-node AllToAllv kernel.
+    Must be even number.
+Type: int
+Default: 64
+
+NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE
+Description:
+    Number of threads in each thread block used for intra-node
+    AllToAllv kernel.
+Type: int
+Default: 640
 
 NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS
 Description:

@@ -6,12 +6,30 @@
 #include "checks.h"
 #include "comm.h"
 
-OpElem::OpElem(enum opType type, ncclComm_t comm) : type(type), comm(comm) {}
+OpElem::OpElem(enum opType type, ncclComm_t comm) : type(type), comm(comm) {
+  if (type == ALLTOALLV) {
+    new (&this->alltoallv.sendcounts) std::vector<size_t>;
+    this->alltoallv.sendcounts.resize(comm->nRanks);
+    new (&this->alltoallv.sdispls) std::vector<size_t>;
+    this->alltoallv.sdispls.resize(comm->nRanks);
+    new (&this->alltoallv.recvcounts) std::vector<size_t>;
+    this->alltoallv.recvcounts.resize(comm->nRanks);
+    new (&this->alltoallv.rdispls) std::vector<size_t>;
+    this->alltoallv.rdispls.resize(comm->nRanks);
+  }
+}
 
 OpElem::OpElem(enum opType type, cudaStream_t stream, ncclComm_t comm)
     : type(type), stream(stream), comm(comm) {}
 
-OpElem::~OpElem() {}
+OpElem::~OpElem() {
+  if (type == ALLTOALLV) {
+    this->alltoallv.sendcounts.~vector();
+    this->alltoallv.sdispls.~vector();
+    this->alltoallv.recvcounts.~vector();
+    this->alltoallv.rdispls.~vector();
+  }
+}
 
 CtranGpe::CtranGpe(int cudaDev) {
   this->pimpl = std::unique_ptr<Impl>(new Impl());

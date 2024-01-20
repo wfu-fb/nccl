@@ -27,7 +27,7 @@ LIBSRCFILES += ctran/Ctran.cc
 LIBSRCFILES += ctran/utils/CtranAvlTree.cc ctran/utils/CtranAvlTreeElem.cc ctran/utils/CtranTopoFile.cc
 LIBSRCFILES += ctran/algos/CtranAlgo.cc
 LIBSRCFILES += ctran/algos/sendrecv.cc ctran/algos/AllGather/AllGatherDirect.cc ctran/algos/AllGather/AllGatherRing.cc ctran/algos/AllGather/AllGatherRecDbl.cc
-LIBSRCFILES += ctran/algos/AllToAll/AllToAllvImpl.cc ctran/algos/AllToAll/AllToAll.cc
+LIBSRCFILES += ctran/algos/AllToAll/AllToAllvImpl.cc ctran/algos/AllToAll/AllToAll.cc ctran/algos/AllToAll/AllToAllv.cc
 LIBSRCFILES += algorithms/AlgoDirector.cc \
                algorithms/AlgoInit.cc \
                algorithms/AlgoManagerBase.cc \
