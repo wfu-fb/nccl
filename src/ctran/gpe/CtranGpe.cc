@@ -36,3 +36,30 @@ ncclResult_t CtranGpe::submit(
       kernelConfig,
       ncclKernel);
 }
+
+ncclResult_t CtranGpe::allocKernelP2pElems(
+    size_t numElems,
+    int ngroups,
+    KernelP2pElem** elemsList) {
+  // wait outstanding kernels to release inused elems.
+  while (numElems > this->pimpl->kernelP2pElemPool->size()) {
+    this->pimpl->kernelP2pElemPool->reclaim();
+  }
+
+  // pop free elements and put into C style list for kernel to use.
+  if (numElems > 0) {
+    *elemsList = this->pimpl->kernelP2pElemPool->pop(ngroups);
+    if (!*elemsList) {
+      return ncclInternalError;
+    }
+  }
+  auto elem = *elemsList;
+  for (int i = 1; i < numElems; i++) {
+    elem->next = this->pimpl->kernelP2pElemPool->pop(ngroups);
+    if (!elem->next) {
+      return ncclInternalError;
+    }
+    elem = elem->next;
+  }
+  return ncclSuccess;
+}

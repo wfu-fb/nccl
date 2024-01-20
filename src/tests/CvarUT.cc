@@ -868,6 +868,31 @@ TEST_F(CvarTest, NCCL_CTRAN_KINETO_PROFILE_DIR_default_value) {
   EXPECT_EQ(NCCL_CTRAN_KINETO_PROFILE_DIR, "/tmp");
 }
 
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_0) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", 0);
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_1) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", 9999);
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_2) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_3) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_default_value) {
+  testDefaultValue("NCCL_CTRAN_NUM_KERNEL_P2PELEMS");
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, 65536);
+}
+
 TEST_F(CvarTest, NCCL_CTRAN_PROFILING_single_choice_0) {
   setenv("NCCL_CTRAN_PROFILING", "none", 1);
   ncclCvarInit();

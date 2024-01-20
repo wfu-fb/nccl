@@ -11,6 +11,7 @@
 #include "CtranGpeImpl.h"
 #include "CtranGpeKernel.h"
 #include "checks.h"
+#include "nccl_cvars.h"
 #include "tests_common.cuh"
 
 class CtranGpeTest : public ::testing::Test {
@@ -82,6 +83,23 @@ __global__ void CtranGpeTestKernel(
 __global__ void CtranGpeTestTerminateKernel(int* flag) {
   ncclKernelStartGpe(flag);
   ncclKernelWaitGpeTerminate(flag);
+}
+
+constexpr int numP2pElems = 10;
+__global__ void CtranGpeTestP2pElemsKernel(
+    int* flag,
+    CtranAlgoDeviceState* devState_d,
+    CtranKernelAllGatherArgs args) {
+  KernelP2pElem* elemList = const_cast<KernelP2pElem*>(
+      reinterpret_cast<const KernelP2pElem*>(args.sendbuff));
+  KernelP2pElem* elem = elemList;
+  int numElems = numP2pElems;
+  // consume only numP2pElems amount of objects
+  while (numElems) {
+    elem->inuse[blockIdx.x] = false;
+    elem = elem->next;
+    numElems--;
+  }
 }
 
 TEST_F(CtranGpeTest, gpeThread) {
@@ -231,4 +249,55 @@ TEST_F(CtranGpeKernelTest, launchTerminateStallKernel) {
   res = cudaStreamSynchronize(0);
 
   EXPECT_EQ(res, cudaSuccess);
+}
+
+TEST_F(CtranGpeKernelTest, SubmitKernelWithP2pElems) {
+  // Ensure NCCL_CTRAN_NUM_KERNEL_P2PELEMS has been set
+  ncclCvarInit();
+  auto gpe = std::unique_ptr<CtranGpe>(new CtranGpe(cudaDev));
+  cudaStream_t stream;
+  CUDACHECK_TEST(cudaStreamCreate(&stream));
+
+  // Allocate p2pElems
+  KernelP2pElem* elemList = nullptr;
+  constexpr int ngroups = 5;
+  NCCLCHECK_TEST(gpe->allocKernelP2pElems(numP2pElems, ngroups, &elemList));
+
+  // Check allocated number of p2pElems is as expected
+  int nAllocated = 0;
+  KernelP2pElem* elem = elemList;
+  while (elem) {
+    elem = elem->next;
+    nAllocated++;
+  }
+  EXPECT_EQ(nAllocated, numP2pElems);
+
+  // Use ALLGATHER kernel config to pass test variables and launch with ngroups
+  // gridSize to consume the elems
+  std::vector<std::unique_ptr<struct OpElem>> emptyOps;
+  auto config = KernelConfig(KernelConfig::KernelType::ALLGATHER, stream);
+  ctranKernelSetAllGatherArgs(elemList, nullptr, 0, nullptr, &config.args);
+  config.numBlocks = ngroups;
+
+  // Empty OpGroup would launch only kernel
+  NCCLCHECK_TEST(gpe->submit(
+      std::move(emptyOps),
+      nullptr,
+      config,
+      reinterpret_cast<void*>(CtranGpeTestP2pElemsKernel)));
+
+  CUDACHECK_TEST(cudaStreamSynchronize(stream));
+
+  // Check each element has been consumed by kernel
+  elem = elemList;
+  while (elem) {
+    std::vector<int> inuse(elem->inuse, elem->inuse + ngroups);
+    EXPECT_THAT(inuse, testing::Each(false));
+    elem = elem->next;
+  }
+
+  // Skip check for reclaim which is an internal operation and triggered in GPE
+  // destructor. Coverd by separate UT
+
+  CUDACHECK_TEST(cudaStreamDestroy(stream));
 }

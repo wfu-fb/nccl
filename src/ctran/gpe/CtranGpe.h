@@ -92,6 +92,18 @@ class CtranGpe {
       std::vector<std::unique_ptr<struct OpElem>> opGroup,
       opFunc func);
 
+  // Allocate numElems number of p2pElem objects from internal pool.
+  // When free objects are not enough, it will be in blocking wait and reclaim
+  // inuse p2pElems till enough objects are available. Return ncclSuccess if all
+  // elements are allocated, otherwise return ncclInternalError. Input
+  // arguments:
+  //   - numElems: number of p2pElem objects to be allocated
+  //   - ngroups: number of thread block groups to use each p2pElem object
+  // Output arguments:
+  //   - elemsList: a C-style list of p2pElem objects being accessed in kernel
+  ncclResult_t
+  allocKernelP2pElems(size_t numElems, int ngroups, KernelP2pElem** elemsList);
+
  private:
   class Impl;
   std::unique_ptr<Impl> pimpl;

@@ -1,15 +1,33 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "CtranGpeImpl.h"
+#include <nccl.h>
 #include <iostream>
+#include <new>
 #include "CtranGpe.h"
 #include "CtranGpeKernel.h"
 #include "checks.h"
+#include "nccl_cvars.h"
+
+/*
+=== BEGIN_NCCL_CVAR_INFO_BLOCK ===
+ - name        : NCCL_CTRAN_NUM_KERNEL_P2PELEMS
+   type        : int
+   default     : 65536
+   description : |-
+     Size of kernel p2p elements pre-allocated for each communicator.
+     Used to pass variable number of p2p operations to the kernel.
+     Each p2p element is allocated from page-locked memory on the host.
+=== END_NCCL_CVAR_INFO_BLOCK ===
+*/
 
 CtranGpe::Impl::Impl() {
   CUDACHECKIGNORE(
       cudaHostAlloc(&this->kernelFlag, sizeof(int), cudaHostAllocDefault));
   *(this->kernelFlag) = UNSET;
+
+  this->kernelP2pElemPool = std::unique_ptr<KernelP2pElemPool>(
+      new KernelP2pElemPool(NCCL_CTRAN_NUM_KERNEL_P2PELEMS));
 }
 
 CtranGpe::Impl::~Impl() {
@@ -105,4 +123,99 @@ void CtranGpe::Impl::gpeThreadFn(CtranGpe::Impl* pimpl, int cudaDev) {
 
 exit:
   return;
+}
+
+KernelP2pElemPool::KernelP2pElemPool(size_t capacity) : capacity_(capacity) {
+  ncclResult_t res = ncclSuccess;
+  CUDACHECKGOTO(
+      cudaHostAlloc(
+          &this->memPtr_,
+          this->capacity_ * sizeof(struct KernelP2pElem),
+          cudaHostAllocDefault),
+      res,
+      fail);
+
+  for (int i = 0; i < capacity_; ++i) {
+    KernelP2pElem* workElem =
+        reinterpret_cast<KernelP2pElem*>(this->memPtr_) + i;
+    this->resetWorkElem(workElem);
+    this->freeWorkElems_.push(workElem);
+  }
+  return;
+
+fail:
+  if (res != ncclSuccess) {
+    WARN("CTRAN-GPE: Failed to allocate internal KernelP2pElem pool");
+    throw std::bad_alloc();
+  }
+}
+
+KernelP2pElemPool::~KernelP2pElemPool() {
+  this->reclaim();
+  if (this->inuseWorkElems_.size()) {
+    WARN(
+        "CTRAN-GPE: Internal KernelP2pElem pool has %ld inuse elements",
+        this->inuseWorkElems_.size());
+  }
+  CUDACHECKIGNORE(cudaFreeHost(this->memPtr_));
+}
+
+void KernelP2pElemPool::resetWorkElem(KernelP2pElem* workElem) {
+  workElem->next = nullptr;
+  workElem->displ = 0;
+  workElem->count = 0;
+  workElem->peerRank = -1;
+  workElem->ngroups = 0;
+  for (int i = 0; i < CTRAN_ALGO_MAX_THREAD_BLOCKS; ++i) {
+    workElem->inuse[i] = false;
+  }
+}
+
+size_t KernelP2pElemPool::size() {
+  return this->freeWorkElems_.size();
+}
+
+KernelP2pElem* KernelP2pElemPool::pop(int ngroups) {
+  if (ngroups > CTRAN_ALGO_MAX_THREAD_BLOCKS) {
+    WARN(
+        "CTRAN-GPE: ngroups %d exceeds max thread blocks %d",
+        ngroups,
+        CTRAN_ALGO_MAX_THREAD_BLOCKS);
+    return nullptr;
+  }
+
+  KernelP2pElem* workElem = this->freeWorkElems_.top();
+  this->freeWorkElems_.pop();
+  workElem->ngroups = ngroups;
+  for (int i = 0; i < ngroups; i++) {
+    workElem->inuse[i] = true;
+  }
+
+  this->inuseWorkElems_.push_back(workElem);
+  return workElem;
+}
+
+void KernelP2pElemPool::reclaim() {
+  // Iterate inuseWorkElems_ and reclaim any unused workElems
+  auto it = this->inuseWorkElems_.begin();
+  while (it != this->inuseWorkElems_.end()) {
+    auto workElem = *it;
+
+    // Each kernel thread block resets inuse flag when finished
+    assert(workElem->ngroups > 0);
+    bool anyInuse = false;
+    for (int i = 0; i < workElem->ngroups && !anyInuse; i++) {
+      anyInuse |= workElem->inuse[i];
+    }
+
+    // If no more thread block is using, reclaim the workElem
+    if (!anyInuse) {
+      it = this->inuseWorkElems_.erase(it);
+
+      this->resetWorkElem(workElem);
+      this->freeWorkElems_.push(workElem);
+    } else {
+      it++;
+    }
+  }
 }

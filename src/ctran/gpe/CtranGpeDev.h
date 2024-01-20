@@ -1,10 +1,24 @@
-
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #ifndef CTRAN_GPE_DEV_H_
 #define CTRAN_GPE_DEV_H_
 
+#include <stdint.h>
 #include "CtranAlgoDev.h"
+
+struct alignas(16) KernelP2pElem {
+  size_t count{0};
+  size_t displ{0};
+  int peerRank{-1};
+  // set by algorithm when submitting a GPE kernel; reclaim will check inuse
+  // flags[0:ngroups-1]
+  int ngroups{0};
+  // set to true when submitting with a GPE kernel; reset by
+  // each kernel thread block when done
+  volatile bool inuse[CTRAN_ALGO_MAX_THREAD_BLOCKS];
+  // allow kernel to access next element in the list
+  KernelP2pElem* next{nullptr};
+};
 
 struct CtranKernelAllGatherArgs {
   const void* sendbuff;
@@ -43,4 +57,5 @@ struct CtranKernelArgs {
     CtranKernelAllToAllArgs alltoall;
   } collective;
 };
+
 #endif

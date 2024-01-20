@@ -274,6 +274,14 @@ Description:
 Type: string
 Default: /tmp
 
+NCCL_CTRAN_NUM_KERNEL_P2PELEMS
+Description:
+    Size of kernel p2p elements pre-allocated for each communicator.
+    Used to pass variable number of p2p operations to the kernel.
+    Each p2p element is allocated from page-locked memory on the host.
+Type: int
+Default: 65536
+
 NCCL_CTRAN_PROFILING
 Description:
     Kind of ctran profiling needed.
