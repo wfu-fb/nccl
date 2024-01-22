@@ -41,7 +41,7 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
     return (reinterpret_cast<uint32_t*>(z))[0];
 #endif
 #endif
-#if defined(NCCL_ENABLE_FP8) && (__CUDA_ARCH__ >= 800)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && (__CUDA_ARCH__ >= 800) && defined(NCCL_ENABLE_FP8)
   } else if (std::is_same<T, __nv_fp8_e4m3>::value) {
     const __nv_fp8_e4m3* x = reinterpret_cast<const __nv_fp8_e4m3*>(&a);
     const __nv_fp8_e4m3* y = reinterpret_cast<const __nv_fp8_e4m3*>(&b);
@@ -64,7 +64,7 @@ vecElementAdd(const uint32_t& a, const uint32_t& b) {
     };
     __nv_fp8x4_e5m2 z(r[0], r[1]);
     return (reinterpret_cast<uint32_t*>(&z))[0];
-#endif // #if defined(NCCL_ENABLE_FP8) && (__CUDA_ARCH__ >= 800)
+#endif // #if defined(__CUDA_FP8_TYPES_EXIST__) && (__CUDA_ARCH__ >= 800) && defined(NCCL_ENABLE_FP8)
   }
 
   return 0;
@@ -82,7 +82,7 @@ typename std::enable_if<!std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     && !std::is_same<T, __nv_bfloat16>::value
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
     && !std::is_same<T, __nv_fp8_e4m3>::value
     && !std::is_same<T, __nv_fp8_e5m2>::value
 #endif
@@ -105,7 +105,7 @@ typename std::enable_if<std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     || std::is_same<T, __nv_bfloat16>::value
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
     || std::is_same<T, __nv_fp8_e4m3>::value
     || std::is_same<T, __nv_fp8_e5m2>::value
 #endif
@@ -122,7 +122,7 @@ static inline __device__ uint4 vecAdd(const T** src, size_t offset) {
 #if defined(__CUDA_BF16_TYPES_EXIST__)
       || std::is_same<T, __nv_bfloat16>::value
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
       || std::is_same<T, __nv_fp8_e4m3>::value
       || std::is_same<T, __nv_fp8_e5m2>::value
 #endif
@@ -150,7 +150,7 @@ typename std::enable_if<std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     || std::is_same<T, __nv_bfloat16>::value
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
     || std::is_same<T, __nv_fp8_e4m3>::value
     || std::is_same<T, __nv_fp8_e5m2>::value
 #endif
@@ -175,7 +175,7 @@ typename std::enable_if<!std::is_same<T, half>::value
 #if defined(__CUDA_BF16_TYPES_EXIST__)
     && !std::is_same<T, __nv_bfloat16>::value
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
     && !std::is_same<T, __nv_fp8_e4m3>::value
     && !std::is_same<T, __nv_fp8_e5m2>::value
 #endif
@@ -761,7 +761,7 @@ DECL_DDA_FUNC(double);
 #if defined(__CUDA_BF16_TYPES_EXIST__)
 DECL_DDA_FUNC(__nv_bfloat16);
 #endif
-#if defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
 DECL_DDA_FUNC(__nv_fp8_e4m3);
 DECL_DDA_FUNC(__nv_fp8_e5m2);
 #endif

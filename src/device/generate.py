@@ -9,6 +9,9 @@ all_tys =    ["i8","u8","i32","u32","i64","u64","f16","f32","f64","bf16"]
 all_protos = ["LL","LL128","SIMPLE"]
 all_algos =  ["TREE","RING","COLLNET_DIRECT","COLLNET_CHAIN","NVLS","NVLS_TREE"]
 
+if os.environ.get('NCCL_FP8') == "1":
+  all_tys += ["fp8_e4m3", "fp8_e5m2"]
+
 ################################################################################
 # The first command line argument is the path to the directory to generate and
 # populate.
@@ -107,13 +110,15 @@ def required_cuda(coll, redop, ty, algo, proto):
   if coll in ("AllReduce","Reduce","ReduceScatter"):
     if redop=="SumPostDiv" and ty[0] not in ("i","u"): return None
     if ty=="bf16": cudart = max(cudart, 11000)
+    if ty in ("fp8_e4m3", "fp8_e5m2"): cudart = max(cudart, 11080)
 
   if "NVLS" in algo:
     if coll in ("AllReduce","Reduce","ReduceScatter"):
       # Must match ncclNvlsSupported() in src/include/device.h
       nvls_ok = ((ty in ("i32","u32","i64","u64") and redop in ("Sum","MinMax")) or
                  (ty in ("f32","f64") and redop=="Sum") or
-                 (ty in ("f16","bf16") and redop in ("Sum","MinMax")))
+                 (ty in ("f16","bf16") and redop in ("Sum","MinMax")) or
+                 (ty in ("fp8_e4m3","fp8_e5m2") and redop in ("Sum")))
       if not nvls_ok: return None
     cudart = max(cudart, 12010)
     arch = max(arch, 900)
@@ -360,7 +365,9 @@ ty_to_cxx = {
   "f16": "half",
   "f32": "float",
   "f64": "double",
-  "bf16": "__nv_bfloat16"
+  "bf16": "__nv_bfloat16",
+  "fp8_e4m3": "__nv_fp8_e4m3",
+  "fp8_e5m2": "__nv_fp8_e5m2"
 }
 
 # Generate each <gensrc>/<impl>.cu:

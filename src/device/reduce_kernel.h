@@ -20,6 +20,12 @@ struct IsFloatingPoint<half>: std::true_type {};
 template<>
 struct IsFloatingPoint<__nv_bfloat16>: std::true_type {};
 #endif
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
+template<>
+struct IsFloatingPoint<__nv_fp8_e4m3>: std::true_type {};
+template<>
+struct IsFloatingPoint<__nv_fp8_e5m2>: std::true_type {};
+#endif
 template<>
 struct IsFloatingPoint<float>: std::true_type {};
 template<>
@@ -268,6 +274,30 @@ SPECIALIZE_REDUCE(FuncMinMax, double, 1, double, fn.isMinNotMax ? fmin(x, y) : f
 #endif
 #endif
 
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
+#if __CUDA_ARCH__ >= 800
+  SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, __nv_fp8_e4m3(__hadd(__half(x),__half(y))))
+  SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e4m3, 2, __nv_fp8x2_e4m3, __nv_fp8x2_e4m3(__hadd2(__half2(x),__half2(y))))
+  SPECIALIZE_REDUCE(FuncProd, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, __nv_fp8_e4m3(__hmul(__half(x),__half(y))))
+  SPECIALIZE_REDUCE(FuncProd, __nv_fp8_e4m3, 2, __nv_fp8x2_e4m3, __nv_fp8x2_e4m3(__hmul2(__half2(x),__half2(y))))
+  SPECIALIZE_REDUCE(FuncMinMax, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, fn.isMinNotMax ? __nv_fp8_e4m3(__hmin(__half(x),__half(y))) : __nv_fp8_e4m3(__hmax(__half(x), __half(y))))
+  SPECIALIZE_REDUCE(FuncMinMax, __nv_fp8_e4m3, 2, __nv_fp8x2_e4m3, fn.isMinNotMax ? __nv_fp8x2_e4m3(__hmin2(__half2(x),__half2(y))) : __nv_fp8x2_e4m3(__hmax2(__half2(x), __half2(y))))
+  SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e5m2, 1, __nv_fp8_e5m2, __nv_fp8_e5m2(__hadd(__half(x),__half(y))))
+  SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e5m2, 2, __nv_fp8x2_e5m2, __nv_fp8x2_e5m2(__hadd2(__half2(x),__half2(y))))
+  SPECIALIZE_REDUCE(FuncProd, __nv_fp8_e5m2, 1, __nv_fp8_e5m2, __nv_fp8_e5m2(__hmul(__half(x),__half(y))))
+  SPECIALIZE_REDUCE(FuncProd, __nv_fp8_e5m2, 2, __nv_fp8x2_e5m2, __nv_fp8x2_e5m2(__hmul2(__half2(x),__half2(y))))
+  SPECIALIZE_REDUCE(FuncMinMax, __nv_fp8_e5m2, 1, __nv_fp8_e5m2, fn.isMinNotMax ? __nv_fp8_e5m2(__hmin(__half(x),__half(y))) : __nv_fp8_e5m2(__hmax(__half(x), __half(y))))
+  SPECIALIZE_REDUCE(FuncMinMax, __nv_fp8_e5m2, 2, __nv_fp8x2_e5m2, fn.isMinNotMax ? __nv_fp8x2_e5m2(__hmin2(__half2(x),__half2(y))) : __nv_fp8x2_e5m2(__hmax2(__half2(x), __half2(y))))
+#else
+  SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, __nv_fp8_e4m3(float(x) + float(y)))
+  SPECIALIZE_REDUCE(FuncProd, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, __nv_fp8_e4m3(float(x) * float(y)))
+  SPECIALIZE_REDUCE(FuncMinMax, __nv_fp8_e4m3, 1, __nv_fp8_e4m3, fn.isMinNotMax ? __nv_fp8_e4m3(fminf(float(x), float(y))) : __nv_fp8_e4m3(fmaxf(float(x), float(y))))
+  SPECIALIZE_REDUCE(FuncSum, __nv_fp8_e5m2, 1, __nv_fp8_e5m2, __nv_fp8_e5m2(float(x) + float(y)))
+  SPECIALIZE_REDUCE(FuncProd, __nv_fp8_e5m2, 1, __nv_fp8_e5m2, __nv_fp8_e5m2(float(x) * float(y)))
+  SPECIALIZE_REDUCE(FuncMinMax, __nv_fp8_e5m2, 1, __nv_fp8_e5m2, fn.isMinNotMax ? __nv_fp8_e5m2(fminf(float(x), float(y))) : __nv_fp8_e5m2(fmaxf(float(x), float(y))))
+#endif
+#endif
+
 #undef SPECIALIZE_REDUCE
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -412,6 +442,42 @@ struct FuncPreMulSum<half> {
   };
 #endif
 
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
+  template<>
+  struct FuncPreMulSum<__nv_fp8_e4m3> {
+    // Change these to switch between all prescale, all postscale, or both by sqrt(N).
+    // Obviously, the only invalid combination is both true. An improvement would be
+    // make this parameterized as a build time setting and passed here through
+    // preprocessor definitions.
+    using EltType = __nv_fp8_e4m3;
+    __nv_fp8_e4m3 scalar;
+    __nv_fp8x2_e4m3 scalar2;
+    __device__ FuncPreMulSum(uint64_t opArg) {
+      scalar = *(__nv_fp8_e4m3*)&opArg;
+      scalar2.__x =
+        (static_cast<__nv_fp8x2_storage_t>(scalar.__x) << 8U) |
+        static_cast<__nv_fp8x2_storage_t>(scalar.__x);
+    }
+  };
+
+  template<>
+  struct FuncPreMulSum<__nv_fp8_e5m2> {
+    // Change these to switch between all prescale, all postscale, or both by sqrt(N).
+    // Obviously, the only invalid combination is both true. An improvement would be
+    // make this parameterized as a build time setting and passed here through
+    // preprocessor definitions.
+    using EltType = __nv_fp8_e5m2;
+    __nv_fp8_e5m2 scalar;
+    __nv_fp8x2_e5m2 scalar2;
+    __device__ FuncPreMulSum(uint64_t opArg) {
+      scalar = *(__nv_fp8_e5m2*)&opArg;
+      scalar2.__x =
+        (static_cast<__nv_fp8x2_storage_t>(scalar.__x) << 8U) |
+        static_cast<__nv_fp8x2_storage_t>(scalar.__x);
+    }
+  };
+#endif
+
 template<typename T>
 struct Apply_Reduce<FuncPreMulSum<T>, /*EltPerPack=*/1> {
   __device__ static BytePack<sizeof(T)> reduce(FuncPreMulSum<T> fn, BytePack<sizeof(T)> a, BytePack<sizeof(T)> b) {
@@ -478,6 +544,64 @@ struct Apply_PreOp<FuncPreMulSum<half>, /*EltPerPack=*/1> {
           FuncPreMulSum<__nv_bfloat16> fn, BytePack<sizeof(__nv_bfloat162)> a
         ) {
         return toPack<__nv_bfloat162>(__hmul2(fromPack<__nv_bfloat162>(a), fn.scalar));
+      }
+    };
+  #endif
+#endif
+
+#if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
+  template<>
+  struct Apply_PreOp<FuncPreMulSum<__nv_fp8_e4m3>, /*EltPerPack=*/1> {
+    static constexpr bool IsIdentity = false;
+
+    __device__ static BytePack<sizeof(__nv_fp8_e4m3)> preOp(
+        FuncPreMulSum<__nv_fp8_e4m3> fn, BytePack<sizeof(__nv_fp8_e4m3)> a
+      ) {
+      #if __CUDA_ARCH__ >= 800
+        return toPack<__nv_fp8_e4m3>(__nv_fp8_e4m3(__hmul(__half(fromPack<__nv_fp8_e4m3>(a)), __half(fn.scalar))));
+      #else
+        return toPack<__nv_fp8_e4m3>(__nv_fp8_e4m3(float(fromPack<__nv_fp8_e4m3>(a)) * float(fn.scalar)));
+      #endif
+    }
+  };
+
+  #if __CUDA_ARCH__ >= 800
+    template<>
+    struct Apply_PreOp<FuncPreMulSum<__nv_fp8_e4m3>, /*EltPerPack=*/2> {
+      static constexpr bool IsIdentity = false;
+
+      __device__ static BytePack<sizeof(__nv_fp8x2_e4m3)> preOp(
+          FuncPreMulSum<__nv_fp8_e4m3> fn, BytePack<sizeof(__nv_fp8x2_e4m3)> a
+        ) {
+        return toPack<__nv_fp8x2_e4m3>(__nv_fp8x2_e4m3(__hmul2(__half2(fromPack<__nv_fp8x2_e4m3>(a)), __half2(fn.scalar2))));
+      }
+    };
+  #endif
+
+  template<>
+  struct Apply_PreOp<FuncPreMulSum<__nv_fp8_e5m2>, /*EltPerPack=*/1> {
+    static constexpr bool IsIdentity = false;
+
+    __device__ static BytePack<sizeof(__nv_fp8_e5m2)> preOp(
+        FuncPreMulSum<__nv_fp8_e5m2> fn, BytePack<sizeof(__nv_fp8_e5m2)> a
+      ) {
+      #if __CUDA_ARCH__ >= 800
+        return toPack<__nv_fp8_e5m2>(__nv_fp8_e5m2(__hmul(__half(fromPack<__nv_fp8_e5m2>(a)), __half(fn.scalar))));
+      #else
+        return toPack<__nv_fp8_e5m2>(__nv_fp8_e5m2(float(fromPack<__nv_fp8_e5m2>(a)) * float(fn.scalar)));
+      #endif
+    }
+  };
+
+  #if __CUDA_ARCH__ >= 800
+    template<>
+    struct Apply_PreOp<FuncPreMulSum<__nv_fp8_e5m2>, /*EltPerPack=*/2> {
+     static constexpr bool IsIdentity = false;
+
+      __device__ static BytePack<sizeof(__nv_fp8x2_e5m2)> preOp(
+          FuncPreMulSum<__nv_fp8_e5m2> fn, BytePack<sizeof(__nv_fp8x2_e5m2)> a
+        ) {
+        return toPack<__nv_fp8x2_e5m2>(__nv_fp8x2_e5m2(__hmul2(__half2(fromPack<__nv_fp8x2_e5m2>(a)), __half2(fn.scalar2))));
       }
     };
   #endif
@@ -687,6 +811,13 @@ struct Apply_LoadMultimem {
   #if defined(__CUDA_BF16_TYPES_EXIST__)
     DEFINE_Apply_LoadMultimem_sum_v4x2_and_subhalf(__nv_bfloat16, bf16x2, u32)
     DEFINE_Apply_LoadMultimem_minmax_v4x2_and_subhalf(__nv_bfloat16, bf16x2, u32)
+  #endif
+  /* FIXME: fp8 vectorized types cause ptxas error */
+  #if defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
+  //   DEFINE_Apply_LoadMultimem_sum_v4x2_and_subhalf(__nv_fp8_e4m3, e4m3x2, u16)
+  //   DEFINE_Apply_LoadMultimem_minmax_v4x2_and_subhalf(__nv_fp8_e4m3, e4m3x2, u16)
+  //   DEFINE_Apply_LoadMultimem_sum_v4x2_and_subhalf(__nv_fp8_e5m2, e5m2x2, u16)
+  //   DEFINE_Apply_LoadMultimem_minmax_v4x2_and_subhalf(__nv_fp8_e5m2, e5m2x2, u16)
   #endif
 #else
   template<typename Fn>

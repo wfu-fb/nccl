@@ -30,7 +30,7 @@ namespace algorithms {
   } while (0)
 
 // Need a better a way to do this?
-#if defined(__CUDA_BF16_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
+#if defined(__CUDA_BF16_TYPES_EXIST__) && defined(__CUDA_FP8_TYPES_EXIST__) && defined(NCCL_ENABLE_FP8)
 #define NCCL_TYPED_CALL(ncclDataType, func, ...)    \
   ({                                                \
     ncclResult_t __res;                             \

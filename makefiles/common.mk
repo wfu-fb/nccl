@@ -14,6 +14,7 @@ TRACE ?= 0
 PROFAPI ?= 1
 NVTX ?= 1
 RDMA_CORE ?= 0
+NCCL_FP8 ?= 0
 
 NVCC = $(CUDA_HOME)/bin/nvcc
 
@@ -118,4 +119,9 @@ endif
 
 ifneq ($(RDMA_CORE), 0)
 CXXFLAGS += -DNCCL_BUILD_RDMA_CORE=1
+endif
+
+ifneq ($(NCCL_FP8), 0)
+CXXFLAGS += -DNCCL_ENABLE_FP8
+NVCUFLAGS += -DNCCL_ENABLE_FP8
 endif

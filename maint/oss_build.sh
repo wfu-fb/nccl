@@ -18,11 +18,13 @@ BUILDDIR=${BUILDDIR:=/tmp/nccl-exp/2.19.4/build}
 NVCC_ARCH=${NVCC_ARCH:="a100,h100"}
 CUDA_HOME=${CUDA_HOME:="`realpath ../../tp2/cuda/12.2.2/x86_64`"}
 DEV_SIGNATURE=${DEV_SIGNATURE:="$hash"}
+NCCL_FP8=${NCCL_FP8:=0}
 
 echo "BUILDDIR=${BUILDDIR}"
 echo "NVCC_ARCH=${NVCC_ARCH}"
 echo "CUDA_HOME=${CUDA_HOME}"
 echo "DEV_SIGNATURE=${DEV_SIGNATURE}"
+echo "NCCL_FP8=${NCCL_FP8}"
 
 IFS=',' read -ra arch_array <<< "$NVCC_ARCH"
 arch_gencode=""
@@ -48,7 +50,7 @@ echo "NVCC_GENCODE=$arch_gencode"
 
 # build libnccl
 export BUILDDIR=$BUILDDIR
-make -j src.build NVCC_GENCODE="$arch_gencode" CUDA_HOME="$CUDA_HOME" DEV_SIGNATURE="$DEV_SIGNATURE"
+make -j src.build NVCC_GENCODE="$arch_gencode" CUDA_HOME="$CUDA_HOME" DEV_SIGNATURE="$DEV_SIGNATURE" NCCL_FP8="$NCCL_FP8"
 
 # sanity check
 pushd examples
