@@ -1535,7 +1535,9 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
 
   auto timerBegin = std::chrono::steady_clock::now();
   double timerDeltaMs;
-  INFO(NCCL_INIT,"comm %p rank %d commId 0x%llx - Init START before bootstrap", comm, comm->rank, (unsigned long long)hashUniqueId(job->commId));
+  if (job->color != NCCL_SPLIT_NOCOLOR) {
+    INFO(NCCL_INIT,"comm %p rank %d commId 0x%llx - Init START before bootstrap", comm, comm->rank, (unsigned long long)hashUniqueId(job->commId));
+  }
 
   CUDACHECKGOTO(cudaSetDevice(cudaDev), res, fail);
   CUDACHECKGOTO(cudaDeviceGetAttribute(&archMajor, cudaDevAttrComputeCapabilityMajor, cudaDev), res, fail);
