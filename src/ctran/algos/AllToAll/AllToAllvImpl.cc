@@ -190,7 +190,7 @@ exit:
   // FIXME: let GPE kernel to finish then deregister to avoid race condition on
   // cuda context
   for (auto& hdl : tmpRegHdls) {
-    NCCLCHECKIGNORE(comm->ctran->mapper->deregMem(hdl));
+    NCCLCHECK(comm->ctran->mapper->deregMem(hdl));
   }
   return res;
 }

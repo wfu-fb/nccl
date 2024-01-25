@@ -1,6 +1,7 @@
 #include "Ctran.h"
 #include <nccl.h>
 #include <memory>
+#include <stdexcept>
 #include "AlgoDirector.h"
 #include "CtranAlgo.h"
 #include "CtranGpe.h"
@@ -16,8 +17,8 @@ Ctran::Ctran(ncclComm* comm) {
 
   // CtranAlgo relies on AlgoDirector to identify multi-threaded comm
   if (!comm->algoDirector) {
-    WARN("CtranAlgo requires AlgoDirector to be initialized!");
-    throw std::bad_alloc();
+    throw std::runtime_error(
+        "CtranAlgo requires AlgoDirector to be initialized!");
   }
   this->algo = std::unique_ptr<CtranAlgo>(new CtranAlgo(comm));
 }
@@ -49,7 +50,12 @@ ncclResult_t Ctran::commDeregister(void* handle) {
 }
 
 ncclResult_t ctranInit(ncclComm* comm) {
-  comm->ctran = std::unique_ptr<Ctran>(new Ctran(comm));
+  try {
+    comm->ctran = std::unique_ptr<Ctran>(new Ctran(comm));
+  } catch (std::exception& e) {
+    WARN("Ctran initialization failed: %s\n", e.what());
+    return ncclInternalError;
+  }
   return ncclSuccess;
 }
 
@@ -67,8 +73,13 @@ ncclResult_t ctranDestroy(ncclComm* comm) {
     ret = ncclInternalError;
   }
 
-  // Always cleanup resource that have been initialized
-  comm->ctran.reset();
+  try {
+    // Always cleanup resource that have been initialized
+    comm->ctran.reset();
+  } catch (std::exception& e) {
+    WARN("Ctran destruction failed: %s\n", e.what());
+    return ncclInternalError;
+  }
 
   return ret;
 }

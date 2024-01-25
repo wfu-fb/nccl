@@ -151,6 +151,7 @@ static void recordRegistDuration(
 }
 
 CtranMapper::CtranMapper(ncclComm* comm) {
+  ncclResult_t res = ncclSuccess;
   this->pimpl_ = std::unique_ptr<impl>(new impl());
 
   /* mapperRegElemList */
@@ -175,8 +176,8 @@ CtranMapper::CtranMapper(ncclComm* comm) {
   /* initialize Ctran IB backend */
   if (it != this->pimpl_->backends.end()) {
     try {
-      this->pimpl_->ctranIb =
-          std::unique_ptr<class CtranIb>(new class CtranIb(comm));
+    this->pimpl_->ctranIb =
+        std::unique_ptr<class CtranIb>(new class CtranIb(comm));
     } catch (const std::bad_alloc& e) {
       WARN("CTRAN: IB backend not enabled");
     }
@@ -199,8 +200,8 @@ CtranMapper::CtranMapper(ncclComm* comm) {
   this->pimpl_->totalNumRegLookupHit = 0;
   this->pimpl_->totalNumRegLookupMiss = 0;
 
-  CUDACHECKIGNORE(
-      cudaStreamCreateWithFlags(&this->internalStream, cudaStreamNonBlocking));
+  CUDACHECKGOTO(
+      cudaStreamCreateWithFlags(&this->internalStream, cudaStreamNonBlocking), res, fail);
 
   this->rank = comm->rank;
   this->commHash = comm->commHash;
@@ -212,6 +213,10 @@ CtranMapper::CtranMapper(ncclComm* comm) {
   }
 
   this->bootstrapTopology(comm);
+  return;
+
+fail:
+  throw std::runtime_error("Failed to initialize CtranMapper");
 }
 
 void CtranMapper::reportRegSnapshot(void) {
@@ -358,12 +363,13 @@ void CtranMapper::reportProfiling(bool flush) {
 }
 
 CtranMapper::~CtranMapper() {
+  ncclResult_t res = ncclSuccess;
   this->reportProfiling(true);
 
   /* safely de-register any bufferes applications may miss */
   auto v = this->pimpl_->mapperRegElemList->getAllElems();
   for (auto hdl : v) {
-    NCCLCHECKIGNORE(this->deregMem(hdl));
+    NCCLCHECKGOTO(this->deregMem(hdl), res, fail);
   }
 
   if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
@@ -384,7 +390,11 @@ CtranMapper::~CtranMapper() {
     }
   }
 
-  CUDACHECKIGNORE(cudaStreamDestroy(this->internalStream));
+  CUDACHECKGOTO(cudaStreamDestroy(this->internalStream), res, fail);
+  return;
+
+fail:
+  throw std::runtime_error("Failed to destroy CtranMapper");
 }
 
 ncclResult_t CtranMapper::impl::regMem(

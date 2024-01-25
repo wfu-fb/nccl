@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <thread>
@@ -45,7 +46,7 @@
 #define CTRAN_IB_ANY_PORT -1
 
 class RoceHca {
-public:
+ public:
   RoceHca(std::string hcaStr) {
     std::string s = hcaStr;
     std::string delim = ":";
@@ -69,6 +70,7 @@ CtranIbSingleton &CtranIbSingleton::getInstance(void) {
 }
 
 CtranIbSingleton::CtranIbSingleton(void) {
+  ncclResult_t res = ncclSuccess;
   std::vector<RoceHca> hcas;
   // Avoid copy triggered by resize
   hcas.reserve(NCCL_IB_HCA.size());
@@ -78,12 +80,12 @@ CtranIbSingleton::CtranIbSingleton(void) {
     hcas.push_back(RoceHca(hca));
   }
 
-  NCCLCHECKIGNORE(wrap_ibv_symbols());
-
   struct ibv_device **devs;
   std::vector<struct ibv_device *> devices;
   int nDevs;
-  NCCLCHECKIGNORE(wrap_ibv_get_device_list(&devs, &nDevs));
+
+  NCCLCHECKGOTO(wrap_ibv_symbols(), res, fail);
+  NCCLCHECKGOTO(wrap_ibv_get_device_list(&devs, &nDevs), res, fail);
 
   // Exact match: find each matching device from system returned list following
   // the specified sequence
@@ -135,28 +137,34 @@ CtranIbSingleton::CtranIbSingleton(void) {
   }
 
   if (devices.empty()) {
+    WARN("CTRAN-IB : No active device found.");
     throw std::bad_alloc();
   }
 
   for (auto i = 0; i < devices.size(); i++) {
     struct ibv_context *context;
     struct ibv_pd *pd;
-    NCCLCHECKIGNORE(wrap_ibv_open_device(&context, devices[i]));
-    NCCLCHECKIGNORE(wrap_ibv_alloc_pd(&pd, context));
+    NCCLCHECKGOTO(wrap_ibv_open_device(&context, devices[i]), res, fail);
+    NCCLCHECKGOTO(wrap_ibv_alloc_pd(&pd, context), res, fail);
 
     this->contexts.push_back(context);
     this->pds.push_back(pd);
     this->devNames.push_back(devices[i]->name);
   }
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to initialize CtranIbSingleton");
 }
 
 CtranIbSingleton::~CtranIbSingleton() {
+  ncclResult_t res = ncclSuccess;
   for (auto pd : this->pds) {
-    NCCLCHECKIGNORE(wrap_ibv_dealloc_pd(pd));
+    NCCLCHECKGOTO(wrap_ibv_dealloc_pd(pd), res, fail);
   }
 
   for (auto context : this->contexts) {
-    NCCLCHECKIGNORE(wrap_ibv_close_device(context));
+    NCCLCHECKGOTO(wrap_ibv_close_device(context), res, fail);
   }
 
   if (!NCCL_CTRAN_IB_TRAFFIC_PROFILNG)
@@ -169,6 +177,10 @@ CtranIbSingleton::~CtranIbSingleton() {
   for (auto& it : this->trafficPerQP_) {
     INFO(NCCL_INIT, "CTRAN-IB: [traffic profiling] qp %d total traffic: %ld bytes", it.first, it.second);
   }
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to destory CtranIbSingleton");
 }
 
 std::unordered_map<std::string, size_t>
@@ -217,6 +229,12 @@ void CtranIbSingleton::recordQpTraffic(struct ibv_qp* qp, size_t nbytes) {
 }
 
 CtranIb::CtranIb(ncclComm *comm) {
+  ncclResult_t res;
+  bool foundPort = false;
+  char ifName[MAX_IF_NAME_SIZE+1];
+  union ncclSocketAddress ifAddr;
+  int nIfs;
+
   this->pimpl_ = std::unique_ptr<Impl>(new Impl());
 
   this->pimpl_->rank = comm->rank;
@@ -228,10 +246,10 @@ CtranIb::CtranIb(ncclComm *comm) {
   this->pimpl_->pd = s.pds[comm->cudaDev];
 
   struct ibv_device_attr devAttr;
-  NCCLCHECKIGNORE(wrap_ibv_query_device(this->pimpl_->context, &devAttr));
+  NCCLCHECKGOTO(
+      wrap_ibv_query_device(this->pimpl_->context, &devAttr), res, fail);
 
   // Found available port for the given device
-  bool foundPort = false;
   for (int port = 1; port <= devAttr.phys_port_cnt; port++) {
     struct ibv_port_attr portAttr;
     if (ncclSuccess !=
@@ -262,7 +280,7 @@ CtranIb::CtranIb(ncclComm *comm) {
     INFO(NCCL_INIT, "CTRAN-IB: using device %s, port %d commHash %lu", s.devNames[comm->cudaDev].c_str(), this->pimpl_->port, comm->commHash);
   } else {
     WARN("CTRAN-IB : No active port found on device %s. Disable IB backend.", s.devNames[comm->cudaDev].c_str());
-    throw std::bad_alloc();
+    goto fail;
   }
 
   /* The max CQEs would not be enough for us in the worst case, where
@@ -272,8 +290,16 @@ CtranIb::CtranIb(ncclComm *comm) {
    * making an assumption here that the progress thread will pull out
    * completion entries fast enough that we will never overflow the
    * CQ. */
-  NCCLCHECKIGNORE(wrap_ibv_create_cq(&this->pimpl_->cq, this->pimpl_->context,
-        devAttr.max_cqe, nullptr, nullptr, 0));
+  NCCLCHECKGOTO(
+      wrap_ibv_create_cq(
+          &this->pimpl_->cq,
+          this->pimpl_->context,
+          devAttr.max_cqe,
+          nullptr,
+          nullptr,
+          0),
+      res,
+      fail);
 
   // Locally initialize all virtual connections before launching the listen
   // thread
@@ -283,26 +309,40 @@ CtranIb::CtranIb(ncclComm *comm) {
     this->pimpl_->numUnsignaledPuts.push_back(0);
   }
 
-  char ifName[MAX_IF_NAME_SIZE+1];
-  union ncclSocketAddress ifAddr;
-  int nIfs = ncclFindInterfaces(ifName, &ifAddr, MAX_IF_NAME_SIZE, 1);
+  nIfs = ncclFindInterfaces(ifName, &ifAddr, MAX_IF_NAME_SIZE, 1);
   if (nIfs <= 0) {
     WARN("CTRAN-IB: no socket interfaces found\n");
+    goto fail;
   } else {
     INFO(NCCL_INIT, "CTRAN-IB: socket interface set to %s", ifName);
   }
 
-  NCCLCHECKIGNORE(ncclSocketInit(&this->pimpl_->listenSocket, &ifAddr));
-  NCCLCHECKIGNORE(ncclSocketListen(&this->pimpl_->listenSocket));
+  NCCLCHECKGOTO(
+      ncclSocketInit(&this->pimpl_->listenSocket, &ifAddr), res, fail);
+  NCCLCHECKGOTO(ncclSocketListen(&this->pimpl_->listenSocket), res, fail);
 
   this->pimpl_->allListenSocketAddrs =
     static_cast<ncclSocketAddress *>(malloc(this->pimpl_->nRanks * sizeof(ncclSocketAddress)));
-  NCCLCHECKIGNORE(ncclSocketGetAddr(&this->pimpl_->listenSocket,
-        &this->pimpl_->allListenSocketAddrs[this->pimpl_->rank]));
+  NCCLCHECKGOTO(
+      ncclSocketGetAddr(
+          &this->pimpl_->listenSocket,
+          &this->pimpl_->allListenSocketAddrs[this->pimpl_->rank]),
+      res,
+      fail);
 
-  bootstrapAllGather(comm->bootstrap, this->pimpl_->allListenSocketAddrs, sizeof(ncclSocketAddress));
+  NCCLCHECKGOTO(
+      bootstrapAllGather(
+          comm->bootstrap,
+          this->pimpl_->allListenSocketAddrs,
+          sizeof(ncclSocketAddress)),
+      res,
+      fail);
 
   this->pimpl_->listenThread = std::thread{CtranIb::Impl::bootstrapAccept, this->pimpl_.get()};
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to initialize IB backend");
 }
 
 std::string CtranIb::getIbDevName() {
@@ -314,7 +354,8 @@ int CtranIb::getIbDevPort() {
 }
 
 CtranIb::~CtranIb(void) {
-  NCCLCHECKIGNORE(this->pimpl_->bootstrapTerminate());
+  ncclResult_t res = ncclSuccess;
+  NCCLCHECKGOTO(this->pimpl_->bootstrapTerminate(), res, fail);
   this->pimpl_->listenThread.join();
 
   for (int r = 0; r < this->pimpl_->nRanks; r++) {
@@ -322,9 +363,13 @@ CtranIb::~CtranIb(void) {
   }
 
   free(this->pimpl_->allListenSocketAddrs);
-  NCCLCHECKIGNORE(ncclSocketClose(&this->pimpl_->listenSocket));
+  NCCLCHECKGOTO(ncclSocketClose(&this->pimpl_->listenSocket), res, fail);
 
-  NCCLCHECKIGNORE(wrap_ibv_destroy_cq(this->pimpl_->cq));
+  NCCLCHECKGOTO(wrap_ibv_destroy_cq(this->pimpl_->cq), res, fail);
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to destroy IB backend");
 }
 
 ncclResult_t CtranIb::regMem(const void *buf, std::size_t len, void **ibRegElem) {
@@ -339,7 +384,7 @@ ncclResult_t CtranIb::regMem(const void *buf, std::size_t len, void **ibRegElem)
 
   struct ibv_mr *mr;
   NCCLCHECKGOTO(wrap_ibv_reg_mr(&mr, this->pimpl_->pd, (void *) buf, len,
-                                IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
+          IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
                                 IBV_ACCESS_REMOTE_READ), res, exit);
   *ibRegElem = reinterpret_cast<void *>(mr);
 

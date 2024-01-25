@@ -69,19 +69,32 @@ CtranIb::Impl::VirtualConn::VirtualConn(
     int port,
     int peerRank)
     : peerRank(peerRank), context_(context), pd_(pd), cq_(cq), port_(port) {
+  ncclResult_t res = ncclSuccess;
   if (NCCL_CTRAN_IB_MAX_QPS > CTRAN_HARDCODED_MAX_QPS) {
     WARN("CTRAN-IB: CTRAN_MAX_QPS set to more than the hardcoded max value (%d)", CTRAN_HARDCODED_MAX_QPS);
   }
 
-  NCCLCHECKIGNORE(wrap_ibv_reg_mr(&this->sendCtrl_.mr_, pd, (void *) this->sendCtrl_.cmsg_,
-        MAX_CONTROL_MSGS * sizeof(struct ControlMsg),
-        IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
-        IBV_ACCESS_REMOTE_READ));
+  NCCLCHECKGOTO(
+      wrap_ibv_reg_mr(
+          &this->sendCtrl_.mr_,
+          pd,
+          (void*)this->sendCtrl_.cmsg_,
+          MAX_CONTROL_MSGS * sizeof(struct ControlMsg),
+          IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
+              IBV_ACCESS_REMOTE_READ),
+      res,
+      fail);
 
-  NCCLCHECKIGNORE(wrap_ibv_reg_mr(&this->recvCtrl_.mr_, pd, (void *) this->recvCtrl_.cmsg_,
-        MAX_CONTROL_MSGS * sizeof(struct ControlMsg),
-        IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
-        IBV_ACCESS_REMOTE_READ));
+  NCCLCHECKGOTO(
+      wrap_ibv_reg_mr(
+          &this->recvCtrl_.mr_,
+          pd,
+          (void*)this->recvCtrl_.cmsg_,
+          MAX_CONTROL_MSGS * sizeof(struct ControlMsg),
+          IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE |
+              IBV_ACCESS_REMOTE_READ),
+      res,
+      fail);
 
   for (int i = 0; i < MAX_CONTROL_MSGS; i++) {
     this->sendCtrl_.freeMsgs_.push_back(&this->sendCtrl_.cmsg_[i]);
@@ -96,20 +109,28 @@ CtranIb::Impl::VirtualConn::VirtualConn(
     std::deque<uint64_t> q;
     this->notifications_.push_back(q);
   }
+  return;
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to create VirtualConn");
 }
 
 CtranIb::Impl::VirtualConn::~VirtualConn() {
-  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->sendCtrl_.mr_));
-  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->recvCtrl_.mr_));
+  ncclResult_t res = ncclSuccess;
+  NCCLCHECKGOTO(wrap_ibv_dereg_mr(this->sendCtrl_.mr_), res, fail);
+  NCCLCHECKGOTO(wrap_ibv_dereg_mr(this->recvCtrl_.mr_), res, fail);
 
   if (this->controlQp_ != nullptr) {
     /* we don't need to clean up the posted WQEs; destroying the QP
      * will automatically clear them */
-    NCCLCHECKIGNORE(wrap_ibv_destroy_qp(this->controlQp_));
+    NCCLCHECKGOTO(wrap_ibv_destroy_qp(this->controlQp_), res, fail);
     for (auto qp : this->dataQps_) {
-      NCCLCHECKIGNORE(wrap_ibv_destroy_qp(qp));
+      NCCLCHECKGOTO(wrap_ibv_destroy_qp(qp), res, fail);
     }
   }
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to destroy VirtualConn");
 }
 
 bool CtranIb::Impl::VirtualConn::isReady() {
@@ -137,7 +158,8 @@ ncclResult_t CtranIb::Impl::VirtualConn::getLocalBusCard(void *localBusCard) {
   struct BusCard *busCard = reinterpret_cast<struct BusCard *>(localBusCard);
 
   struct ibv_port_attr portAttr;
-  NCCLCHECKIGNORE(wrap_ibv_query_port(this->context_, this->port_, &portAttr));
+  NCCLCHECKGOTO(
+      wrap_ibv_query_port(this->context_, this->port_, &portAttr), res, exit);
   this->maxMsgSize_ = portAttr.max_msg_sz;
   this->linkLayer_ = portAttr.link_layer;
 

@@ -3,6 +3,7 @@
 #include "CtranAlgo.h"
 #include <nccl_common.h>
 #include <memory>
+#include <stdexcept>
 #include "DdaThreadedData.h"
 #include "bootstrap.h"
 #include "checks.h"
@@ -39,19 +40,24 @@ CtranAlgo::CtranAlgo(ncclComm* comm) {
   return;
 
 fail:
-  WARN("CTRAN-ALGO : Failed to initialize Ctran algorithm.");
-  throw std::bad_alloc();
+  throw std::runtime_error(
+      "CTRAN-ALGO : Failed to initialize Ctran algorithm");
 }
 
 CtranAlgo::~CtranAlgo() {
+  ncclResult_t res = ncclSuccess;
   if (this->sharedRes_) {
     // Release shared resource if releaseSharedResource is not yet called.
     delete this->sharedRes_;
     this->sharedRes_ = nullptr;
   }
 
-  CUDACHECKIGNORE(cudaFree(this->devState_d));
+  CUDACHECKGOTO(cudaFree(this->devState_d), res, fail);
   this->devState_d = nullptr;
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-ALGO : Failed to release Ctran algorithm");
 }
 
 bool CtranAlgo::isThreadedComm(ncclComm* comm) {
@@ -201,8 +207,8 @@ CtranAlgo::SharedResource::SharedResource(ncclComm* comm) {
   return;
 
 fail:
-  WARN("CTRAN-ALGO : Failed to allocate internal shared resource");
-  throw std::bad_alloc();
+  throw std::runtime_error(
+      "CTRAN-ALGO : Failed to allocate internal shared resource");
 }
 
 CtranAlgo::SharedResource::~SharedResource() {

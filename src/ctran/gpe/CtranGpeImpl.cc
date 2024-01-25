@@ -4,6 +4,7 @@
 #include <nccl.h>
 #include <iostream>
 #include <new>
+#include <stdexcept>
 #include "CtranGpe.h"
 #include "CtranGpeKernel.h"
 #include "checks.h"
@@ -22,16 +23,26 @@
 */
 
 CtranGpe::Impl::Impl() {
-  CUDACHECKIGNORE(
-      cudaHostAlloc(&this->kernelFlag, sizeof(int), cudaHostAllocDefault));
+  ncclResult_t res = ncclSuccess;
+  CUDACHECKGOTO(
+      cudaHostAlloc(&this->kernelFlag, sizeof(int), cudaHostAllocDefault), res, fail);
   *(this->kernelFlag) = UNSET;
 
   this->kernelP2pElemPool = std::unique_ptr<KernelP2pElemPool>(
       new KernelP2pElemPool(NCCL_CTRAN_NUM_KERNEL_P2PELEMS));
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-GPE: Failed to initialize CtranGpeImpl");
 }
 
 CtranGpe::Impl::~Impl() {
-  CUDACHECKIGNORE(cudaFreeHost(this->kernelFlag));
+  ncclResult_t res = ncclSuccess;
+  CUDACHECKGOTO(cudaFreeHost(this->kernelFlag), res, fail);
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-GPE: Failed to destory CtranGpeImpl");
 }
 
 ncclResult_t CtranGpe::Impl::submit(
@@ -90,7 +101,8 @@ ncclResult_t CtranGpe::Impl::terminate() {
 }
 
 void CtranGpe::Impl::gpeThreadFn(CtranGpe::Impl* pimpl, int cudaDev) {
-  CUDACHECKIGNORE(cudaSetDevice(cudaDev));
+  ncclResult_t res = ncclSuccess;
+  CUDACHECKGOTO(cudaSetDevice(cudaDev), res, fail);
 
   while (1) {
     CtranGpeCmd* cmd;
@@ -104,7 +116,7 @@ void CtranGpe::Impl::gpeThreadFn(CtranGpe::Impl* pimpl, int cudaDev) {
     }
 
     if (cmd->type == CtranGpeCmd::TypeEnum::TERMINATE) {
-      goto exit;
+      return;
     }
 
     /* wait for the kernel to launch */
@@ -113,16 +125,17 @@ void CtranGpe::Impl::gpeThreadFn(CtranGpe::Impl* pimpl, int cudaDev) {
       ;
 
     /* run collective */
-    NCCLCHECKIGNORE(cmd->coll.func(std::move(cmd->coll.opGroup)));
+    NCCLCHECKGOTO(cmd->coll.func(std::move(cmd->coll.opGroup)), res, fail);
 
     /* stop kernel */
     *flag_d = KERNEL_TERMINATE;
 
     delete cmd;
   }
-
-exit:
   return;
+
+fail:
+  throw std::runtime_error("CTRAN-GPE: GPE thread failed");
 }
 
 KernelP2pElemPool::KernelP2pElemPool(size_t capacity) : capacity_(capacity) {
@@ -144,20 +157,23 @@ KernelP2pElemPool::KernelP2pElemPool(size_t capacity) : capacity_(capacity) {
   return;
 
 fail:
-  if (res != ncclSuccess) {
-    WARN("CTRAN-GPE: Failed to allocate internal KernelP2pElem pool");
-    throw std::bad_alloc();
-  }
+  throw std::runtime_error(
+      "CTRAN-GPE: Failed to initialize KernelP2pElem pool");
 }
 
 KernelP2pElemPool::~KernelP2pElemPool() {
+  ncclResult_t res = ncclSuccess;
   this->reclaim();
   if (this->inuseWorkElems_.size()) {
     WARN(
         "CTRAN-GPE: Internal KernelP2pElem pool has %ld inuse elements",
         this->inuseWorkElems_.size());
   }
-  CUDACHECKIGNORE(cudaFreeHost(this->memPtr_));
+  CUDACHECKGOTO(cudaFreeHost(this->memPtr_), res, fail);
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-GPE: Failed to destory KernelP2pElemPool");
 }
 
 void KernelP2pElemPool::resetWorkElem(KernelP2pElem* workElem) {

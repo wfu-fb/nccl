@@ -13,63 +13,69 @@
 #include "CtranUtils.h"
 
 void CtranIb::Impl::bootstrapAccept(CtranIb::Impl *pimpl) {
+  ncclResult_t res = ncclSuccess;
   while (1) {
     struct ncclSocket sock;
     int peerRank;
     int cmd;
 
-    NCCLCHECKIGNORE(ncclSocketInit(&sock));
-    NCCLCHECKIGNORE(ncclSocketAccept(&sock, &pimpl->listenSocket));
-    NCCLCHECKIGNORE(ncclSocketRecv(&sock, &cmd, sizeof(int)));
-    NCCLCHECKIGNORE(ncclSocketRecv(&sock, &peerRank, sizeof(int)));
+    NCCLCHECKGOTO(ncclSocketInit(&sock), res, fail);
+    NCCLCHECKGOTO(ncclSocketAccept(&sock, &pimpl->listenSocket), res, fail);
+    NCCLCHECKGOTO(ncclSocketRecv(&sock, &cmd, sizeof(int)), res, fail);
+    NCCLCHECKGOTO(ncclSocketRecv(&sock, &peerRank, sizeof(int)), res, fail);
 
     if (cmd == BOOTSTRAP_CMD_TERMINATE) {
-      NCCLCHECKIGNORE(ncclSocketClose(&sock));
+      NCCLCHECKGOTO(ncclSocketClose(&sock), res, fail);
       break;
     }
 
     auto vc = pimpl->vcList[peerRank];
 
-    pimpl->m.lock();
+    {
+      const std::lock_guard<std::mutex> lock(pimpl->m);
 
-    /* exchange business cards */
-    std::size_t size;
-    void *localBusCard, *remoteBusCard;
-    size = vc->getBusCardSize();
-    localBusCard = malloc(size);
-    remoteBusCard = malloc(size);
-    NCCLCHECKIGNORE(vc->getLocalBusCard(localBusCard));
-    NCCLCHECKIGNORE(ncclSocketRecv(&sock, remoteBusCard, size));
-    NCCLCHECKIGNORE(ncclSocketSend(&sock, localBusCard, size));
+      /* exchange business cards */
+      std::size_t size;
+      void *localBusCard, *remoteBusCard;
+      size = vc->getBusCardSize();
+      localBusCard = malloc(size);
+      remoteBusCard = malloc(size);
+      NCCLCHECKGOTO(vc->getLocalBusCard(localBusCard), res, fail);
+      NCCLCHECKGOTO(ncclSocketRecv(&sock, remoteBusCard, size), res, fail);
+      NCCLCHECKGOTO(ncclSocketSend(&sock, localBusCard, size), res, fail);
 
-    uint32_t controlQp;
-    std::vector<uint32_t> dataQps;
-    NCCLCHECKIGNORE(vc->setupVc(remoteBusCard, &controlQp, dataQps));
-    pimpl->qpToRank[controlQp] = peerRank;
-    for (auto qpn : dataQps) {
-      pimpl->qpToRank[qpn] = peerRank;
+      uint32_t controlQp;
+      std::vector<uint32_t> dataQps;
+      NCCLCHECKGOTO(vc->setupVc(remoteBusCard, &controlQp, dataQps), res, fail);
+      pimpl->qpToRank[controlQp] = peerRank;
+      for (auto qpn : dataQps) {
+        pimpl->qpToRank[qpn] = peerRank;
+      }
+
+      INFO(
+          NCCL_INIT,
+          "CTRAN-IB: Established connection: rank %d, peer %d, control qpn %d, data qpns %s",
+          pimpl->rank,
+          peerRank,
+          controlQp,
+          vecToStr(dataQps).c_str());
+
+      free(localBusCard);
+      free(remoteBusCard);
+
+      /* Ack that the connection is fully established */
+      int ack;
+      NCCLCHECKGOTO(ncclSocketSend(&sock, &ack, sizeof(int)), res, fail);
+      NCCLCHECKGOTO(ncclSocketRecv(&sock, &ack, sizeof(int)), res, fail);
+
+      NCCLCHECKGOTO(ncclSocketClose(&sock), res, fail);
+
     }
-
-    INFO(
-        NCCL_INIT,
-        "CTRAN-IB: Established connection: rank %d, peer %d, control qpn %d, data qpns %s",
-        pimpl->rank,
-        peerRank,
-        controlQp,
-        vecToStr(dataQps).c_str());
-
-    free(localBusCard);
-    free(remoteBusCard);
-
-    /* Ack that the connection is fully established */
-    int ack;
-    NCCLCHECKIGNORE(ncclSocketSend(&sock, &ack, sizeof(int)));
-    NCCLCHECKIGNORE(ncclSocketRecv(&sock, &ack, sizeof(int)));
-
-    NCCLCHECKIGNORE(ncclSocketClose(&sock));
-
-    pimpl->m.unlock();
   }
+  return;
+
+fail:
+  throw std::runtime_error("CTRAN-IB: Failed to accept bootstrap connection");
 }
 
 ncclResult_t CtranIb::Impl::bootstrapConnect(int peerRank, int cmd) {
