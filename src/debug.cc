@@ -237,6 +237,12 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
     va_end(vargs);
     buffer[len++] = '\n';
     fwrite(buffer, 1, len, ncclDebugFile);
+    // also print to stderr if we're logging into file
+    if (ncclDebugFile != stdout && ncclDebugFile != stderr &&
+        level == NCCL_LOG_WARN) {
+      fprintf(stderr, "%s", buffer);
+      fflush(stderr);
+    }
   }
 }
 
