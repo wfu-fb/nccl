@@ -159,6 +159,18 @@ fail:
 
 CtranIbSingleton::~CtranIbSingleton() {
   ncclResult_t res = ncclSuccess;
+
+  {
+    std::lock_guard<std::mutex> guard(this->commsMutex_);
+    if (this->comms_.size()) {
+      for (auto& it : this->comms_) {
+        WARN(
+            "CTRAN-IB: communicator %p are still alive when CtranIbSingleton is destroyed.",
+            it);
+      }
+    }
+  }
+
   for (auto pd : this->pds) {
     NCCLCHECKGOTO(wrap_ibv_dealloc_pd(pd), res, fail);
   }
@@ -167,20 +179,29 @@ CtranIbSingleton::~CtranIbSingleton() {
     NCCLCHECKGOTO(wrap_ibv_close_device(context), res, fail);
   }
 
-  if (!NCCL_CTRAN_IB_TRAFFIC_PROFILNG)
-    return;
+  if (NCCL_CTRAN_IB_TRAFFIC_PROFILNG) {
+    std::lock_guard<std::mutex> guard(this->trafficRecordMutex_);
+    for (auto& it : this->trafficPerDevice_) {
+      INFO(
+          NCCL_INIT,
+          "CTRAN-IB: [traffic profiling] device %s total traffic: %ld bytes",
+          it.first.c_str(),
+          it.second);
+    }
+    for (auto& it : this->trafficPerQP_) {
+      INFO(
+          NCCL_INIT,
+          "CTRAN-IB: [traffic profiling] qp %d total traffic: %ld bytes",
+          it.first,
+          it.second);
+    }
+  }
 
-  this->trafficRecordMutex_.lock();
-  for (auto& it : this->trafficPerDevice_) {
-    INFO(NCCL_INIT, "CTRAN-IB: [traffic profiling] device %s total traffic: %ld bytes", it.first.c_str(), it.second);
-  }
-  for (auto& it : this->trafficPerQP_) {
-    INFO(NCCL_INIT, "CTRAN-IB: [traffic profiling] qp %d total traffic: %ld bytes", it.first, it.second);
-  }
   return;
 
 fail:
-  throw std::runtime_error("CTRAN-IB: Failed to destory CtranIbSingleton");
+  // Dot not throw exception here since it is called after ctranDestroy
+  WARN("CTRAN-IB: Failed to destory CtranIbSingleton.");
 }
 
 std::unordered_map<std::string, size_t>
@@ -228,7 +249,17 @@ void CtranIbSingleton::recordQpTraffic(struct ibv_qp* qp, size_t nbytes) {
   this->trafficPerQP_[qp->qp_num] += nbytes;
 }
 
-CtranIb::CtranIb(ncclComm *comm) {
+void CtranIbSingleton::commRef(ncclComm* comm) {
+  std::lock_guard<std::mutex> guard(this->commsMutex_);
+  this->comms_.insert(comm);
+}
+
+void CtranIbSingleton::commDeref(ncclComm* comm) {
+  std::lock_guard<std::mutex> guard(this->commsMutex_);
+  this->comms_.erase(comm);
+}
+
+CtranIb::CtranIb(ncclComm* comm) {
   ncclResult_t res;
   bool foundPort = false;
   char ifName[MAX_IF_NAME_SIZE+1];
@@ -236,9 +267,7 @@ CtranIb::CtranIb(ncclComm *comm) {
   int nIfs;
 
   this->pimpl_ = std::unique_ptr<Impl>(new Impl());
-
-  this->pimpl_->rank = comm->rank;
-  this->pimpl_->nRanks = comm->nRanks;
+  this->pimpl_->comm = comm;
 
   CtranIbSingleton& s = CtranIbSingleton::getInstance();
 
@@ -303,11 +332,14 @@ CtranIb::CtranIb(ncclComm *comm) {
 
   // Locally initialize all virtual connections before launching the listen
   // thread
-  for (int r = 0; r < this->pimpl_->nRanks; r++) {
+  for (int r = 0; r < this->pimpl_->comm->nRanks; r++) {
     this->pimpl_->vcList.push_back(new CtranIb::Impl::VirtualConn(this->pimpl_->context, this->pimpl_->pd,
           this->pimpl_->cq, this->pimpl_->port, r));
     this->pimpl_->numUnsignaledPuts.push_back(0);
   }
+
+  // Record reference to CtranIbSingleton
+  s.commRef(comm);
 
   nIfs = ncclFindInterfaces(ifName, &ifAddr, MAX_IF_NAME_SIZE, 1);
   if (nIfs <= 0) {
@@ -321,12 +353,12 @@ CtranIb::CtranIb(ncclComm *comm) {
       ncclSocketInit(&this->pimpl_->listenSocket, &ifAddr), res, fail);
   NCCLCHECKGOTO(ncclSocketListen(&this->pimpl_->listenSocket), res, fail);
 
-  this->pimpl_->allListenSocketAddrs =
-    static_cast<ncclSocketAddress *>(malloc(this->pimpl_->nRanks * sizeof(ncclSocketAddress)));
+  this->pimpl_->allListenSocketAddrs = static_cast<ncclSocketAddress*>(
+      malloc(this->pimpl_->comm->nRanks * sizeof(ncclSocketAddress)));
   NCCLCHECKGOTO(
       ncclSocketGetAddr(
           &this->pimpl_->listenSocket,
-          &this->pimpl_->allListenSocketAddrs[this->pimpl_->rank]),
+          &this->pimpl_->allListenSocketAddrs[this->pimpl_->comm->rank]),
       res,
       fail);
 
@@ -355,10 +387,12 @@ int CtranIb::getIbDevPort() {
 
 CtranIb::~CtranIb(void) {
   ncclResult_t res = ncclSuccess;
+  CtranIbSingleton& s = CtranIbSingleton::getInstance();
+
   NCCLCHECKGOTO(this->pimpl_->bootstrapTerminate(), res, fail);
   this->pimpl_->listenThread.join();
 
-  for (int r = 0; r < this->pimpl_->nRanks; r++) {
+  for (int r = 0; r < this->pimpl_->comm->nRanks; r++) {
     delete this->pimpl_->vcList[r];
   }
 
@@ -366,6 +400,10 @@ CtranIb::~CtranIb(void) {
   NCCLCHECKGOTO(ncclSocketClose(&this->pimpl_->listenSocket), res, fail);
 
   NCCLCHECKGOTO(wrap_ibv_destroy_cq(this->pimpl_->cq), res, fail);
+
+  // this comm is being destroyed, thus dereference from CtranIbSingleton
+  s.commDeref(this->pimpl_->comm);
+
   return;
 
 fail:
@@ -482,7 +520,7 @@ ncclResult_t CtranIb::isendCtrl(void *buf, void *ibRegElem, int peerRank, CtranI
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl_->vcList[peerRank];
-  if (this->pimpl_->rank < peerRank && vc->isReady() == false) {
+  if (this->pimpl_->comm->rank < peerRank && vc->isReady() == false) {
     NCCLCHECKGOTO(this->pimpl_->bootstrapConnect(peerRank), res, exit);
   }
 
@@ -508,7 +546,7 @@ ncclResult_t CtranIb::irecvCtrl(void **buf, struct CtranIbRemoteAccessKey *key, 
   ncclResult_t res = ncclSuccess;
 
   auto vc = this->pimpl_->vcList[peerRank];
-  if (this->pimpl_->rank < peerRank && vc->isReady() == false) {
+  if (this->pimpl_->comm->rank < peerRank && vc->isReady() == false) {
     NCCLCHECKGOTO(this->pimpl_->bootstrapConnect(peerRank), res, exit);
   }
 

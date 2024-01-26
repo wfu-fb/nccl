@@ -8,6 +8,7 @@
 #include <mutex>
 #include <stdint.h>
 #include <unordered_map>
+#include <unordered_set>
 #include "ibvwrap.h"
 #include "bootstrap.h"
 
@@ -57,6 +58,12 @@ class CtranIbSingleton {
     void recordDeviceTraffic(struct ibv_context *ctx, size_t nbytes);
     void recordQpTraffic(struct ibv_qp* qp, size_t nbytes);
 
+    // Record ncclComm reference to track missed comm destruction which may
+    // cause failed CtranIbSingleton destruction (e.g., wrap_ibv_dealloc_pd
+    // failed due to resource being used).
+    void commRef(ncclComm* comm);
+    void commDeref(ncclComm* comm);
+
     std::unordered_map<std::string, size_t> getDeviceTrafficSnapshot(void);
     std::unordered_map<uint32_t, size_t> getQpTrafficSnapshot(void);
 
@@ -66,6 +73,9 @@ class CtranIbSingleton {
     std::unordered_map<std::string, size_t> trafficPerDevice_;
     std::unordered_map<uint32_t, size_t> trafficPerQP_;
     std::mutex trafficRecordMutex_;
+
+    std::unordered_set<ncclComm*> comms_;
+    std::mutex commsMutex_;
 };
 
 class CtranIb::Impl {
@@ -79,8 +89,7 @@ public:
 
   const char *ibv_wc_status_str(enum ibv_wc_status status);
 
-  int rank{-1};
-  int nRanks{0};
+  ncclComm* comm{nullptr};
   struct ibv_context* context{nullptr};
   struct ibv_pd* pd{nullptr};
   struct ibv_cq* cq{nullptr};

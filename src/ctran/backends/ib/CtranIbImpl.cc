@@ -55,7 +55,7 @@ void CtranIb::Impl::bootstrapAccept(CtranIb::Impl *pimpl) {
       INFO(
           NCCL_INIT,
           "CTRAN-IB: Established connection: rank %d, peer %d, control qpn %d, data qpns %s",
-          pimpl->rank,
+          pimpl->comm->rank,
           peerRank,
           controlQp,
           vecToStr(dataQps).c_str());
@@ -90,9 +90,9 @@ ncclResult_t CtranIb::Impl::bootstrapConnect(int peerRank, int cmd) {
   NCCLCHECKGOTO(ncclSocketInit(&sock, &allListenSocketAddrs[peerRank]), res, exit);
   NCCLCHECKGOTO(ncclSocketConnect(&sock), res, exit);
   NCCLCHECKGOTO(ncclSocketSend(&sock, &cmd, sizeof(int)), res, exit);
-  NCCLCHECKGOTO(ncclSocketSend(&sock, &this->rank, sizeof(int)), res, exit);
+  NCCLCHECKGOTO(ncclSocketSend(&sock, &this->comm->rank, sizeof(int)), res, exit);
 
-  if (peerRank == this->rank) {
+  if (peerRank == this->comm->rank) {
     NCCLCHECKGOTO(ncclSocketClose(&sock), res, exit);
     goto exit;
   }
@@ -116,7 +116,7 @@ ncclResult_t CtranIb::Impl::bootstrapConnect(int peerRank, int cmd) {
   INFO(
       NCCL_INIT,
       "CTRAN-IB: Established connection: rank %d, peer %d, control qpn %d, data qpns %s",
-      this->rank,
+      this->comm->rank,
       peerRank,
       controlQp,
       vecToStr(dataQps).c_str());
@@ -142,7 +142,7 @@ ncclResult_t CtranIb::Impl::bootstrapConnect(int peerRank) {
 
 
 ncclResult_t CtranIb::Impl::bootstrapTerminate() {
-  return this->bootstrapConnect(this->rank, BOOTSTRAP_CMD_TERMINATE);
+  return this->bootstrapConnect(this->comm->rank, BOOTSTRAP_CMD_TERMINATE);
 }
 
 const char *CtranIb::Impl::ibv_wc_status_str(enum ibv_wc_status status) {
