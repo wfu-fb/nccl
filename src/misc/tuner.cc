@@ -39,10 +39,10 @@ ncclResult_t ncclLoadTunerPlugin(ncclTuner_t** tuner) {
   if (tunerPluginRefCount == -1) {
     tunerPluginRefCount = -2; // Default: no plugin, don't try again later
 
-    if (!NCCL_TUNER_PLUGIN.empty()) {
-      INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", NCCL_TUNER_PLUGIN.c_str());
-      tunerPluginLib = dlopen(NCCL_TUNER_PLUGIN.c_str(), RTLD_LAZY | RTLD_LOCAL);
-    }
+    // empty string (i.e., nullptr) is for the case of static linking of tuner plugin
+    INFO(NCCL_TUNING, "NCCL_TUNER_PLUGIN set to %s", NCCL_TUNER_PLUGIN.c_str());
+    tunerPluginLib = dlopen(NCCL_TUNER_PLUGIN.c_str(), RTLD_LAZY | RTLD_LOCAL);
+
     if (tunerPluginLib == nullptr) {
       // dlopen does not guarantee to set errno, but dlerror only gives us a
       // string, so checking errno doesn't hurt to try to provide a better
