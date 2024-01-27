@@ -1,7 +1,6 @@
 #ifdef ENABLE_COLLTRACE
 #include "colltrace.h"
-#include "internal.h"
-#include "nccl_tuning.h"
+#include "FbInternal.h"
 #include "comm.h"
 #include "bootstrap.h"
 
@@ -14,18 +13,17 @@
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
- - name        : NCCL_COLLTRACE_LOCAL_SUBDIR
+ - name        : NCCL_COLLTRACE_DIR
    type        : string
    default     : ""
    description : |-
-     If this parameter is set, then the profiling data is written to a
-     file.
+     Directory for CollTrace to dump.
+     Can be either local or FB internal remote URL.
 
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
-#ifndef COLLTRACE_IO_FB_POST_RUN
-#define COLLTRACE_IO_FB_POST_RUN
+#ifndef COLLTRACE_IO_FB_DURING_RUN
 #define COLLTRACE_IO_FB_DURING_RUN
 #endif
 
@@ -43,21 +41,25 @@ void CollTrace::outputResults(){
   }
   stream << "  }\n]";
 
-  std::string fileName = std::to_string(rank_) + "_online.json";
 
-  // If local env variable is set, then write profiling data to file
-  if(!NCCL_COLLTRACE_LOCAL_SUBDIR.empty()){
-    INFO(NCCL_ALL, "Rank %lu: Writing %lu online profiler data to local directory: %s", rank_, results_.size(), NCCL_COLLTRACE_LOCAL_SUBDIR.c_str());
-    std::ofstream out(NCCL_COLLTRACE_LOCAL_SUBDIR + "/" + fileName);
-    out << stream.str();
-    out.close();
+  // If NCCL_COLLTRACE_DIR is set, then write profiling data to file
+  if(!NCCL_COLLTRACE_DIR.empty()){
+    const std::string fileName =
+        NCCL_COLLTRACE_DIR + "/" + std::to_string(rank_) + "_online.json";
+    INFO(NCCL_ALL, "Rank %d: Writing %lu online profiler data to : %s", rank_, results_.size(), fileName.c_str());
+
+    if (ncclIsFbPath(fileName)) {
+      ncclFbUpload(stream.str(), fileName);
+    } else {
+      std::ofstream f(fileName);
+      f << stream.str();
+      f.close();
+    }
   }
-
-  COLLTRACE_IO_FB_POST_RUN();
 }
 
 void* CollTrace::measureLatency() {
-  INFO(NCCL_INIT, "Rank %lu: Started CollTrace worker thread", rank_);
+  INFO(NCCL_INIT, "Rank %d: Started CollTrace worker thread", rank_);
 
   while (true) {
     std::unique_ptr<EventInfo> curEvent = eventQueue_.tryPop();
@@ -78,7 +80,7 @@ void* CollTrace::measureLatency() {
         eventPool_.add(std::move(curEvent->stop));
         COLLTRACE_IO_FB_DURING_RUN(result, rank_);
 
-        if (curEvent->info.comm->performanceTuner != NULL) {
+        if (curEvent->info.comm->tuner != NULL) {
           results_.push_back(result);
 
           // Online tuning - average latencies across ranks & send to tuner
@@ -94,7 +96,7 @@ void* CollTrace::measureLatency() {
           free(latencies);
           sum /= (float) curEvent->info.comm->nRanks;
 
-          curEvent->info.comm->performanceTuner->addOnlineResult(
+          curEvent->info.comm->tuner->addOnlineResult(
             curEvent->info.coll,
             curEvent->info.count * ncclTypeSize(curEvent->info.datatype),
             curEvent->iteration,
