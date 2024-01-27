@@ -4,9 +4,7 @@
  * See LICENSE.txt for license information
  ************************************************************************/
 
-#ifdef ENABLE_FB_DATA_EXPORT
-#include "data_export_fb.h"
-#endif
+#include "data_export.h"
 #include "enqueue.h"
 #include "collectives.h"
 #include "argcheck.h" // Need some checks here since we access comm
@@ -37,10 +35,9 @@ ncclResult_t ncclSend(const void* sendbuff, size_t count, ncclDataType_t datatyp
     NCCLCHECK(ncclGroupEnd());
     return ret;
   }
-#ifdef ENABLE_FB_DATA_EXPORT
-  FBExportData(
-      sendbuff, count * ncclTypeSize(datatype), stream, comm->rank, peer, datatype);
-#endif
+
+  NCCLCHECK(ncclDataExport(
+      sendbuff, count * ncclTypeSize(datatype), stream, comm, peer, datatype));
 
   NvtxParamsSendRecv payload{count * ncclTypeSize(datatype), peer};
   NVTX3_FUNC_WITH_PARAMS(Send, SendRecvSchema, payload)

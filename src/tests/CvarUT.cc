@@ -1234,6 +1234,23 @@ TEST_F(CvarTest, NCCL_CUMEM_ENABLE_value_3) {
   EXPECT_EQ(NCCL_CUMEM_ENABLE, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_DATA_EXPORT_DIR_value_0) {
+  setenv("NCCL_DATA_EXPORT_DIR", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DATA_EXPORT_DIR, "val1");
+}
+
+TEST_F(CvarTest, NCCL_DATA_EXPORT_DIR_value_1) {
+  setenv("NCCL_DATA_EXPORT_DIR", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_DATA_EXPORT_DIR, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_DATA_EXPORT_DIR_default_value) {
+  testDefaultValue("NCCL_DATA_EXPORT_DIR");
+  EXPECT_EQ(NCCL_DATA_EXPORT_DIR, "/tmp");
+}
+
 TEST_F(CvarTest, NCCL_DDA_ALLREDUCE_MAX_BLOCKS_value_0) {
   testNumValue<int>("NCCL_DDA_ALLREDUCE_MAX_BLOCKS", 0);
   EXPECT_EQ(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, 0);

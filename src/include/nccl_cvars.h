@@ -185,6 +185,9 @@ extern std::string NCCL_CUDA_PATH_DEFAULT;
 extern int64_t NCCL_CUMEM_ENABLE;
 extern int64_t NCCL_CUMEM_ENABLE_DEFAULT;
 
+extern std::string NCCL_DATA_EXPORT_DIR;
+extern std::string NCCL_DATA_EXPORT_DIR_DEFAULT;
+
 extern int NCCL_DDA_ALLREDUCE_MAX_BLOCKS;
 extern int NCCL_DDA_ALLREDUCE_MAX_BLOCKS_DEFAULT;
 

@@ -373,10 +373,6 @@ ncclResult_t ncclGroupEndInternal() {
   NCCLCHECKGOTO(ctranGroupEndHook(), ret, fail);
 
   if ((ret = ncclGroupError) != ncclSuccess) goto fail;
-#ifdef ENABLE_FB_DATA_EXPORT
-  extern int groupNumber;
-  groupNumber++;
-#endif
   if (ncclGroupCommHead != nullptr || !ncclIntruQueueEmpty(&ncclAsyncJobs) || ncclGroupCommPreconnectHead != nullptr) {
     ncclGroupJobMain.groupCommHeadPtr = &ncclGroupCommHead;
     ncclGroupJobMain.groupCommPreconnectHeadPtr = &ncclGroupCommPreconnectHead;
