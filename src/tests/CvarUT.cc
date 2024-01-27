@@ -3023,6 +3023,23 @@ TEST_F(CvarTest, NCCL_PROXY_PROFILE_value_1) {
   EXPECT_EQ(NCCL_PROXY_PROFILE, "val2_with_space");
 }
 
+TEST_F(CvarTest, NCCL_PROXY_PROFILE_DIR_value_0) {
+  setenv("NCCL_PROXY_PROFILE_DIR", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_PROXY_PROFILE_DIR, "val1");
+}
+
+TEST_F(CvarTest, NCCL_PROXY_PROFILE_DIR_value_1) {
+  setenv("NCCL_PROXY_PROFILE_DIR", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_PROXY_PROFILE_DIR, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_PROXY_PROFILE_DIR_default_value) {
+  testDefaultValue("NCCL_PROXY_PROFILE_DIR");
+  EXPECT_EQ(NCCL_PROXY_PROFILE_DIR, "/tmp");
+}
+
 TEST_F(CvarTest, NCCL_PXN_DISABLE_value_0) {
   testNumValue<int64_t>("NCCL_PXN_DISABLE", 0);
   EXPECT_EQ(NCCL_PXN_DISABLE, 0);

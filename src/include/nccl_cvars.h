@@ -437,6 +437,9 @@ extern int64_t NCCL_PROXY_DUMP_SIGNAL_DEFAULT;
 extern std::string NCCL_PROXY_PROFILE;
 extern std::string NCCL_PROXY_PROFILE_DEFAULT;
 
+extern std::string NCCL_PROXY_PROFILE_DIR;
+extern std::string NCCL_PROXY_PROFILE_DIR_DEFAULT;
+
 extern int64_t NCCL_PXN_DISABLE;
 extern int64_t NCCL_PXN_DISABLE_DEFAULT;
 

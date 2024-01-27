@@ -459,6 +459,8 @@ int64_t NCCL_PROXY_DUMP_SIGNAL;
 int64_t NCCL_PROXY_DUMP_SIGNAL_DEFAULT;
 std::string NCCL_PROXY_PROFILE;
 std::string NCCL_PROXY_PROFILE_DEFAULT;
+std::string NCCL_PROXY_PROFILE_DIR;
+std::string NCCL_PROXY_PROFILE_DIR_DEFAULT;
 int64_t NCCL_PXN_DISABLE;
 int64_t NCCL_PXN_DISABLE_DEFAULT;
 enum NCCL_SENDRECV_ALGO NCCL_SENDRECV_ALGO;
@@ -625,6 +627,7 @@ void initEnvSet(std::unordered_set<std::string>& env) {
   env.insert("NCCL_PROXY_APPEND_BATCH_SIZE");
   env.insert("NCCL_PROXY_DUMP_SIGNAL");
   env.insert("NCCL_PROXY_PROFILE");
+  env.insert("NCCL_PROXY_PROFILE_DIR");
   env.insert("NCCL_PXN_DISABLE");
   env.insert("NCCL_SENDRECV_ALGO");
   env.insert("NCCL_SET_STACK_SIZE");
@@ -1137,6 +1140,9 @@ void readCvarEnv() {
 
   NCCL_PROXY_PROFILE = env2str("NCCL_PROXY_PROFILE", "");
   NCCL_PROXY_PROFILE_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "");
+
+  NCCL_PROXY_PROFILE_DIR = env2str("NCCL_PROXY_PROFILE_DIR", "/tmp");
+  NCCL_PROXY_PROFILE_DIR_DEFAULT = env2str("NCCL_ENV_DO_NOT_SET", "/tmp");
 
   NCCL_PXN_DISABLE = env2num<int64_t>("NCCL_PXN_DISABLE", "0");
   NCCL_PXN_DISABLE_DEFAULT = env2num<int64_t>("NCCL_ENV_DO_NOT_SET", "0");
