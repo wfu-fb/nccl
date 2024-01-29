@@ -223,8 +223,8 @@
      https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-min-ctas
 
  - name        : NCCL_COMM_SPLIT_SHARE_RESOURCES
-   type        : int64_t
-   default     : -1
+   type        : int
+   default     : MIN
    description : |-
      Hidden variable. No description provided.
 

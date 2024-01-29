@@ -323,28 +323,28 @@ TEST_F(CvarTest, NCCL_COMM_ID_value_1) {
 }
 
 TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_0) {
-  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 0);
+  testNumValue<int>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 0);
   EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, 0);
 }
 
 TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_1) {
-  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 9999);
+  testNumValue<int>("NCCL_COMM_SPLIT_SHARE_RESOURCES", 9999);
   EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, 9999);
 }
 
 TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_2) {
-  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", std::numeric_limits<int64_t>::max());
-  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int64_t>::max());
+  testNumValue<int>("NCCL_COMM_SPLIT_SHARE_RESOURCES", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int>::max());
 }
 
 TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_value_3) {
-  testNumValue<int64_t>("NCCL_COMM_SPLIT_SHARE_RESOURCES", std::numeric_limits<int64_t>::min());
-  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int64_t>::min());
+  testNumValue<int>("NCCL_COMM_SPLIT_SHARE_RESOURCES", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int>::min());
 }
 
 TEST_F(CvarTest, NCCL_COMM_SPLIT_SHARE_RESOURCES_default_value) {
   testDefaultValue("NCCL_COMM_SPLIT_SHARE_RESOURCES");
-  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, -1);
+  EXPECT_EQ(NCCL_COMM_SPLIT_SHARE_RESOURCES, std::numeric_limits<int>::min());
 }
 
 TEST_F(CvarTest, NCCL_CONNECT_ROUND_MAX_PEERS_value_0) {

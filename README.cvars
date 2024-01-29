@@ -126,8 +126,8 @@ Default:
 NCCL_COMM_SPLIT_SHARE_RESOURCES
 Description:
     Hidden variable. No description provided.
-Type: int64_t
-Default: -1
+Type: int
+Default: MIN
 
 NCCL_CONNECT_ROUND_MAX_PEERS
 Description:
