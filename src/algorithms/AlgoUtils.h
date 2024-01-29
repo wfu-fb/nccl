@@ -1,6 +1,13 @@
 #pragma once
 
 #include "nccl.h"
+#include <stdint.h>
+
+struct DdaDeviceState {
+  uintptr_t* threadedBarrierMbox;
+  uintptr_t* ipcBarrierMbox;
+  void* tmpbuff;
+};
 
 namespace nccl {
 namespace algorithms {

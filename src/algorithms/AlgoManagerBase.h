@@ -2,7 +2,7 @@
 #pragma once
 
 #include "DdaMemHandler.h"
-#include "collectives.h"
+#include "AlgoUtils.h"
 
 namespace nccl {
 namespace algorithms {

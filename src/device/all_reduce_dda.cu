@@ -1,9 +1,6 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "all_reduce.h"
-#include "all_reduce_dda.h"
-#include "collectives.h"
-#include "common.h"
+#include "all_reduce_dda.cuh"
 
 #define idx(nranks, i, j) ((i) * (nranks) + (j))
 

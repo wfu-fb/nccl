@@ -2,6 +2,7 @@
 #pragma once
 
 #include "nccl.h"
+#include "AlgoUtils.h"
 
 namespace nccl {
 namespace algorithms {

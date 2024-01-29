@@ -28,7 +28,7 @@ LIBSRCFILES += algorithms/AlgoDirector.cc \
                algorithms/allreduce/AlgoManagerAllReduce.cc
 
 INCLUDES := -Iinclude
-INCLUDES += -Ialgorithms -Ialgorithms/allreduce
+INCLUDES += -Ialgorithms -Ialgorithms/allreduce -Idevice
 
 ##### lib files
 LIBNAME     := libnccl.so

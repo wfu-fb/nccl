@@ -2,7 +2,6 @@
 #pragma once
 
 #include "AlgoAllReduce.h"
-#include "collectives.h"
 
 namespace nccl {
 namespace algorithms {

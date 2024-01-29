@@ -3,6 +3,7 @@
 #include "AlgoAllReduceDdaNvsTreeIpc.h"
 
 #include "AlgoUtils.h"
+#include "all_reduce_dda.cuh"
 #include "comm.h"
 #include "debug.h"
 
