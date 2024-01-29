@@ -158,8 +158,6 @@ fail:
 }
 
 CtranIbSingleton::~CtranIbSingleton() {
-  ncclResult_t res = ncclSuccess;
-
   {
     std::lock_guard<std::mutex> guard(this->commsMutex_);
     if (this->comms_.size()) {
@@ -169,14 +167,6 @@ CtranIbSingleton::~CtranIbSingleton() {
             it);
       }
     }
-  }
-
-  for (auto pd : this->pds) {
-    NCCLCHECKGOTO(wrap_ibv_dealloc_pd(pd), res, fail);
-  }
-
-  for (auto context : this->contexts) {
-    NCCLCHECKGOTO(wrap_ibv_close_device(context), res, fail);
   }
 
   if (NCCL_CTRAN_IB_TRAFFIC_PROFILNG) {
@@ -197,11 +187,17 @@ CtranIbSingleton::~CtranIbSingleton() {
     }
   }
 
-  return;
+  for (auto pd : this->pds) {
+    NCCLCHECKIGNORE(wrap_ibv_dealloc_pd(pd));
+  }
 
-fail:
-  // Dot not throw exception here since it is called after ctranDestroy
-  WARN("CTRAN-IB: Failed to destory CtranIbSingleton.");
+  for (auto context : this->contexts) {
+    NCCLCHECKIGNORE(wrap_ibv_close_device(context));
+  }
+
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 std::unordered_map<std::string, size_t>
@@ -386,10 +382,9 @@ int CtranIb::getIbDevPort() {
 }
 
 CtranIb::~CtranIb(void) {
-  ncclResult_t res = ncclSuccess;
   CtranIbSingleton& s = CtranIbSingleton::getInstance();
 
-  NCCLCHECKGOTO(this->pimpl_->bootstrapTerminate(), res, fail);
+  NCCLCHECKIGNORE(this->pimpl_->bootstrapTerminate());
   this->pimpl_->listenThread.join();
 
   for (int r = 0; r < this->pimpl_->comm->nRanks; r++) {
@@ -397,17 +392,16 @@ CtranIb::~CtranIb(void) {
   }
 
   free(this->pimpl_->allListenSocketAddrs);
-  NCCLCHECKGOTO(ncclSocketClose(&this->pimpl_->listenSocket), res, fail);
+  NCCLCHECKIGNORE(ncclSocketClose(&this->pimpl_->listenSocket));
 
-  NCCLCHECKGOTO(wrap_ibv_destroy_cq(this->pimpl_->cq), res, fail);
+  NCCLCHECKIGNORE(wrap_ibv_destroy_cq(this->pimpl_->cq));
 
   // this comm is being destroyed, thus dereference from CtranIbSingleton
   s.commDeref(this->pimpl_->comm);
 
-  return;
-
-fail:
-  throw std::runtime_error("CTRAN-IB: Failed to destroy IB backend");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 ncclResult_t CtranIb::regMem(const void *buf, std::size_t len, void **ibRegElem) {

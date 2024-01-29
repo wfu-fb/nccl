@@ -363,13 +363,12 @@ void CtranMapper::reportProfiling(bool flush) {
 }
 
 CtranMapper::~CtranMapper() {
-  ncclResult_t res = ncclSuccess;
   this->reportProfiling(true);
 
   /* safely de-register any bufferes applications may miss */
   auto v = this->pimpl_->mapperRegElemList->getAllElems();
   for (auto hdl : v) {
-    NCCLCHECKGOTO(this->deregMem(hdl), res, fail);
+    NCCLCHECKIGNORE(this->deregMem(hdl));
   }
 
   if (NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT >= 0) {
@@ -390,11 +389,11 @@ CtranMapper::~CtranMapper() {
     }
   }
 
-  CUDACHECKGOTO(cudaStreamDestroy(this->internalStream), res, fail);
-  return;
+  CUDACHECKIGNORE(cudaStreamDestroy(this->internalStream));
 
-fail:
-  throw std::runtime_error("Failed to destroy CtranMapper");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 ncclResult_t CtranMapper::impl::regMem(

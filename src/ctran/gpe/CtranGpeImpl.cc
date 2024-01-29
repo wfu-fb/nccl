@@ -37,12 +37,11 @@ fail:
 }
 
 CtranGpe::Impl::~Impl() {
-  ncclResult_t res = ncclSuccess;
-  CUDACHECKGOTO(cudaFreeHost(this->kernelFlag), res, fail);
-  return;
+  CUDACHECKIGNORE(cudaFreeHost(this->kernelFlag));
 
-fail:
-  throw std::runtime_error("CTRAN-GPE: Failed to destory CtranGpeImpl");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 ncclResult_t CtranGpe::Impl::submit(
@@ -162,18 +161,17 @@ fail:
 }
 
 KernelP2pElemPool::~KernelP2pElemPool() {
-  ncclResult_t res = ncclSuccess;
   this->reclaim();
   if (this->inuseWorkElems_.size()) {
     WARN(
         "CTRAN-GPE: Internal KernelP2pElem pool has %ld inuse elements",
         this->inuseWorkElems_.size());
   }
-  CUDACHECKGOTO(cudaFreeHost(this->memPtr_), res, fail);
-  return;
+  CUDACHECKIGNORE(cudaFreeHost(this->memPtr_));
 
-fail:
-  throw std::runtime_error("CTRAN-GPE: Failed to destory KernelP2pElemPool");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 void KernelP2pElemPool::resetWorkElem(KernelP2pElem* workElem) {

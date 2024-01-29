@@ -45,19 +45,18 @@ fail:
 }
 
 CtranAlgo::~CtranAlgo() {
-  ncclResult_t res = ncclSuccess;
   if (this->sharedRes_) {
     // Release shared resource if releaseSharedResource is not yet called.
     delete this->sharedRes_;
     this->sharedRes_ = nullptr;
   }
 
-  CUDACHECKGOTO(cudaFree(this->devState_d), res, fail);
+  CUDACHECKIGNORE(cudaFree(this->devState_d));
   this->devState_d = nullptr;
-  return;
 
-fail:
-  throw std::runtime_error("CTRAN-ALGO : Failed to release Ctran algorithm");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 bool CtranAlgo::isThreadedComm(ncclComm* comm) {
@@ -212,23 +211,21 @@ fail:
 }
 
 CtranAlgo::SharedResource::~SharedResource() {
-  ncclResult_t res = ncclSuccess;
   for (int i = 0; i < this->comm_->localRanks; ++i) {
     if (this->mappedDevShmPtrs[i] && i != this->comm_->localRank) {
-      CUDACHECKGOTO(
-          cudaIpcCloseMemHandle(this->mappedDevShmPtrs[i]), res, fail);
+      CUDACHECKIGNORE(cudaIpcCloseMemHandle(this->mappedDevShmPtrs[i]));
     }
   }
 
   // Ensure all local ranks closed remote IPC handle before free
-  NCCLCHECKGOTO(this->barrier(), res, fail);
+  NCCLCHECKIGNORE(this->barrier());
 
   if (this->devShmPtr_) {
-    CUDACHECKGOTO(cudaFree(this->devShmPtr_), res, fail);
+    CUDACHECKIGNORE(cudaFree(this->devShmPtr_));
   }
-  return;
-fail:
-  WARN("CTRAN-ALGO : Failed to release internal shared resource");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 ncclResult_t CtranAlgo::SharedResource::barrier() {

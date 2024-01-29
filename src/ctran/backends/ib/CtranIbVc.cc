@@ -115,22 +115,20 @@ fail:
 }
 
 CtranIb::Impl::VirtualConn::~VirtualConn() {
-  ncclResult_t res = ncclSuccess;
-  NCCLCHECKGOTO(wrap_ibv_dereg_mr(this->sendCtrl_.mr_), res, fail);
-  NCCLCHECKGOTO(wrap_ibv_dereg_mr(this->recvCtrl_.mr_), res, fail);
+  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->sendCtrl_.mr_));
+  NCCLCHECKIGNORE(wrap_ibv_dereg_mr(this->recvCtrl_.mr_));
 
   if (this->controlQp_ != nullptr) {
     /* we don't need to clean up the posted WQEs; destroying the QP
      * will automatically clear them */
-    NCCLCHECKGOTO(wrap_ibv_destroy_qp(this->controlQp_), res, fail);
+    NCCLCHECKIGNORE(wrap_ibv_destroy_qp(this->controlQp_));
     for (auto qp : this->dataQps_) {
-      NCCLCHECKGOTO(wrap_ibv_destroy_qp(qp), res, fail);
+      NCCLCHECKIGNORE(wrap_ibv_destroy_qp(qp));
     }
   }
-  return;
-
-fail:
-  throw std::runtime_error("CTRAN-IB: Failed to destroy VirtualConn");
+  // Dot not throw exception in destructor to avoid early termination in stack
+  // unwind. See discussion in
+  // https://stackoverflow.com/questions/130117/if-you-shouldnt-throw-exceptions-in-a-destructor-how-do-you-handle-errors-in-i
 }
 
 bool CtranIb::Impl::VirtualConn::isReady() {
