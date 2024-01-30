@@ -9,10 +9,11 @@
 #include <string>
 #include <unordered_map>
 #include "CtranMapperImpl.h"
+#include "CtranTopoFile.h"
+#include "FbInternal.h"
+#include "bootstrap.h"
 #include "comm.h"
 #include "nccl_cvars.h"
-#include "CtranTopoFile.h"
-#include "bootstrap.h"
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -33,7 +34,8 @@
    type        : string
    default     : "/tmp"
    description : |-
-     Directory to place Ctran kineto profiling logs.
+     Directory to place Ctran kineto profiling logs. Support both local
+     directory path or FB internal remote path.
      (see also NCCL_CTRAN_PROFILING)
 
  - name        : NCCL_CTRAN_REGISTER
@@ -281,6 +283,8 @@ void CtranMapper::reportProfiling(bool flush) {
     } else if (NCCL_CTRAN_PROFILING == NCCL_CTRAN_PROFILING::kineto) {
       auto pid = getpid();
       static uint64_t reportCnt = 0;
+      std::stringstream stream;
+
       std::string filename(
           NCCL_CTRAN_KINETO_PROFILE_DIR + std::string("/nccl_ctran_log.") +
           std::to_string(pid) + std::string(".rank") +
@@ -288,75 +292,85 @@ void CtranMapper::reportProfiling(bool flush) {
           std::to_string(this->commHash) + std::string(".") +
           std::to_string(reportCnt++) + std::string(".json"));
       INFO(NCCL_ALL, "Dumping ctran profile to %s\n", filename.c_str());
-      std::ofstream f(filename);
+
       int id = 0;
-      f << "[" << std::endl;
+      stream << "[" << std::endl;
       for (auto& ts : this->timestamps) {
         int collId = id;
-        f << "{\"name\": \"" << ts->algo << "\", "
-          << "\"cat\": \"COL\", "
-          << "\"id\": \"" << id++ << "\", "
-          << "\"ph\": \"b\", "
-          << "\"pid\": \"0\", "
-          << "\"ts\": \""
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 ts->start.time_since_epoch())
-                 .count()
-          << "\"}," << std::endl;
+        stream << "{\"name\": \"" << ts->algo << "\", "
+               << "\"cat\": \"COL\", "
+               << "\"id\": \"" << id++ << "\", "
+               << "\"ph\": \"b\", "
+               << "\"pid\": \"0\", "
+               << "\"ts\": \""
+               << std::chrono::duration_cast<std::chrono::milliseconds>(
+                      ts->start.time_since_epoch())
+                      .count()
+               << "\"}," << std::endl;
         CtranMapperTimestampPoint last(0);
         for (auto& tsp : ts->recvCtrl) {
-          f << "{\"name\": \"recvCtrl\", "
-            << "\"cat\": \"NET\", "
-            << "\"id\": \"" << id++ << "\", "
-            << "\"ph\": \"X\", "
-            << "\"pid\": \"" << tsp.peer << "\", "
-            << "\"ts\": \""
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   tsp.now.time_since_epoch())
-                   .count()
-            << "\", \"dur\": \"0\""
-            << "}," << std::endl;
+          stream << "{\"name\": \"recvCtrl\", "
+                 << "\"cat\": \"NET\", "
+                 << "\"id\": \"" << id++ << "\", "
+                 << "\"ph\": \"X\", "
+                 << "\"pid\": \"" << tsp.peer << "\", "
+                 << "\"ts\": \""
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                        tsp.now.time_since_epoch())
+                        .count()
+                 << "\", \"dur\": \"0\""
+                 << "}," << std::endl;
         }
         for (auto& tsp : ts->putIssued) {
-          f << "{\"name\": \"put\", "
-            << "\"cat\": \"NET\", "
-            << "\"id\": \"" << id++ << "\", "
-            << "\"ph\": \"b\", "
-            << "\"pid\": \"" << tsp.peer << "\", "
-            << "\"ts\": \""
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   tsp.now.time_since_epoch())
-                   .count()
-            << "\"}," << std::endl;
+          stream << "{\"name\": \"put\", "
+                 << "\"cat\": \"NET\", "
+                 << "\"id\": \"" << id++ << "\", "
+                 << "\"ph\": \"b\", "
+                 << "\"pid\": \"" << tsp.peer << "\", "
+                 << "\"ts\": \""
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                        tsp.now.time_since_epoch())
+                        .count()
+                 << "\"}," << std::endl;
         }
         id -= ts->putIssued.size();
         for (auto& tsp : ts->putComplete) {
-          f << "{\"name\": \"put\", "
-            << "\"cat\": \"NET\", "
-            << "\"id\": \"" << id++ << "\", "
-            << "\"ph\": \"e\", "
-            << "\"pid\": \"" << tsp.peer << "\", "
-            << "\"ts\": \""
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   tsp.now.time_since_epoch())
-                   .count()
-            << "\"}," << std::endl;
+          stream << "{\"name\": \"put\", "
+                 << "\"cat\": \"NET\", "
+                 << "\"id\": \"" << id++ << "\", "
+                 << "\"ph\": \"e\", "
+                 << "\"pid\": \"" << tsp.peer << "\", "
+                 << "\"ts\": \""
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                        tsp.now.time_since_epoch())
+                        .count()
+                 << "\"}," << std::endl;
           last = tsp;
         }
-        f << "{\"name\": \"" << ts->algo << "\", "
-          << "\"cat\": \"COL\", "
-          << "\"id\": \"" << collId << "\", "
-          << "\"ph\": \"e\", "
-          << "\"pid\": \"0\", "
-          << "\"ts\": \""
-          << std::chrono::duration_cast<std::chrono::milliseconds>(
-                 last.now.time_since_epoch())
-                 .count()
-          << "\"}," << std::endl;
+        stream << "{\"name\": \"" << ts->algo << "\", "
+               << "\"cat\": \"COL\", "
+               << "\"id\": \"" << collId << "\", "
+               << "\"ph\": \"e\", "
+               << "\"pid\": \"0\", "
+               << "\"ts\": \""
+               << std::chrono::duration_cast<std::chrono::milliseconds>(
+                      last.now.time_since_epoch())
+                      .count()
+               << "\"}," << std::endl;
       }
-      f << "]" << std::endl;
-      f.close();
-      f.flush();
+      // cut off trailing comma if any event is generated
+      if (this->timestamps.size()) {
+        stream.seekp(stream.str().length() - 2);
+      }
+      stream << "]" << std::endl;
+
+      if (ncclIsFbPath(filename)) {
+        ncclFbUpload(stream.str(), filename);
+      } else {
+        std::ofstream f(filename);
+        f << stream.str();
+        f.close();
+      }
     }
     this->timestamps.clear();
   }

@@ -291,7 +291,8 @@ Default: False
 
 NCCL_CTRAN_KINETO_PROFILE_DIR
 Description:
-    Directory to place Ctran kineto profiling logs.
+    Directory to place Ctran kineto profiling logs. Support both local
+    directory path or FB internal remote path.
     (see also NCCL_CTRAN_PROFILING)
 Type: string
 Default: /tmp
