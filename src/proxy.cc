@@ -19,6 +19,16 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+// when build NCCL with ntrace_rt.h, we ensure ntrace_rt.h is always
+// referenced via ibvwrap.h after verbs type definition, to obtain type
+// definition while avoiding cross-reference issues.
+#ifdef ENABLE_NTRACE
+#include "ibvwrap.h"
+#else
+// for reference to no-op ntraceProfilingDump
+#include "ntrace_profiler.h"
+#endif
+
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
@@ -940,6 +950,7 @@ static ncclResult_t ncclProxyProgressCreate(struct ncclProxyState* proxyState) {
   return ncclSuccess;
 }
 
+static int nProxyComms = 0;
 ncclResult_t ncclProxyProgressDestroy(struct ncclProxyState* proxyState) {
   struct ncclProxyProgressState* state = &proxyState->progressState;
 
@@ -959,7 +970,12 @@ ncclResult_t ncclProxyProgressDestroy(struct ncclProxyState* proxyState) {
     state->pools = next;
   }
 
-  ncclProfilingDump();
+  // Dump profiling results only after destroying the last communicator
+  nProxyComms--;
+  if (nProxyComms == 0){
+    ncclProfilingDump();
+    ntraceProfilingDump();
+  }
   TIME_PRINT("Proxy");
   return ncclSuccess;
 }
@@ -1439,6 +1455,7 @@ static bool proxyMatchOpType(int type) {
 }
 
 void* ncclProxyService(void* _args) {
+  nProxyComms++;
   struct ncclProxyState* proxyState =  (struct ncclProxyState*) _args;
   // if (CPU_COUNT(&comm->cpuAffinity)) sched_setaffinity(0, sizeof(cpu_set_t), &comm->cpuAffinity);
   if (setProxyThreadContext(proxyState)) {

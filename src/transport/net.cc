@@ -14,6 +14,7 @@
 #include "p2p.h"
 #include "profiler.h"
 #include "nccl_cvars.h"
+#include "ntrace_profiler.h"
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -1129,6 +1130,9 @@ static ncclResult_t sendProxyProgress(struct ncclProxyState* proxyState, struct 
             ncclProfilingRecord(args, s, sub->transmitted, ncclProxyProfileRemFIFOWait);
 
             // Data is ready, try to send.
+#ifdef ENABLE_NTRACE
+            ntraceLogPeerRanks(resources->tpRank, resources->tpRemoteRank);
+#endif
             NCCLCHECK(proxyState->ncclNet->isend(resources->netSendComm, buff, size, resources->tpRank, mhandle, sub->requests+buffSlot));
             if (sub->requests[buffSlot] != NULL) {
               TRACE(NCCL_NET, "sendProxy [%ld/%d] Isend posted, req %p", sub->transmitted, buffSlot, sub->requests[buffSlot]);
@@ -1252,6 +1256,9 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
         uint64_t step = subGroup->posted;
         struct recvNetResources* resources = (struct recvNetResources*) (subGroup->connection->transportResources);
         void** requestPtr = subGroup->requests+(step%NCCL_STEPS);
+#ifdef ENABLE_NTRACE
+        ntraceLogPeerRanks(resources->tpRank, resources->tpRemoteRank);
+#endif
         NCCLCHECK(proxyState->ncclNet->irecv(resources->netRecvComm, subCount, ptrs, sizes, tags, mhandles, requestPtr));
         if (*requestPtr) {
           subGroup->recvRequestsCache[step%NCCL_STEPS] = *requestPtr;
@@ -1318,6 +1325,9 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
                 }
               }
               struct recvNetResources* resources = (struct recvNetResources*) (subGroup->connection->transportResources);
+#ifdef ENABLE_NTRACE
+              ntraceLogPeerRanks(resources->tpRank, resources->tpRemoteRank);
+#endif
               NCCLCHECK(proxyState->ncclNet->iflush(resources->netRecvComm, subCount, ptrs, sizes, mhandles, subGroup->requests+(step%NCCL_STEPS)));
             }
           }
