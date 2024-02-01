@@ -826,6 +826,13 @@ Description:
 Type: string
 Default: 
 
+NCCL_PROXY_PROFILE_DIR
+Description:
+    Directory for NCCL proxy profiling to dump.
+    Can be either local or FB internal remote URL.
+Type: string
+Default: /tmp
+
 NCCL_PXN_DISABLE
 Description:
     Disable inter-node communication using a non-local NIC, using

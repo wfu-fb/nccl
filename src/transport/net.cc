@@ -339,15 +339,15 @@ static ncclResult_t sendConnect(struct ncclComm* comm, struct ncclConnect* conne
 
   if (map->sameProcess && !ncclCuMemEnable()) {
     if (map->cudaDev != comm->cudaDev) {
-      // Enable P2P access for Legacy IPC
-      cudaError_t err = cudaDeviceEnablePeerAccess(map->cudaDev, 0);
-      if (err == cudaErrorPeerAccessAlreadyEnabled) {
-        cudaGetLastError();
-      } else if (err != cudaSuccess) {
-        WARN("failed to peer with device %d: %d %s", map->cudaDev, err, cudaGetErrorString(err));
-        return ncclInternalError;
+        // Enable P2P access for Legacy IPC
+        cudaError_t err = cudaDeviceEnablePeerAccess(map->cudaDev, 0);
+        if (err == cudaErrorPeerAccessAlreadyEnabled) {
+          cudaGetLastError();
+        } else if (err != cudaSuccess) {
+          WARN("failed to peer with device %d: %d %s", map->cudaDev, err, cudaGetErrorString(err));
+          return ncclInternalError;
+        }
       }
-    }
   } else if (!(map->sameProcess && map->cudaDev == comm->cudaDev)) {
     if (!map->sameProcess) NCCLCHECK(netMapShm(map->mems+NCCL_NET_MAP_HOSTMEM));
     if (map->mems[NCCL_NET_MAP_DEVMEM].size) {
@@ -1125,6 +1125,9 @@ static ncclResult_t sendProxyProgress(struct ncclProxyState* proxyState, struct 
             }
           }
           if (ready) {
+            // Profiler will not update if already in ncclProxyProfileRemFIFOWait state
+            ncclProfilingRecord(args, s, sub->transmitted, ncclProxyProfileRemFIFOWait);
+
             // Data is ready, try to send.
             NCCLCHECK(proxyState->ncclNet->isend(resources->netSendComm, buff, size, resources->tpRank, mhandle, sub->requests+buffSlot));
             if (sub->requests[buffSlot] != NULL) {
@@ -1134,6 +1137,7 @@ static ncclResult_t sendProxyProgress(struct ncclProxyState* proxyState, struct 
               __sync_synchronize();
               sub->transmitted += args->sliceSteps;
               for (uint64_t step=sub->transmitted-args->sliceSteps; step<sub->transmitted; step++) ncclProfilingRecord(args, s, step, ncclProxyProfileSendWait);
+              for (uint64_t step=sub->transmitted-args->sliceSteps; step<sub->transmitted; step++) ncclProfilingRecordUpdate(args, s, step, resources->tpRemoteRank, size);
               args->idle = 0;
               continue;
             }
@@ -1256,6 +1260,7 @@ static ncclResult_t recvProxyProgress(struct ncclProxyState* proxyState, struct 
             struct ncclProxySubArgs* sub = subGroup+i;
             sub->posted += args->sliceSteps;
             for (uint64_t step=sub->posted-args->sliceSteps; step<sub->posted; step++) ncclProfilingRecord(args, s+i, step, ncclProxyProfileRecvWait);
+            for (uint64_t step=sub->posted-args->sliceSteps; step<sub->posted; step++) ncclProfilingRecordUpdate(args, s+i, step, resources->tpRemoteRank, sizes[i]);
           }
           args->idle = 0;
         }
