@@ -34,7 +34,8 @@ void readCvarEnv();
 #define CVAR_WARN(fmt, ...)                                 \
   if (enableCvarWarn) {                                     \
     printf(                                                 \
-        "%s:%d:%d [%d] %s:%d NCCL WARN CVAR: " fmt "\n",    \
+        "%s %s:%d:%d [%d] %s:%d NCCL WARN CVAR: " fmt "\n", \
+        getTime().c_str(),                                  \
         hostname,                                           \
         pid,                                                \
         tid,                                                \
