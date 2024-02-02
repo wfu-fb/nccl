@@ -116,6 +116,40 @@ TEST_F(CvarTest, NCCL_ALGO_value_1) {
   EXPECT_EQ(NCCL_ALGO, "val2_with_space");
 }
 
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_0) {
+  setenv("NCCL_ALLGATHER_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_1) {
+  setenv("NCCL_ALLGATHER_ALGO", "ctdirect", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::ctdirect);
+}
+
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_2) {
+  setenv("NCCL_ALLGATHER_ALGO", "ctring", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::ctring);
+}
+
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_single_choice_3) {
+  setenv("NCCL_ALLGATHER_ALGO", "ctrd", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::ctrd);
+}
+
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_default_choice) {
+  testDefaultValue("NCCL_ALLGATHER_ALGO");
+  EXPECT_EQ(NCCL_ALLGATHER_ALGO, NCCL_ALLGATHER_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLGATHER_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLGATHER_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLGATHER_ALGO", "Unknown value");
+}
+
 TEST_F(CvarTest, NCCL_ALLOC_P2P_NET_LL_BUFFERS_value_0) {
   testNumValue<int64_t>("NCCL_ALLOC_P2P_NET_LL_BUFFERS", 0);
   EXPECT_EQ(NCCL_ALLOC_P2P_NET_LL_BUFFERS, 0);
@@ -156,6 +190,50 @@ TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_default_choice) {
 TEST_F(CvarTest, NCCL_ALLREDUCE_ALGO_warn_unknown_val) {
   setenv("NCCL_ALLREDUCE_ALGO", "dummy", 1);
   testWarn("NCCL_ALLREDUCE_ALGO", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALLV_ALGO_single_choice_0) {
+  setenv("NCCL_ALLTOALLV_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLTOALLV_ALGO, NCCL_ALLTOALLV_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALLV_ALGO_single_choice_1) {
+  setenv("NCCL_ALLTOALLV_ALGO", "ctran", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLTOALLV_ALGO, NCCL_ALLTOALLV_ALGO::ctran);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALLV_ALGO_default_choice) {
+  testDefaultValue("NCCL_ALLTOALLV_ALGO");
+  EXPECT_EQ(NCCL_ALLTOALLV_ALGO, NCCL_ALLTOALLV_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALLV_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLTOALLV_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLTOALLV_ALGO", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_single_choice_0) {
+  setenv("NCCL_ALLTOALL_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLTOALL_ALGO, NCCL_ALLTOALL_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_single_choice_1) {
+  setenv("NCCL_ALLTOALL_ALGO", "ctran", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_ALLTOALL_ALGO, NCCL_ALLTOALL_ALGO::ctran);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_default_choice) {
+  testDefaultValue("NCCL_ALLTOALL_ALGO");
+  EXPECT_EQ(NCCL_ALLTOALL_ALGO, NCCL_ALLTOALL_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_ALLTOALL_ALGO_warn_unknown_val) {
+  setenv("NCCL_ALLTOALL_ALGO", "dummy", 1);
+  testWarn("NCCL_ALLTOALL_ALGO", "Unknown value");
 }
 
 TEST_F(CvarTest, NCCL_BUFFSIZE_value_0) {
@@ -415,6 +493,626 @@ TEST_F(CvarTest, NCCL_CROSS_NIC_value_3) {
 TEST_F(CvarTest, NCCL_CROSS_NIC_default_value) {
   testDefaultValue("NCCL_CROSS_NIC");
   EXPECT_EQ(NCCL_CROSS_NIC, 2);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y0) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "y", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y1) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "yes", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y2) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "true", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_y3) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "1", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n0) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "n", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n1) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "no", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n2) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "false", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_value_n3) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "0", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_default_value) {
+  testDefaultValue("NCCL_CTRAN_AG_RD_RTR");
+  EXPECT_TRUE(NCCL_CTRAN_AG_RD_RTR);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_AG_RD_RTR_warn_unknown_val) {
+  setenv("NCCL_CTRAN_AG_RD_RTR", "dummy", 1);
+  testWarn("NCCL_CTRAN_AG_RD_RTR", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS_value_0) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS_value_1) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS_value_2) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS_value_3) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS, 64);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE_value_0) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE_value_1) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE_value_2) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE_value_3) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE, 640);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_0) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_1) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_2) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_value_3) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS, -1);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_0) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_1) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_2) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_value_3) {
+  testNumValue<int>("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE, -1);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_ALLTOALL_THRESHOLD", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_ALLTOALL_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_CTRAN_ALLTOALL_THRESHOLD");
+  EXPECT_EQ(NCCL_CTRAN_ALLTOALL_THRESHOLD, 32768);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_single_choice_0) {
+  setenv("NCCL_CTRAN_BACKENDS", "ib", 1);
+  ncclCvarInit();
+  std::vector<enum NCCL_CTRAN_BACKENDS> vals{NCCL_CTRAN_BACKENDS::ib};
+  checkListValues<enum NCCL_CTRAN_BACKENDS>(vals, NCCL_CTRAN_BACKENDS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_all_choices) {
+  setenv("NCCL_CTRAN_BACKENDS", "ib", 1);
+  ncclCvarInit();
+  std::vector<enum NCCL_CTRAN_BACKENDS> vals{NCCL_CTRAN_BACKENDS::ib};
+  checkListValues<enum NCCL_CTRAN_BACKENDS>(vals, NCCL_CTRAN_BACKENDS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_default_choices) {
+  testDefaultValue("NCCL_CTRAN_BACKENDS");
+  std::vector<enum NCCL_CTRAN_BACKENDS> vals{NCCL_CTRAN_BACKENDS::ib};
+  checkListValues<enum NCCL_CTRAN_BACKENDS>(vals, NCCL_CTRAN_BACKENDS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_warn_unknown_val) {
+  setenv("NCCL_CTRAN_BACKENDS", "dummy", 1);
+  testWarn("NCCL_CTRAN_BACKENDS", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_BACKENDS_warn_dup_val) {
+  setenv("NCCL_CTRAN_BACKENDS", "dummy,dummy", 1);
+  testWarn("NCCL_CTRAN_BACKENDS", "Duplicate token");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", 0);
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", 9999);
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_CTRL_TC", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_CTRL_TC_default_value) {
+  testDefaultValue("NCCL_CTRAN_IB_CTRL_TC");
+  EXPECT_EQ(NCCL_CTRAN_IB_CTRL_TC, 192);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_0) {
+  testNumValue<int>("NCCL_CTRAN_IB_MAX_QPS", 0);
+  EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_1) {
+  testNumValue<int>("NCCL_CTRAN_IB_MAX_QPS", 9999);
+  EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_2) {
+  testNumValue<int>("NCCL_CTRAN_IB_MAX_QPS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_value_3) {
+  testNumValue<int>("NCCL_CTRAN_IB_MAX_QPS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_MAX_QPS_default_value) {
+  testDefaultValue("NCCL_CTRAN_IB_MAX_QPS");
+  EXPECT_EQ(NCCL_CTRAN_IB_MAX_QPS, 1);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", 0);
+  EXPECT_EQ(NCCL_CTRAN_IB_QP_SCALING_THRESHOLD, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", 9999);
+  EXPECT_EQ(NCCL_CTRAN_IB_QP_SCALING_THRESHOLD, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_IB_QP_SCALING_THRESHOLD, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_IB_QP_SCALING_THRESHOLD, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_QP_SCALING_THRESHOLD_default_value) {
+  testDefaultValue("NCCL_CTRAN_IB_QP_SCALING_THRESHOLD");
+  EXPECT_EQ(NCCL_CTRAN_IB_QP_SCALING_THRESHOLD, 1048576);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_y0) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "y", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_y1) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "yes", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_y2) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "true", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_y3) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "1", 1);
+  ncclCvarInit();
+  EXPECT_TRUE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_n0) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "n", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_n1) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "no", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_n2) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "false", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_value_n3) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "0", 1);
+  ncclCvarInit();
+  EXPECT_FALSE(NCCL_CTRAN_IB_TRAFFIC_PROFILNG);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_IB_TRAFFIC_PROFILNG_warn_unknown_val) {
+  setenv("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "dummy", 1);
+  testWarn("NCCL_CTRAN_IB_TRAFFIC_PROFILNG", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_KINETO_PROFILE_DIR_value_0) {
+  setenv("NCCL_CTRAN_KINETO_PROFILE_DIR", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_KINETO_PROFILE_DIR, "val1");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_KINETO_PROFILE_DIR_value_1) {
+  setenv("NCCL_CTRAN_KINETO_PROFILE_DIR", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_KINETO_PROFILE_DIR, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_KINETO_PROFILE_DIR_default_value) {
+  testDefaultValue("NCCL_CTRAN_KINETO_PROFILE_DIR");
+  EXPECT_EQ(NCCL_CTRAN_KINETO_PROFILE_DIR, "/tmp");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_0) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", 0);
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_1) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", 9999);
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_2) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_value_3) {
+  testNumValue<int>("NCCL_CTRAN_NUM_KERNEL_P2PELEMS", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_NUM_KERNEL_P2PELEMS_default_value) {
+  testDefaultValue("NCCL_CTRAN_NUM_KERNEL_P2PELEMS");
+  EXPECT_EQ(NCCL_CTRAN_NUM_KERNEL_P2PELEMS, 65536);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_single_choice_0) {
+  setenv("NCCL_CTRAN_PROFILING", "none", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_PROFILING, NCCL_CTRAN_PROFILING::none);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_single_choice_1) {
+  setenv("NCCL_CTRAN_PROFILING", "stdout", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_PROFILING, NCCL_CTRAN_PROFILING::stdout);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_single_choice_2) {
+  setenv("NCCL_CTRAN_PROFILING", "info", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_PROFILING, NCCL_CTRAN_PROFILING::info);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_single_choice_3) {
+  setenv("NCCL_CTRAN_PROFILING", "kineto", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_PROFILING, NCCL_CTRAN_PROFILING::kineto);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_default_choice) {
+  testDefaultValue("NCCL_CTRAN_PROFILING");
+  EXPECT_EQ(NCCL_CTRAN_PROFILING, NCCL_CTRAN_PROFILING::none);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_warn_unknown_val) {
+  setenv("NCCL_CTRAN_PROFILING", "dummy", 1);
+  testWarn("NCCL_CTRAN_PROFILING", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_REPORT_COUNT_value_0) {
+  testNumValue<int>("NCCL_CTRAN_PROFILING_REPORT_COUNT", 0);
+  EXPECT_EQ(NCCL_CTRAN_PROFILING_REPORT_COUNT, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_REPORT_COUNT_value_1) {
+  testNumValue<int>("NCCL_CTRAN_PROFILING_REPORT_COUNT", 9999);
+  EXPECT_EQ(NCCL_CTRAN_PROFILING_REPORT_COUNT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_REPORT_COUNT_value_2) {
+  testNumValue<int>("NCCL_CTRAN_PROFILING_REPORT_COUNT", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_PROFILING_REPORT_COUNT, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_REPORT_COUNT_value_3) {
+  testNumValue<int>("NCCL_CTRAN_PROFILING_REPORT_COUNT", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_PROFILING_REPORT_COUNT, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_PROFILING_REPORT_COUNT_default_value) {
+  testDefaultValue("NCCL_CTRAN_PROFILING_REPORT_COUNT");
+  EXPECT_EQ(NCCL_CTRAN_PROFILING_REPORT_COUNT, 100);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_single_choice_0) {
+  setenv("NCCL_CTRAN_REGISTER", "none", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_REGISTER, NCCL_CTRAN_REGISTER::none);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_single_choice_1) {
+  setenv("NCCL_CTRAN_REGISTER", "lazy", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_REGISTER, NCCL_CTRAN_REGISTER::lazy);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_single_choice_2) {
+  setenv("NCCL_CTRAN_REGISTER", "eager", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_REGISTER, NCCL_CTRAN_REGISTER::eager);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_default_choice) {
+  testDefaultValue("NCCL_CTRAN_REGISTER");
+  EXPECT_EQ(NCCL_CTRAN_REGISTER, NCCL_CTRAN_REGISTER::lazy);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_warn_unknown_val) {
+  setenv("NCCL_CTRAN_REGISTER", "dummy", 1);
+  testWarn("NCCL_CTRAN_REGISTER", "Unknown value");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_value_0) {
+  testNumValue<int>("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", 0);
+  EXPECT_EQ(NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_value_1) {
+  testNumValue<int>("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", 9999);
+  EXPECT_EQ(NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_value_2) {
+  testNumValue<int>("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_value_3) {
+  testNumValue<int>("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT_default_value) {
+  testDefaultValue("NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT");
+  EXPECT_EQ(NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT, -1);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_0) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", 0);
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_1) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", 9999);
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_2) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", std::numeric_limits<int>::max());
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, std::numeric_limits<int>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_value_3) {
+  testNumValue<int>("NCCL_CTRAN_RING_MAX_OUTSTANDING", std::numeric_limits<int>::min());
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, std::numeric_limits<int>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_MAX_OUTSTANDING_default_value) {
+  testDefaultValue("NCCL_CTRAN_RING_MAX_OUTSTANDING");
+  EXPECT_EQ(NCCL_CTRAN_RING_MAX_OUTSTANDING, 8);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", 0);
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", 9999);
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_RING_STEP", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_RING_STEP_default_value) {
+  testDefaultValue("NCCL_CTRAN_RING_STEP");
+  EXPECT_EQ(NCCL_CTRAN_RING_STEP, 4194304);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_0) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", 0);
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_1) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", 9999);
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, 9999);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_2) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, std::numeric_limits<uint64_t>::max());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_value_3) {
+  testNumValue<uint64_t>("NCCL_CTRAN_SHARED_DEVBUF_SIZE", std::numeric_limits<uint64_t>::min());
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, std::numeric_limits<uint64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_SHARED_DEVBUF_SIZE_default_value) {
+  testDefaultValue("NCCL_CTRAN_SHARED_DEVBUF_SIZE");
+  EXPECT_EQ(NCCL_CTRAN_SHARED_DEVBUF_SIZE, 8388608);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_value_0) {
+  setenv("NCCL_CTRAN_TOPO_FILE", "val1", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_TOPO_FILE, "val1");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_value_1) {
+  setenv("NCCL_CTRAN_TOPO_FILE", "  val2_with_space   ", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_CTRAN_TOPO_FILE, "val2_with_space");
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_0) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_1) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val1:1,val2:2,val3:3", 1);
+  std::vector<std::string> vals{"val1:1","val2:2","val3:3"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_2) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val", 1);
+  std::vector<std::string> vals{"val"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_valuelist_3) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "val1, val_w_space  ", 1);
+  std::vector<std::string> vals{"val1","val_w_space"};
+  ncclCvarInit();
+  checkListValues<std::string>(vals, NCCL_CTRAN_TOPO_FILE_KEYS);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_default_value) {
+  testDefaultValue("NCCL_CTRAN_TOPO_FILE_KEYS");
+  EXPECT_EQ(NCCL_CTRAN_TOPO_FILE_KEYS.size(), 0);
+}
+
+TEST_F(CvarTest, NCCL_CTRAN_TOPO_FILE_KEYS_warn_dup_val) {
+  setenv("NCCL_CTRAN_TOPO_FILE_KEYS", "dummy,dummy", 1);
+  testWarn("NCCL_CTRAN_TOPO_FILE_KEYS", "Duplicate token");
 }
 
 TEST_F(CvarTest, NCCL_CUDA_PATH_value_0) {
@@ -1020,6 +1718,40 @@ TEST_F(CvarTest, NCCL_IB_GID_INDEX_value_3) {
   EXPECT_EQ(NCCL_IB_GID_INDEX, std::numeric_limits<int64_t>::min());
 }
 
+TEST_F(CvarTest, NCCL_IB_HCA_default_value) {
+  testDefaultValue("NCCL_IB_HCA");
+  EXPECT_EQ(NCCL_IB_HCA.size(), 0);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_warn_dup_val) {
+  setenv("NCCL_IB_HCA", "dummy,dummy", 1);
+  testWarn("NCCL_IB_HCA", "Duplicate token");
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_prefix_0) {
+  setenv("NCCL_IB_HCA", "^val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_IB_HCA_PREFIX, "^");
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_prefix_1) {
+  setenv("NCCL_IB_HCA", "=val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_IB_HCA_PREFIX, "=");
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
+TEST_F(CvarTest, NCCL_IB_HCA_prefix_2) {
+  setenv("NCCL_IB_HCA", "val1,val2,val3", 1);
+  std::vector<std::string> vals{"val1","val2","val3"};
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_IB_HCA_PREFIX, "");
+  checkListValues<std::string>(vals, NCCL_IB_HCA);
+}
+
 TEST_F(CvarTest, NCCL_IB_MERGE_VFS_value_0) {
   testNumValue<int64_t>("NCCL_IB_MERGE_VFS", 0);
   EXPECT_EQ(NCCL_IB_MERGE_VFS, 0);
@@ -1415,11 +2147,6 @@ TEST_F(CvarTest, NCCL_LOCAL_REGISTER_value_2) {
 TEST_F(CvarTest, NCCL_LOCAL_REGISTER_value_3) {
   testNumValue<int64_t>("NCCL_LOCAL_REGISTER", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_LOCAL_REGISTER, std::numeric_limits<int64_t>::min());
-}
-
-TEST_F(CvarTest, NCCL_LOCAL_REGISTER_default_value) {
-  testDefaultValue("NCCL_LOCAL_REGISTER");
-  EXPECT_EQ(NCCL_LOCAL_REGISTER, 1);
 }
 
 TEST_F(CvarTest, NCCL_MAX_CTAS_value_0) {
@@ -2470,6 +3197,28 @@ TEST_F(CvarTest, NCCL_REPORT_CONNECT_PROGRESS_value_2) {
 TEST_F(CvarTest, NCCL_REPORT_CONNECT_PROGRESS_value_3) {
   testNumValue<int64_t>("NCCL_REPORT_CONNECT_PROGRESS", std::numeric_limits<int64_t>::min());
   EXPECT_EQ(NCCL_REPORT_CONNECT_PROGRESS, std::numeric_limits<int64_t>::min());
+}
+
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_single_choice_0) {
+  setenv("NCCL_SENDRECV_ALGO", "orig", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_single_choice_1) {
+  setenv("NCCL_SENDRECV_ALGO", "ctran", 1);
+  ncclCvarInit();
+  EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::ctran);
+}
+
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_default_choice) {
+  testDefaultValue("NCCL_SENDRECV_ALGO");
+  EXPECT_EQ(NCCL_SENDRECV_ALGO, NCCL_SENDRECV_ALGO::orig);
+}
+
+TEST_F(CvarTest, NCCL_SENDRECV_ALGO_warn_unknown_val) {
+  setenv("NCCL_SENDRECV_ALGO", "dummy", 1);
+  testWarn("NCCL_SENDRECV_ALGO", "Unknown value");
 }
 
 TEST_F(CvarTest, NCCL_SET_STACK_SIZE_value_0) {

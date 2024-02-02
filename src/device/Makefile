@@ -21,6 +21,7 @@ DEVGLUE_OBJ  := $(OBJDIR)/device_glue.o
 
 INCFLAGS  = -I. -I.. -I$(BUILDDIR)/include -I../include
 INCFLAGS  += -I../algorithms
+INCFLAGS  += -I../ctran/gpe -I../ctran/algos
 NVCUFLAGS += $(INCFLAGS) --compiler-options "-fPIC -fvisibility=hidden"
 CXXFLAGS  += $(INCFLAGS)
 
@@ -72,6 +73,8 @@ $(OBJDIR)/gensrc/rules.mk: $(OBJDIR)/gensrc ;
 # "gensrc/rules.mk" populates $(LIB_OBJS_GEN)
 
 SRCS = common.cu onerank.cu all_reduce_dda.cu
+SRCS += all_to_all_ctran.cu all_to_allv_ctran.cu
+SRCS += ../ctran/gpe/CtranGpeKernel.cu
 
 LIB_OBJS = $(patsubst %, $(OBJDIR)/%.o, $(SRCS)) $(LIB_OBJS_GEN)
 

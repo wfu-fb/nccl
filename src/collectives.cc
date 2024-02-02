@@ -8,6 +8,8 @@
 #include "collectives.h"
 #include "enqueue.h"
 #include "nccl.h"
+#include "nccl_cvars.h"
+#include "Ctran.h"
 
 NCCL_API(ncclResult_t, ncclAllGather, const void* sendbuff, void* recvbuff, size_t sendcount,
     ncclDataType_t datatype, ncclComm_t comm, cudaStream_t stream);
@@ -17,8 +19,21 @@ ncclResult_t ncclAllGather(const void* sendbuff, void* recvbuff, size_t sendcoun
   constexpr nvtxPayloadSchemaEntry_t AllGatherSchema[] = {
     {0, NVTX_PAYLOAD_ENTRY_TYPE_SIZE, "Message size [bytes]"}
   };
+  int nRanks = comm->nRanks;
+  size_t rankOffset = sendcount * ncclTypeSize(datatype);
   size_t msgsize = sendcount * ncclTypeSize(datatype);
   NVTX3_FUNC_WITH_PARAMS(AllGather, AllGatherSchema, msgsize)
+
+  // CTRAN allgather: only support inter-node now
+  if (ctranInitialized(comm) && comm->localRanks == 1 && nRanks > 1 && rankOffset > getpagesize()) {
+    if (NCCL_ALLGATHER_ALGO == NCCL_ALLGATHER_ALGO::ctdirect) {
+      return ctranAllGatherDirect(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    } else if (NCCL_ALLGATHER_ALGO == NCCL_ALLGATHER_ALGO::ctring) {
+      return ctranAllGatherRing(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    } else if (NCCL_ALLGATHER_ALGO == NCCL_ALLGATHER_ALGO::ctrd) {
+      return ctranAllGatherRd(sendbuff, recvbuff, sendcount, datatype, comm, stream);
+    }
+  }
 
   struct ncclInfo info = { ncclFuncAllGather, "AllGather",
     sendbuff, recvbuff, sendcount, datatype, ncclSum, 0, comm, stream, /* Args */
@@ -172,4 +187,141 @@ ncclResult_t ncclRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int
   ret = ncclEnqueueCheck(&info);
   NCCLCHECK(ncclGroupEnd());
   return ret;
+}
+
+
+NCCL_API(
+    ncclResult_t,
+    ncclAllToAll,
+    const void* sendbuff,
+    void* recvbuff,
+    const size_t count,
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream);
+ncclResult_t ncclAllToAll(
+    const void* sendbuff,
+    void* recvbuff,
+    const size_t count,
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream) {
+  NCCLCHECK(CudaPtrCheck(sendbuff, comm, "sendbuff", "ncclAllToAll"));
+  NCCLCHECK(CudaPtrCheck(recvbuff, comm, "recvbuff", "ncclAllToAll"));
+  if (sendbuff == recvbuff) {
+    WARN(
+        "Found sendbuff %p == recvbuff %p. In-place ncclAllToAll is not supported.",
+        sendbuff,
+        recvbuff);
+    return ncclInvalidArgument;
+  }
+
+  // Do nothing if count is 0
+  if (count == 0) {
+    return ncclSuccess;
+  }
+
+  if (ctranAllToAllSupport(count, datatype, comm) &&
+      NCCL_ALLTOALL_ALGO == NCCL_ALLTOALL_ALGO::ctran) {
+    return ctranAllToAll(sendbuff, recvbuff, count, datatype, comm, stream);
+  }
+
+  // fallback to default send/recv based alltoallv
+
+  NCCLCHECK(ncclGroupStart());
+  for (int r = 0; r < comm->nRanks; r++) {
+    if (count) {
+      NCCLCHECK(ncclSend(
+          ((char*)sendbuff) + r * count * ncclTypeSize(datatype),
+          count,
+          datatype,
+          r,
+          comm,
+          stream));
+    }
+    if (count) {
+      NCCLCHECK(ncclRecv(
+          ((char*)recvbuff) + r * count * ncclTypeSize(datatype),
+          count,
+          datatype,
+          r,
+          comm,
+          stream));
+    }
+  }
+  NCCLCHECK(ncclGroupEnd());
+  return ncclSuccess;
+}
+
+
+NCCL_API(
+    ncclResult_t,
+    ncclAllToAllv,
+    const void* sendbuff,
+    const size_t sendcounts[],
+    const size_t sdispls[],
+    void* recvbuff,
+    const size_t recvcounts[],
+    const size_t rdispls[],
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream);
+ncclResult_t ncclAllToAllv(
+    const void* sendbuff,
+    const size_t sendcounts[],
+    const size_t sdispls[],
+    void* recvbuff,
+    const size_t recvcounts[],
+    const size_t rdispls[],
+    ncclDataType_t datatype,
+    ncclComm_t comm,
+    cudaStream_t stream) {
+  NCCLCHECK(CudaPtrCheck(sendbuff, comm, "sendbuff", "ncclAllToAllv"));
+  NCCLCHECK(CudaPtrCheck(recvbuff, comm, "recvbuff", "ncclAllToAllv"));
+  if (sendbuff == recvbuff) {
+    WARN(
+        "Found sendbuff %p == recvbuff %p. In-place ncclAllToAllv is not supported.",
+        sendbuff,
+        recvbuff);
+    return ncclInvalidArgument;
+  }
+
+  if (ctranInitialized(comm) &&
+      NCCL_ALLTOALLV_ALGO == NCCL_ALLTOALLV_ALGO::ctran) {
+    return ctranAllToAllv(
+        sendbuff,
+        sendcounts,
+        sdispls,
+        recvbuff,
+        recvcounts,
+        rdispls,
+        datatype,
+        comm,
+        stream);
+  }
+
+  // fallback to default send/recv based alltoallv
+  NCCLCHECK(ncclGroupStart());
+  for (int r = 0; r < comm->nRanks; r++) {
+    if (sendcounts[r]) {
+      NCCLCHECK(ncclSend(
+          ((char*)sendbuff) + sdispls[r] * ncclTypeSize(datatype),
+          sendcounts[r],
+          datatype,
+          r,
+          comm,
+          stream));
+    }
+    if (recvcounts[r]) {
+      NCCLCHECK(ncclRecv(
+          ((char*)recvbuff) + rdispls[r] * ncclTypeSize(datatype),
+          recvcounts[r],
+          datatype,
+          r,
+          comm,
+          stream));
+    }
+  }
+  NCCLCHECK(ncclGroupEnd());
+  return ncclSuccess;
 }

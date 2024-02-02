@@ -14,6 +14,15 @@ LIBSRCFILES := \
 	$(wildcard graph/*.cc) \
 	$(wildcard misc/*.cc) \
 	$(wildcard transport/*.cc)
+LIBSRCFILES += $(wildcard ctran/*.cc)
+LIBSRCFILES += $(wildcard ctran/backends/*.cc)
+LIBSRCFILES += $(wildcard ctran/backends/ib/*.cc)
+LIBSRCFILES += $(wildcard ctran/gpe/*.cc)
+LIBSRCFILES += $(wildcard ctran/mapper/*.cc)
+LIBSRCFILES += $(wildcard ctran/utils/*.cc)
+LIBSRCFILES += $(wildcard ctran/algos/*.cc)
+LIBSRCFILES += $(wildcard ctran/algos/AllGather/*.cc)
+LIBSRCFILES += $(wildcard ctran/algos/AllToAll/*.cc)
 LIBSRCFILES += algorithms/AlgoDirector.cc \
                algorithms/AlgoInit.cc \
                algorithms/AlgoManagerBase.cc \
@@ -29,6 +38,8 @@ LIBSRCFILES += algorithms/AlgoDirector.cc \
 
 INCLUDES := -Iinclude
 INCLUDES += -Ialgorithms -Ialgorithms/allreduce -Idevice
+INCLUDES += -Ictran -Ictran/utils -Ictran/backends/ib -Ictran/mapper -Ictran/gpe -Ictran/algos
+INCLUDES += -Ictran/algos/AllToAll
 
 ##### lib files
 LIBNAME     := libnccl.so

@@ -24,6 +24,16 @@ Description:
 Type: string
 Default: 
 
+NCCL_ALLGATHER_ALGO
+Description:
+    The algorithm to use for Allgather communication
+    orig - Copy-based ring algorithm
+    ctdirect - Ctran-based direct point-to-point algorithm
+    ctring - Ctran-based ring algorithm
+    ctrd - Ctran-based recursive doubling algorithm
+Type: enum
+Default: orig
+
 NCCL_ALLOC_P2P_NET_LL_BUFFERS
 Description:
     NCCL_ALLOC_P2P_NET_LL_BUFFERS instructs communicators to allocate
@@ -42,6 +52,22 @@ Description:
     The algorithm to use for Allreduce communication
     orig - Copy-based algorithm
     dda - Direct Data Access algorithms
+Type: enum
+Default: orig
+
+NCCL_ALLTOALLV_ALGO
+Description:
+    The algorithm to use for alltoallv communication
+    orig - Copy-based communication
+    ctran - Ctran-based communication
+Type: enum
+Default: orig
+
+NCCL_ALLTOALL_ALGO
+Description:
+    The algorithm to use for alltoall communication
+    orig - Copy-based communication
+    ctran - Ctran-based communication
 Type: enum
 Default: orig
 
@@ -150,6 +176,177 @@ Description:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-cross-nic
 Type: int64_t
 Default: 2
+
+NCCL_CTRAN_AG_RD_RTR
+Description:
+    Whether to wait for ready-to-receive at beginning of each iteration
+Type: bool
+Default: True
+
+NCCL_CTRAN_ALLTOALLV_NUM_THREAD_BLOCKS
+Description:
+    Number of thread blocks used for intra-node AllToAllv kernel.
+    Must be even number.
+Type: int
+Default: 64
+
+NCCL_CTRAN_ALLTOALLV_THREAD_BLOCK_SIZE
+Description:
+    Number of threads in each thread block used for intra-node
+    AllToAllv kernel.
+Type: int
+Default: 640
+
+NCCL_CTRAN_ALLTOALL_NUM_THREAD_BLOCKS
+Description:
+    Number of thread blocks to use for AllToAll.
+    Setting it to a negative number means that NCCL will automatically
+    pick a value.
+Type: int
+Default: -1
+
+NCCL_CTRAN_ALLTOALL_THREAD_BLOCK_SIZE
+Description:
+    Number of threads in each thread block to use for AllToAll.
+    Setting it to a negative number means that NCCL will automatically
+    pick a value.
+Type: int
+Default: -1
+
+NCCL_CTRAN_ALLTOALL_THRESHOLD
+Description:
+    Minimal message size in bytes to send to (receive from) each rank to use
+    CTran AllToAll. Messages smaller than the threshold may benefit from
+    the default eager copy based algorithm.
+Type: uint64_t
+Default: 32768
+
+NCCL_CTRAN_BACKENDS
+Description:
+    Backends to enable for ctran
+    ib - RoCE/IB backend
+Type: enumlist
+Default: ib
+
+NCCL_CTRAN_IB_CTRL_TC
+Description:
+    Traffic class to use for control QPs. Note: To match NCCL_IB_TC, this directly
+    sets the TC field, so multiply your DSCP value by 4.
+Type: uint64_t
+Default: 192
+
+NCCL_CTRAN_IB_MAX_QPS
+Description:
+    Maximum number of QPs to enable, so data can be split across
+    multiple QPs.  This allows the communication to take multiple routes
+    and is a poor-man's version of fully adaptive routing.
+Type: int
+Default: 1
+
+NCCL_CTRAN_IB_QP_SCALING_THRESHOLD
+Description:
+    Threshold for QP scaling.  If T is the threshold, then for message sizes < T,
+    a single QP is used.  For [T,2T) message sizes, data is split across two QPs.
+    For [2T,3T) message sizes, data is split across three QPs, and so on.
+    Once we hit the maximum number of QPs (see NCCL_CTRAN_IB_MAX_QPS), the
+    data is split across all available QPs.
+Type: uint64_t
+Default: 1048576
+
+NCCL_CTRAN_IB_TRAFFIC_PROFILNG
+Description:
+    Enable IB transport traffic profiling.
+    Disabled by default.
+Type: bool
+Default: False
+
+NCCL_CTRAN_KINETO_PROFILE_DIR
+Description:
+    Directory to place Ctran kineto profiling logs. Support both local
+    directory path or FB internal remote path.
+    (see also NCCL_CTRAN_PROFILING)
+Type: string
+Default: /tmp
+
+NCCL_CTRAN_NUM_KERNEL_P2PELEMS
+Description:
+    Size of kernel p2p elements pre-allocated for each communicator.
+    Used to pass variable number of p2p operations to the kernel.
+    Each p2p element is allocated from page-locked memory on the host.
+Type: int
+Default: 65536
+
+NCCL_CTRAN_PROFILING
+Description:
+    Kind of ctran profiling needed.
+    none - No profiling
+    stdout - Dump profiling data to stdout
+    info   - Dump profiling data to NCCL_DEBUG INFO
+    kineto - Dump profiling data to a kineto log
+       (for kineto profiling, see also NCCL_CTRAN_KINETO_PROFILE_DIR)
+Type: enum
+Default: none
+
+NCCL_CTRAN_PROFILING_REPORT_COUNT
+Description:
+    Number of ops to report CTRAN profiling results periodically
+Type: int
+Default: 100
+
+NCCL_CTRAN_REGISTER
+Description:
+    Kind of registration to use for ctran user buffers
+    none - No registration
+    lazy - Lazy registration (keep track of user-provided registration
+           buffers, but delay the actual registration till the buffer
+           is used for a communication operation)
+    eager - Eager registration (register buffers as soon as it is
+            provided by the user)
+Type: enum
+Default: lazy
+
+NCCL_CTRAN_REGISTER_REPORT_SNAPSHOT_COUNT
+Description:
+    Manages the frequency of register snapshot reporting. Set to -1 to
+    completely disable. Set to 0 to report only at communicator destroy time. Set to
+    N to allows a snapshot to be reported whenever once every N registrations. It
+    helps understand the performance impact of registeration at different period of
+    a long running job.
+Type: int
+Default: -1
+
+NCCL_CTRAN_RING_MAX_OUTSTANDING
+Description:
+    Max number of outstanding puts in the ring pipeline.
+Type: int
+Default: 8
+
+NCCL_CTRAN_RING_STEP
+Description:
+    Pipeline step size for the CTRAN ring algorithm.
+Type: uint64_t
+Default: 4194304
+
+NCCL_CTRAN_SHARED_DEVBUF_SIZE
+Description:
+    Size of shared device memory region allocated for each peer for inter-GPU
+    communication. In total NCCL_CTRAN_SHARED_DEVBUF_SIZE * number of
+    local ranks size of memory will be allocated on each rank.
+Type: uint64_t
+Default: 8388608
+
+NCCL_CTRAN_TOPO_FILE
+Description:
+    File that contains topology information in KEY=VALUE format
+Type: string
+Default: 
+
+NCCL_CTRAN_TOPO_FILE_KEYS
+Description:
+    Comma-separated list of keys to look for in NCCL_CTRAN_TOPO_FILE. In order,
+    these will be used to determine the hierarchical configuration of the cluster.
+Type: stringlist
+Default: 
 
 NCCL_CUDA_PATH
 Description:
@@ -344,6 +541,20 @@ Description:
 Type: int64_t
 Default: 0
 
+NCCL_IB_HCA
+Description:
+    List of IB HCAs available for NCCL to use. The list is comma-separated;
+    port numbers can be specified using the : symbol. An optional prefix ^
+    indicates the list is an exclude list. A second optional prefix = indicates
+    that the tokens are exact names, otherwise by default NCCL would treat each
+    token as a prefix. Examples:
+    - mlx5 : Use all ports of all cards starting with mlx5
+    - =mlx5_0:1,mlx5_1:1 : Use ports 1 of cards mlx5_0 and mlx5_1.
+    - ^=mlx5_1,mlx5_4 : Do not use cards mlx5_1 and mlx5_4.
+    (this needs to be renamed to NCCL_IB_HCA_LIST eventually)
+Type: prefixed_stringlist
+Default: None
+
 NCCL_IB_MERGE_VFS
 Description:
     Hidden variable. No description provided.
@@ -478,7 +689,7 @@ Description:
     ncclCommRegister. For more information:
     https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-local-register
 Type: int64_t
-Default: 1
+Default: 0
 
 NCCL_MAX_CTAS
 Description:
@@ -846,6 +1057,14 @@ Description:
     Hidden variable. No description provided.
 Type: int64_t
 Default: 0
+
+NCCL_SENDRECV_ALGO
+Description:
+    The algorithm to use for sendrecv communication
+    orig - Copy-based communication
+    ctran - Ctran-based communication
+Type: enum
+Default: orig
 
 NCCL_SET_STACK_SIZE
 Description:

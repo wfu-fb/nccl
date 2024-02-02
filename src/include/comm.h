@@ -15,6 +15,7 @@
 #include "strongstream.h"
 #include "nccl_net.h"
 #include "AlgoDirector.h"
+#include "Ctran.h"
 
 #if CUDART_VERSION < 9000
 struct cudaLaunchParams {
@@ -390,6 +391,7 @@ struct ncclComm {
   ncclTuner_t* tuner;
 
   std::unique_ptr<nccl::algorithms::AlgoDirector> algoDirector{nullptr};
+  std::unique_ptr<Ctran> ctran{nullptr};
 };
 
 enum ncclLaunchMode {

@@ -159,7 +159,7 @@
 
  - name        : NCCL_LOCAL_REGISTER
    type        : int64_t
-   default     : 1
+   default     : 0
    description : |-
      Enable user local buffer registration when users explicitly call
      ncclCommRegister. For more information:
@@ -1616,6 +1616,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
 
   NCCLCHECKGOTO(nccl::algorithms::algoInit(comm), res, fail);
 
+  NCCLCHECKGOTO(ctranInit(comm), res, fail);
+
   timerDeltaMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - timerBegin).count();
   INFO(NCCL_INIT,"comm %p rank %d nranks %d localrank %d localranks %d cudaDev %d nvmlDev %d busId %lx commId 0x%llx commHash %lu - Init COMPLETE in %.2f ms",
        comm, comm->rank, comm->nRanks, comm->localRank, comm->localRanks, comm->cudaDev, comm->nvmlDev, comm->busId,
@@ -1991,6 +1993,8 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   int commDevice = comm->cudaDev;
   ncclResult_t ret = ncclSuccess;
 
+  NCCLCHECKGOTO(ctranDestroy(comm), ret, fail);
+
   NCCLCHECKGOTO(nccl::algorithms::algoDestroy(comm), ret, fail);
 
   CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
@@ -2229,6 +2233,11 @@ ncclResult_t ncclCommAbort(ncclComm_t comm) {
   if (childAbortFlag != NULL) {
     *childAbortFlag = 1;
   }
+
+  /* abort ctran shared resource before aborting socket triggerd by
+   * *comm->abortFlag=1. */
+  CtranAbort(comm);
+
   *comm->abortFlag = 1;
   /* init thread must be joined before we destroy the comm,
    * and we should ignore the init error here. */
@@ -2382,6 +2391,11 @@ ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, vo
   NVTX3_FUNC_RANGE_IN(nccl_domain);
   ncclResult_t ret = ncclSuccess;
 
+  if (ctranInitialized(comm) &&
+      NCCL_CTRAN_REGISTER != NCCL_CTRAN_REGISTER::none) {
+    NCCLCHECK(comm->ctran->commRegister(buff, size, handle));
+  }
+
 #if CUDART_VERSION >= 12010
   size_t granularity;
   if (NCCL_LOCAL_REGISTER) {
@@ -2431,6 +2445,10 @@ ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, vo
 NCCL_API(ncclResult_t, ncclCommDeregister, const ncclComm_t comm, void* handle);
 ncclResult_t ncclCommDeregister(const ncclComm_t comm, void* handle) {
   ncclResult_t ret = ncclSuccess;
+  if (ctranInitialized(comm) &&
+      NCCL_CTRAN_REGISTER != NCCL_CTRAN_REGISTER::none) {
+    NCCLCHECK(comm->ctran->commDeregister(handle));
+  }
 
 #if CUDART_VERSION >= 12010
   struct ncclRegRequest* dreq = (struct ncclRegRequest*)handle;
