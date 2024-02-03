@@ -28,6 +28,8 @@
 #include "param.h"
 #include "nccl_cvars.h"
 #include "AlgoInit.h"
+#include "cudawrapper.h"
+#include "ibvwrap.h"
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -297,6 +299,9 @@ static bool initialized = false;
 static ncclResult_t ncclInit() {
   if (__atomic_load_n(&initialized, __ATOMIC_ACQUIRE)) return ncclSuccess;
   pthread_mutex_lock(&initLock);
+
+  ncclSetupWrappers(false);
+
   if (!initialized) {
     initGdrCopy();
     // Always initialize bootstrap network
@@ -368,7 +373,7 @@ void ncclCommPushCudaFree(struct ncclComm* comm, void* obj) {
 }
 
 static ncclResult_t ncclDestructorFnCudaHostFree(struct ncclDestructor* dtor) {
-  CUDACHECK(cudaFreeHost(dtor->obj));
+  CUDACHECK(cudaWrapper->cudaFreeHost(dtor->obj));
   return ncclSuccess;
 }
 void ncclCommPushCudaHostFree(struct ncclComm* comm, void* obj) {
@@ -486,11 +491,11 @@ static ncclResult_t dmaBufSupported(struct ncclComm* comm) {
   int flag = 0;
   CUdevice dev;
   int cudaDriverVersion;
-  CUDACHECK(cudaDriverGetVersion(&cudaDriverVersion));
+  CUDACHECK(cudaWrapper->cudaDriverGetVersion(&cudaDriverVersion));
   if (CUPFN(cuDeviceGet) == NULL || cudaDriverVersion < 11070) return ncclInternalError;
-  CUCHECK(cuDeviceGet(&dev, comm->cudaDev));
+  CUCHECK(cudaWrapper->cuDeviceGet(&dev, comm->cudaDev));
   // Query device to see if DMA-BUF support is available
-  (void) CUPFN(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_DMA_BUF_SUPPORTED, dev));
+  (void) cudaWrapper->cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_DMA_BUF_SUPPORTED, dev);
   if (flag == 0) return ncclInternalError;
   INFO(NCCL_INIT, "DMA-BUF is available on GPU device %d", comm->cudaDev);
   return ncclSuccess;
@@ -550,14 +555,14 @@ static ncclResult_t commAlloc(struct ncclComm* comm, struct ncclComm* parent, in
   }
   // Try to create a CUDA object right away. If there is something wrong with
   // the device we're on (failure cause #1) , better know it early.
-  CUDACHECK(cudaGetDevice(&comm->cudaDev));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&comm->cudaDev));
 
   NCCLCHECK(getBusId(comm->cudaDev, &comm->busId));
   nvmlDevice_t nvmlDev;
   char busId[NVML_DEVICE_PCI_BUS_ID_BUFFER_SIZE];
   NCCLCHECK(int64ToBusId(comm->busId, busId));
-  NCCLCHECK(ncclNvmlDeviceGetHandleByPciBusId(busId, &nvmlDev));
-  NCCLCHECK(ncclNvmlDeviceGetIndex(nvmlDev, (unsigned int*)&comm->nvmlDev));
+  NCCLCHECK(nvmlWrapper->ncclNvmlDeviceGetHandleByPciBusId(busId, &nvmlDev));
+  NCCLCHECK(nvmlWrapper->ncclNvmlDeviceGetIndex(nvmlDev, (unsigned int*)&comm->nvmlDev));
 
   comm->compCap = ncclCudaCompCap();
   TRACE(NCCL_INIT,"comm %p rank %d nranks %d cudaDev %d busId %lx compCap %d", comm, rank, ndev, comm->cudaDev, comm->busId, comm->compCap);
@@ -1015,11 +1020,13 @@ static ncclResult_t initTransportsRank(struct ncclComm* comm, struct ncclComm* p
   NCCLCHECKGOTO(fillInfo(comm, comm->peerInfo+rank, comm->commHash), ret, fail);
   NCCLCHECKGOTO(bootstrapAllGather(comm->bootstrap, comm->peerInfo, sizeof(struct ncclPeerInfo)), ret, fail);
 
-  for (int i = 0; i < nranks; i++) {
-    if ((i != rank) && (comm->peerInfo[i].hostHash == comm->peerInfo[rank].hostHash) && (comm->peerInfo[i].busId == comm->peerInfo[rank].busId)) {
-      WARN("Duplicate GPU detected : rank %d and rank %d both on CUDA device %lx", rank, i, comm->peerInfo[rank].busId);
-      ret = ncclInvalidUsage;
-      goto fail;
+  if (!cudaWrapper->mock_) {
+    for (int i = 0; i < nranks; i++) {
+      if ((i != rank) && (comm->peerInfo[i].hostHash == comm->peerInfo[rank].hostHash) && (comm->peerInfo[i].busId == comm->peerInfo[rank].busId)) {
+        WARN("Duplicate GPU detected : rank %d and rank %d both on CUDA device %lx", rank, i, comm->peerInfo[rank].busId);
+        ret = ncclInvalidUsage;
+        goto fail;
+      }
     }
   }
   // AllGather1 - end
@@ -1557,9 +1564,9 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
     INFO(NCCL_INIT,"comm %p rank %d commId 0x%llx - Init START before bootstrap", comm, comm->rank, (unsigned long long)hashUniqueId(job->commId));
   }
 
-  CUDACHECKGOTO(cudaSetDevice(cudaDev), res, fail);
-  CUDACHECKGOTO(cudaDeviceGetAttribute(&archMajor, cudaDevAttrComputeCapabilityMajor, cudaDev), res, fail);
-  CUDACHECKGOTO(cudaDeviceGetAttribute(&archMinor, cudaDevAttrComputeCapabilityMinor, cudaDev), res, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaSetDevice(cudaDev), res, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaDeviceGetAttribute(&archMajor, cudaDevAttrComputeCapabilityMajor, cudaDev), res, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaDeviceGetAttribute(&archMinor, cudaDevAttrComputeCapabilityMinor, cudaDev), res, fail);
   cudaArch = 100*archMajor + 10*archMinor;
 
   NCCLCHECK(ncclInitKernelsForDevice(cudaArch, &maxLocalSizeBytes));
@@ -1567,7 +1574,7 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   // a CUDA memory reconfig on load (c.f. NVSHMEM issue)
   if (maxLocalSizeBytes > 0 && NCCL_SET_STACK_SIZE == 1) {
     TRACE(NCCL_INIT, "Setting cudaLimitStackSize to %zi", maxLocalSizeBytes);
-    CUDACHECKIGNORE(cudaDeviceSetLimit(cudaLimitStackSize, maxLocalSizeBytes));
+    CUDACHECKIGNORE(cudaWrapper->cudaDeviceSetLimit(cudaLimitStackSize, maxLocalSizeBytes));
   }
 
   if (job->parent) {
@@ -1815,7 +1822,7 @@ static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUni
   if (myrank == 0) showVersion();
 
   // Make sure the CUDA runtime is initialized.
-  CUDACHECKGOTO(cudaFree(NULL), res, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaFree(NULL), res, fail);
 
   NCCLCHECKGOTO(PtrCheck(newcomm, "CommInitRank", "newcomm"), res, fail);
   NCCLCHECKGOTO(PtrCheck(config, "CommInitRank", "config"), res, fail);
@@ -1875,7 +1882,7 @@ ncclResult_t ncclCommInitRank(ncclComm_t* newcomm, int nranks, ncclUniqueId comm
 
   int cudaDev;
   ncclConfig_t config = NCCL_CONFIG_INITIALIZER;
-  CUDACHECK(cudaGetDevice(&cudaDev));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&cudaDev));
 
   NvtxParamsCommInitRank payload{myrank, nranks, cudaDev};
   NVTX3_FUNC_WITH_PARAMS(CommInitRank, CommInitRankSchema, payload)
@@ -1908,7 +1915,7 @@ ncclResult_t ncclCommInitAll(ncclComm_t* comms, int ndev, const int* devlist) {
     goto fail;
   }
 
-  CUDACHECKGOTO(cudaGetDeviceCount(&totalnDev), ret, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaGetDeviceCount(&totalnDev), ret, fail);
   if (devlist) {
     NCCLCHECKGOTO(ncclCalloc(&gpuFlags, totalnDev), ret, fail);
     for (int i = 0; i < ndev; ++i) {
@@ -1966,7 +1973,7 @@ ncclResult_t ncclCommInitRankConfig(ncclComm_t *newcomm, int nranks, ncclUniqueI
   NCCLCHECK(ncclGroupStartInternal());
 
   (void)ncclCudaLibraryInit();
-  CUDACHECKGOTO(cudaGetDevice(&cudaDev), ret, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaGetDevice(&cudaDev), ret, fail);
 
   if (config == NULL)
     internalConfigPtr = &internalConfig;
@@ -1993,9 +2000,9 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
 
   NCCLCHECKGOTO(nccl::algorithms::algoDestroy(comm), ret, fail);
 
-  CUDACHECKGOTO(cudaGetDevice(&savedDevice), ret, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaGetDevice(&savedDevice), ret, fail);
   if (savedDevice != commDevice) {
-    CUDACHECKGOTO(cudaSetDevice(commDevice), ret, fail);
+    CUDACHECKGOTO(cudaWrapper->cudaSetDevice(commDevice), ret, fail);
   }
 
   TRACE(NCCL_INIT, "Destroying comm %p rank %d abortFlag %d asyncResult %d", comm, comm->rank, *comm->abortFlag, comm->asyncResult);
@@ -2011,7 +2018,7 @@ static ncclResult_t commDestroySync(struct ncclAsyncJob* job_) {
   }
 
   if (savedDevice != commDevice) {
-    CUDACHECKGOTO(cudaSetDevice(savedDevice), ret, fail);
+    CUDACHECKGOTO(cudaWrapper->cudaSetDevice(savedDevice), ret, fail);
   }
 
   comm->finalizeCalled = true;
@@ -2025,9 +2032,9 @@ static ncclResult_t commCleanup(ncclComm_t comm) {
   int savedDevice;
   int commDevice = comm->cudaDev;
 
-  CUDACHECK(cudaGetDevice(&savedDevice));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&savedDevice));
   if (savedDevice != commDevice) {
-    CUDACHECK(cudaSetDevice(commDevice));
+    CUDACHECK(cudaWrapper->cudaSetDevice(commDevice));
   }
 
   if (comm->tuner != NULL) {
@@ -2038,7 +2045,7 @@ static ncclResult_t commCleanup(ncclComm_t comm) {
   NCCLCHECK(commFree(comm));
 
   if (savedDevice != commDevice) {
-    CUDACHECK(cudaSetDevice(savedDevice));
+    CUDACHECK(cudaWrapper->cudaSetDevice(savedDevice));
   }
 
   return ncclSuccess;
@@ -2392,7 +2399,7 @@ ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, vo
       CUmulticastObjectProp prop = comm->nvlsResources->properties;
 
       prop.size = size;
-      CUCHECK(cuMulticastGetGranularity(&granularity, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED));
+      CUCHECK(cudaWrapper->cuMulticastGetGranularity(&granularity, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED));
 
       if ((uintptr_t)buff % comm->nvlsResources->ucGran == 0 && size % granularity == 0) {
         /* we can direct register what user provide */
@@ -2408,7 +2415,7 @@ ncclResult_t ncclCommRegister(const ncclComm_t comm, void* buff, size_t size, vo
         /* Since we don't provide actually allocated buffer size for users by ncclMemAlloc,
          * therefore, we need to get the full range of the buffer by cuMemGetAddressRange to
          * register buffers. */
-        CUCHECK(cuMemGetAddressRange((CUdeviceptr*)&base, &baseSize, (CUdeviceptr)buff));
+        CUCHECK(cudaWrapper->cuMemGetAddressRange((CUdeviceptr*)&base, &baseSize, (CUdeviceptr)buff));
         if ((uintptr_t)base % comm->nvlsResources->ucGran == 0 && baseSize % granularity == 0) {
           struct ncclRegRequest* req;
           NCCLCHECK(ncclCalloc(&req, 1));
@@ -2489,10 +2496,10 @@ ncclResult_t  ncclMemAlloc(void **ptr, size_t size) {
 
   if (ncclCudaLibraryInit() != ncclSuccess) goto fallback;
 
-  CUDACHECK(cudaGetDevice(&cudaDev));
-  CUCHECK(cuDeviceGet(&currentDev, cudaDev));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&cudaDev));
+  CUCHECK(cudaWrapper->cuDeviceGet(&currentDev, cudaDev));
   if (CUPFN(cuMulticastCreate) != NULL)
-    CUCHECK(cuDeviceGetAttribute(&mcSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, currentDev));
+    CUCHECK(cudaWrapper->cuDeviceGetAttribute(&mcSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, currentDev));
 
   if (mcSupport) {
     memprop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
@@ -2500,35 +2507,35 @@ ncclResult_t  ncclMemAlloc(void **ptr, size_t size) {
     memprop.requestedHandleTypes = NVLS_CU_MEM_HANDLE_TYPE;
     memprop.location.id = currentDev;
     // Query device to see if RDMA support is available
-    CUCHECK(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_SUPPORTED, currentDev));
+    CUCHECK(cudaWrapper->cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_SUPPORTED, currentDev));
     if (flag) memprop.allocFlags.gpuDirectRDMACapable = 1;
-    CUCHECK(cuMemGetAllocationGranularity(&memGran, &memprop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
+    CUCHECK(cudaWrapper->cuMemGetAllocationGranularity(&memGran, &memprop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
 
     /* mc property */
-    CUDACHECK(cudaGetDeviceCount(&dcnt));
+    CUDACHECK(cudaWrapper->cudaGetDeviceCount(&dcnt));
     mcprop.size = size;
     /* device cnt is a dummy value right now, it might affect mc granularity in the future. */
     mcprop.numDevices = dcnt;
     mcprop.handleTypes = NVLS_CU_MEM_HANDLE_TYPE;
     mcprop.flags = 0;
-    CUCHECK(cuMulticastGetGranularity(&mcGran, &mcprop, CU_MULTICAST_GRANULARITY_RECOMMENDED));
+    CUCHECK(cudaWrapper->cuMulticastGetGranularity(&mcGran, &mcprop, CU_MULTICAST_GRANULARITY_RECOMMENDED));
 
     /* only size needs to be aligned to mcGran */
     ALIGN_SIZE(size, mcGran);
     /* Allocate the physical memory on the device */
-    CUCHECK(cuMemCreate(&handle, size, &memprop, 0));
+    CUCHECK(cudaWrapper->cuMemCreate(&handle, size, &memprop, 0));
     /* Reserve a virtual address range */
-    CUCHECK(cuMemAddressReserve((CUdeviceptr*)ptr, size, memGran, 0, 0));
+    CUCHECK(cudaWrapper->cuMemAddressReserve((CUdeviceptr*)ptr, size, memGran, 0, 0));
     /* Map the virtual address range to the physical allocation */
-    CUCHECK(cuMemMap((CUdeviceptr)*ptr, size, 0, handle, 0));
+    CUCHECK(cudaWrapper->cuMemMap((CUdeviceptr)*ptr, size, 0, handle, 0));
     /* Now allow RW access to the newly mapped memory */
     for (int i = 0; i < dcnt; ++i) {
       int p2p = 0;
-      if (i == cudaDev || ((cudaDeviceCanAccessPeer(&p2p, cudaDev, i) == cudaSuccess) && p2p)) {
+      if (i == cudaDev || ((cudaWrapper->cudaDeviceCanAccessPeer(&p2p, cudaDev, i) == cudaSuccess) && p2p)) {
         accessDesc.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
         accessDesc.location.id = i;
         accessDesc.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
-        CUCHECK(cuMemSetAccess((CUdeviceptr)*ptr, size, &accessDesc, 1));
+        CUCHECK(cudaWrapper->cuMemSetAccess((CUdeviceptr)*ptr, size, &accessDesc, 1));
       }
     }
     goto exit;
@@ -2536,7 +2543,7 @@ ncclResult_t  ncclMemAlloc(void **ptr, size_t size) {
 
 fallback:
 #endif
-  CUDACHECKGOTO(cudaMalloc(ptr, size), ret, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaMalloc(ptr, size), ret, fail);
 
 exit:
   return ret;
@@ -2550,7 +2557,7 @@ ncclResult_t  ncclMemFree(void *ptr) {
   ncclResult_t ret = ncclSuccess;
   int saveDevice;
 
-  CUDACHECK(cudaGetDevice(&saveDevice));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&saveDevice));
 #if CUDART_VERSION >= 12010
   CUdevice ptrDev = 0;
   int mcSupport = 0;
@@ -2559,11 +2566,11 @@ ncclResult_t  ncclMemFree(void *ptr) {
 
   if (ncclCudaLibraryInit() != ncclSuccess) goto fallback;
 
-  CUCHECKGOTO(cuPointerGetAttribute((void*)&ptrDev, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, (CUdeviceptr)ptr), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuPointerGetAttribute((void*)&ptrDev, CU_POINTER_ATTRIBUTE_DEVICE_ORDINAL, (CUdeviceptr)ptr), ret, fail);
   if (CUPFN(cuMulticastCreate) != NULL)
-    CUCHECKGOTO(cuDeviceGetAttribute(&mcSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, ptrDev), ret, fail);
+    CUCHECKGOTO(cudaWrapper->cuDeviceGetAttribute(&mcSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, ptrDev), ret, fail);
 
-  CUDACHECKGOTO(cudaSetDevice((int)ptrDev), ret, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaSetDevice((int)ptrDev), ret, fail);
   if (mcSupport) {
     NCCLCHECKGOTO(ncclCuMemFree(ptr), ret, fail);
     goto exit;
@@ -2571,11 +2578,27 @@ ncclResult_t  ncclMemFree(void *ptr) {
 
 fallback:
 #endif
-  CUDACHECKGOTO(cudaFree(ptr), ret, fail);
+  CUDACHECKGOTO(cudaWrapper->cudaFree(ptr), ret, fail);
 
 exit:
-  cudaSetDevice(saveDevice);
+  cudaWrapper->cudaSetDevice(saveDevice);
   return ret;
 fail:
   goto exit;
+}
+
+NCCL_API(CudaWrapper *, ncclSetupWrappers, bool mock) {
+  if (cudaWrapper == nullptr) {
+    cudaWrapper = std::make_shared<CudaWrapper>(mock);
+  }
+
+  if (ibvWrapper == nullptr) {
+    ibvWrapper = std::make_shared<IbvWrapper>(mock);
+  }
+
+  if (nvmlWrapper == nullptr) {
+    nvmlWrapper = std::make_shared<NvmlWrapper>(mock);
+  }
+
+  return cudaWrapper.get();
 }

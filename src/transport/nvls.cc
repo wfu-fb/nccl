@@ -89,7 +89,7 @@ ncclResult_t nvlsGetProperties(struct ncclComm *comm, struct ncclNvlsSharedRes* 
   prop->flags = 0;
 
   // Could be changed to CU_MULTICAST_GRANULARITY_MINIMUM when 3418538 resolved
-  CUCHECK(cuMulticastGetGranularity(&resources->granularity, prop, CU_MULTICAST_GRANULARITY_RECOMMENDED));
+  CUCHECK(cudaWrapper->cuMulticastGetGranularity(&resources->granularity, prop, CU_MULTICAST_GRANULARITY_RECOMMENDED));
 
   ALIGN_SIZE(size, resources->granularity);
   prop->size = resources->size = size;
@@ -109,11 +109,11 @@ ncclResult_t nvlsGroupCreate(struct ncclComm *comm, CUmulticastObjectProp *prop,
   // Create a Multicast group
 
   INFO(NCCL_NVLS, "NVLS Creating Multicast group nranks %d size %zi on rank %d", nranks, size, rank);
-  CUCHECK(cuMulticastCreate(mcHandle, prop));
+  CUCHECK(cudaWrapper->cuMulticastCreate(mcHandle, prop));
 
   if ((NVLS_CU_MEM_HANDLE_TYPE != CU_MEM_HANDLE_TYPE_NONE) && (NVLS_CU_MEM_HANDLE_TYPE != CU_MEM_HANDLE_TYPE_POSIX_FILE_DESCRIPTOR)) {
     // Get a handle to pass to other ranks
-    CUCHECK(cuMemExportToShareableHandle(shareableHandle, *mcHandle, NVLS_CU_MEM_HANDLE_TYPE, 0));
+    CUCHECK(cudaWrapper->cuMemExportToShareableHandle(shareableHandle, *mcHandle, NVLS_CU_MEM_HANDLE_TYPE, 0));
   }
   else {
     memcpy(shareableHandle, mcHandle, sizeof(CUmemGenericAllocationHandle));
@@ -126,7 +126,7 @@ ncclResult_t nvlsGroupCreate(struct ncclComm *comm, CUmulticastObjectProp *prop,
 
 ncclResult_t nvlsGroupAddDevice(struct ncclComm *comm, struct ncclNvlsSharedRes* resources) {
   INFO(NCCL_NVLS, "NVLS group %llx adding dev %d", resources->mcHandle, resources->dev);
-  CUCHECK(cuMulticastAddDevice(resources->mcHandle, resources->dev));
+  CUCHECK(cudaWrapper->cuMulticastAddDevice(resources->mcHandle, resources->dev));
   return ncclSuccess;
 }
 
@@ -146,11 +146,11 @@ ncclResult_t nvlsGroupConnect(struct ncclComm *comm, char *shareableHandle, int 
     TRACE(NCCL_NVLS, "NVLS rank %d request conversion of handle 0x%lx from rank %d", comm->localRank, *(uint64_t*)shareableHandle, rank);
     NCCLCHECK(ncclProxyClientGetFdBlocking(comm, &proxyConn, shareableHandle, &fd));
     TRACE(NCCL_NVLS, "NVLS rank %d received converted fd %d from rank %d", comm->localRank, fd, rank);
-    CUCHECK(cuMemImportFromShareableHandle(mcHandle, (void *)(uintptr_t)fd, type));
+    CUCHECK(cudaWrapper->cuMemImportFromShareableHandle(mcHandle, (void *)(uintptr_t)fd, type));
     (void) close(fd);
   } else {
     if (NVLS_CU_MEM_HANDLE_TYPE != CU_MEM_HANDLE_TYPE_NONE) {
-      CUCHECK(cuMemImportFromShareableHandle(mcHandle, (void *)shareableHandle, type));
+      CUCHECK(cudaWrapper->cuMemImportFromShareableHandle(mcHandle, (void *)shareableHandle, type));
     } else {
       memcpy(mcHandle, shareableHandle, sizeof(CUmemGenericAllocationHandle));
     }
@@ -173,24 +173,24 @@ ncclResult_t nvlsGroupBindMem(struct ncclComm *comm, struct ncclNvlsSharedRes* r
   prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
   prop.location.id = resources->dev;
   prop.requestedHandleTypes = NVLS_CU_MEM_HANDLE_TYPE;
-  CUCHECK(cuMemGetAllocationGranularity(&granularity, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
+  CUCHECK(cudaWrapper->cuMemGetAllocationGranularity(&granularity, &prop, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED));
   resources->ucGran = granularity;
 
   // Map a VA for UC memory
-  CUCHECK(cuMemAddressReserve(&ptr, size, granularity, 0U, 0));
+  CUCHECK(cudaWrapper->cuMemAddressReserve(&ptr, size, granularity, 0U, 0));
 
   // Alloc local physical mem for this NVLS group
-  CUCHECK(cuMemCreate(&resources->ucHandle, size, &prop, 0));
-  CUCHECK(cuMemMap(ptr, size, 0, resources->ucHandle, 0));
-  CUCHECK(cuMemSetAccess(ptr, size, &resources->accessDesc, 1));
-  CUDACHECK(cudaMemset((void*)ptr, 0, size));
+  CUCHECK(cudaWrapper->cuMemCreate(&resources->ucHandle, size, &prop, 0));
+  CUCHECK(cudaWrapper->cuMemMap(ptr, size, 0, resources->ucHandle, 0));
+  CUCHECK(cudaWrapper->cuMemSetAccess(ptr, size, &resources->accessDesc, 1));
+  CUDACHECK(cudaWrapper->cudaMemset((void*)ptr, 0, size));
   resources->ucBuff = (char*)ptr;
   INFO(NCCL_NVLS, "NVLS Mapped UC at %p size %zi", resources->ucBuff, size);
 
   // Bind physical memory to the Multicast group
   // NB: It will block until all ranks have been added to the Group
   INFO(NCCL_NVLS, "NVLS Bind mem %p UC handle 0x%llx MC handle 0x%llx size %zi", (void*)ptr, resources->ucHandle, resources->mcHandle, size);
-  CUCHECK(cuMulticastBindMem(resources->mcHandle, 0/*mcOffset*/, resources->ucHandle, 0/*memOffset*/, size, 0/*flags*/));
+  CUCHECK(cudaWrapper->cuMulticastBindMem(resources->mcHandle, 0/*mcOffset*/, resources->ucHandle, 0/*memOffset*/, size, 0/*flags*/));
 
   return ncclSuccess;
 }
@@ -201,7 +201,7 @@ ncclResult_t nvlsGroupUnbind(struct ncclComm *comm, struct ncclNvlsSharedRes* re
   INFO(NCCL_NVLS, "NVLS Unbind MC handle %llx size %zi dev %d", resources->mcHandle, size, dev);
 
   // Unbind physical memory from group for the given device
-  CUCHECK(cuMulticastUnbind(resources->mcHandle, dev, 0/*mcOffset*/, size));
+  CUCHECK(cudaWrapper->cuMulticastUnbind(resources->mcHandle, dev, 0/*mcOffset*/, size));
 
   // Release the MC group resources
   NCCLCHECK(nvlsGroupDisconnect(comm, resources));
@@ -210,10 +210,10 @@ ncclResult_t nvlsGroupUnbind(struct ncclComm *comm, struct ncclNvlsSharedRes* re
 }
 
 ncclResult_t ncclNvlsDeregBuffer(CUmemGenericAllocationHandle *mcHandler, CUdeviceptr ptr, int dev, size_t size) {
-  CUCHECK(cuMulticastUnbind(*mcHandler, dev, 0/*mcOffset*/, size));
-  CUCHECK(cuMemUnmap(ptr, size));
-  CUCHECK(cuMemAddressFree(ptr, size));
-  CUCHECK(cuMemRelease(*mcHandler));
+  CUCHECK(cudaWrapper->cuMulticastUnbind(*mcHandler, dev, 0/*mcOffset*/, size));
+  CUCHECK(cudaWrapper->cuMemUnmap(ptr, size));
+  CUCHECK(cudaWrapper->cuMemAddressFree(ptr, size));
+  CUCHECK(cudaWrapper->cuMemRelease(*mcHandler));
   return ncclSuccess;
 }
 
@@ -222,15 +222,15 @@ ncclResult_t nvlsGroupMapMem(struct ncclComm *comm, struct ncclNvlsSharedRes* re
   CUdeviceptr ptr = 0;
 
   // Create a VA for the NVLS
-  CUCHECK(cuMemAddressReserve(&ptr, size, resources->granularity, 0U, 0));
+  CUCHECK(cudaWrapper->cuMemAddressReserve(&ptr, size, resources->granularity, 0U, 0));
   // Map the VA locally
-  CUCHECK(cuMemMap(ptr, size, 0, resources->mcHandle, 0));
+  CUCHECK(cudaWrapper->cuMemMap(ptr, size, 0, resources->mcHandle, 0));
   resources->mcBuff = (char*)ptr;
   INFO(NCCL_NVLS, "NVLS Mapped MC buffer at %p size %zi", resources->mcBuff, size);
 
   // Having completed the BindMem we can now call SetAccess
   // NB: It will block until all ranks have bound to the Group
-  CUCHECK(cuMemSetAccess((CUdeviceptr)resources->mcBuff, size, &resources->accessDesc, 1));
+  CUCHECK(cudaWrapper->cuMemSetAccess((CUdeviceptr)resources->mcBuff, size, &resources->accessDesc, 1));
 
   return ncclSuccess;
 }
@@ -244,16 +244,16 @@ ncclResult_t nvlsGroupUnmapMem(struct ncclComm *comm, struct ncclNvlsSharedRes* 
   // Release the UC memory and mapping
   ptr = (CUdeviceptr)resources->ucBuff;
   size = resources->size;
-  CUCHECK(cuMemUnmap(ptr, size));
-  CUCHECK(cuMemAddressFree(ptr, size));
-  CUCHECK(cuMemRelease(resources->ucHandle));
+  CUCHECK(cudaWrapper->cuMemUnmap(ptr, size));
+  CUCHECK(cudaWrapper->cuMemAddressFree(ptr, size));
+  CUCHECK(cudaWrapper->cuMemRelease(resources->ucHandle));
 
   // Release the MC memory and mapping
   ptr = (CUdeviceptr)resources->mcBuff;
   size = resources->size;
-  CUCHECK(cuMemUnmap(ptr, size));
-  CUCHECK(cuMemAddressFree(ptr, size));
-  CUCHECK(cuMemRelease(resources->mcHandle));
+  CUCHECK(cudaWrapper->cuMemUnmap(ptr, size));
+  CUCHECK(cudaWrapper->cuMemAddressFree(ptr, size));
+  CUCHECK(cudaWrapper->cuMemRelease(resources->mcHandle));
 
   return ncclSuccess;
 }
@@ -275,12 +275,12 @@ ncclResult_t ncclNvlsInit(struct ncclComm* comm) {
   int driverVersion;
 
   if (CUPFN(cuDeviceGet) == NULL) return ncclSuccess;
-  CUCHECK(cuCtxGetDevice(&dev));
-  CUDACHECK(cudaDriverGetVersion(&driverVersion));
+  CUCHECK(cudaWrapper->cuCtxGetDevice(&dev));
+  CUDACHECK(cudaWrapper->cudaDriverGetVersion(&driverVersion));
   if (NCCL_NVLS_ENABLE == 2) {
     // NVLS Multicast support requires CUDA12.1 UMD + KMD
     if (CUPFN(cuMulticastCreate) != NULL /*&& driverVersion >= 12010 */) {
-      CUCHECK(cuDeviceGetAttribute(&comm->nvlsSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, dev));
+      CUCHECK(cudaWrapper->cuDeviceGetAttribute(&comm->nvlsSupport, CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED, dev));
     }
   } else {
     comm->nvlsSupport = 1;
@@ -301,7 +301,7 @@ ncclResult_t ncclNvlsSetup(struct ncclComm* comm, struct ncclComm* parent) {
   size_t typeSize;
 
   CUdevice dev;
-  CUCHECK(cuCtxGetDevice(&dev));
+  CUCHECK(cudaWrapper->cuCtxGetDevice(&dev));
 
   ncclResult_t res = ncclSuccess;
   bool nvlsShare = true;
@@ -395,10 +395,10 @@ ncclResult_t ncclNvlsSetup(struct ncclComm* comm, struct ncclComm* parent) {
         peer->send[0].conn.tail = (uint64_t*)(mem + buffSize + memSize / 2);
         peer->send[0].conn.flags |= NCCL_NVLS_MIN_POLL;
 
-        CUDACHECKGOTO(cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->send[0], &peer->send[0].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
-        CUDACHECKGOTO(cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->recv[0], &peer->recv[0].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
-        CUDACHECKGOTO(cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->send[1], &peer->send[1].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
-        CUDACHECKGOTO(cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->recv[1], &peer->recv[1].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
+        CUDACHECKGOTO(cudaWrapper->cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->send[0], &peer->send[0].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
+        CUDACHECKGOTO(cudaWrapper->cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->recv[0], &peer->recv[0].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
+        CUDACHECKGOTO(cudaWrapper->cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->send[1], &peer->send[1].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
+        CUDACHECKGOTO(cudaWrapper->cudaMemcpyAsync(&comm->channels[c].devPeersHostPtr[nvlsPeer]->recv[1], &peer->recv[1].conn, sizeof(struct ncclConnInfo), cudaMemcpyHostToDevice, comm->sharedRes->hostStream.cudaStream), res, cleanup);
 
         /*INFO(NCCL_INIT|NCCL_NVLS, "Peer %d Channel %d MC buff %p/%p UC Buff %p/%p",
             nvlsPeer, c,
@@ -470,7 +470,7 @@ ncclResult_t tryRegisterBuffer(struct ncclComm *comm, struct localRequestData *r
   /* start registration */
   memcpy(&prop, &comm->nvlsResources->properties, sizeof(CUmulticastObjectProp));
   prop.size = minSize;
-  CUCHECKGOTO(cuMulticastGetGranularity(&granularity, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuMulticastGetGranularity(&granularity, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED), ret, fail);
   if (comm->localRank == 0) {
     NCCLCHECKGOTO(nvlsGroupCreate(comm, &prop, comm->localRank, comm->localRanks, &mcHandle, shareableHandle), ret, fail);
     NCCLCHECKGOTO(bootstrapIntraNodeBroadcast(comm->bootstrap, comm->localRankToRank, comm->localRank, comm->localRanks, 0, shareableHandle, NVLS_HANDLE_SIZE), ret, fail);
@@ -479,14 +479,14 @@ ncclResult_t tryRegisterBuffer(struct ncclComm *comm, struct localRequestData *r
     NCCLCHECKGOTO(nvlsGroupConnect(comm, shareableHandle, comm->localRankToRank[0], &mcHandle), ret, fail);
   }
 
-  CUCHECKGOTO(cuMulticastAddDevice(mcHandle, comm->nvlsResources->dev), ret, fail);
-  CUCHECKGOTO(cuMulticastBindAddr(mcHandle, 0, (CUdeviceptr)myReqData->reqBuff, minSize, 0), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuMulticastAddDevice(mcHandle, comm->nvlsResources->dev), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuMulticastBindAddr(mcHandle, 0, (CUdeviceptr)myReqData->reqBuff, minSize, 0), ret, fail);
 
   // Create a VA for the NVLS
-  CUCHECKGOTO(cuMemAddressReserve(&regPtr, minSize, granularity, 0U, 0), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuMemAddressReserve(&regPtr, minSize, granularity, 0U, 0), ret, fail);
   // Map the VA locally
-  CUCHECKGOTO(cuMemMap(regPtr, minSize, 0, mcHandle, 0), ret, fail);
-  CUCHECKGOTO(cuMemSetAccess(regPtr, minSize, &comm->nvlsResources->accessDesc, 1), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuMemMap(regPtr, minSize, 0, mcHandle, 0), ret, fail);
+  CUCHECKGOTO(cudaWrapper->cuMemSetAccess(regPtr, minSize, &comm->nvlsResources->accessDesc, 1), ret, fail);
 
   NCCLCHECKGOTO(ncclCalloc(&regRecord, 1), ret, fail);
   regRecord->buff = myReqData->reqBuff;
@@ -684,15 +684,15 @@ ncclResult_t ncclNvlsGraphRegisterBuffer(struct ncclComm *comm, struct ncclKerne
     /* retrieve base pointer and size */
     if (CUPFN(cuMemGetAddressRange) == nullptr) goto fail;
     if (sendbuff != NULL)
-      CUCHECKGOTO(cuMemGetAddressRange((CUdeviceptr *)&baseSend, &baseSendSize, (CUdeviceptr)sendbuff), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemGetAddressRange((CUdeviceptr *)&baseSend, &baseSendSize, (CUdeviceptr)sendbuff), ret, fail);
     if (recvbuff != NULL)
-      CUCHECKGOTO(cuMemGetAddressRange((CUdeviceptr *)&baseRecv, &baseRecvSize, (CUdeviceptr)recvbuff), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemGetAddressRange((CUdeviceptr *)&baseRecv, &baseRecvSize, (CUdeviceptr)recvbuff), ret, fail);
 
     memcpy(&prop, &comm->nvlsResources->properties, sizeof(CUmulticastObjectProp));
     prop.size = baseSendSize;
-    CUCHECKGOTO(cuMulticastGetGranularity(&sendGran, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED), ret, fail);
+    CUCHECKGOTO(cudaWrapper->cuMulticastGetGranularity(&sendGran, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED), ret, fail);
     prop.size = baseRecvSize;
-    CUCHECKGOTO(cuMulticastGetGranularity(&recvGran, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED), ret, fail);
+    CUCHECKGOTO(cudaWrapper->cuMulticastGetGranularity(&recvGran, &prop, CU_MULTICAST_GRANULARITY_RECOMMENDED), ret, fail);
 
     localRegBufUsed = ((uint64_t)baseSend % sendGran != 0 || (uint64_t)baseRecv % recvGran != 0) ? false : true;
     regBufFlags[comm->localRank] = localRegBufUsed;
@@ -723,14 +723,14 @@ ncclResult_t ncclNvlsGraphRegisterBuffer(struct ncclComm *comm, struct ncclKerne
         NCCLCHECKGOTO(nvlsGroupConnect(comm, shareableHandle, comm->localRankToRank[0], &sendMcHandle), ret, fail);
       }
 
-      CUCHECKGOTO(cuMulticastAddDevice(sendMcHandle, comm->nvlsResources->dev), ret, fail);
-      CUCHECKGOTO(cuMulticastBindAddr(sendMcHandle, 0, (CUdeviceptr)baseSend, baseSendSize, 0), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMulticastAddDevice(sendMcHandle, comm->nvlsResources->dev), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMulticastBindAddr(sendMcHandle, 0, (CUdeviceptr)baseSend, baseSendSize, 0), ret, fail);
 
       // Create a VA for the NVLS
-      CUCHECKGOTO(cuMemAddressReserve(&regSendPtr, baseSendSize, sendGran, 0U, 0), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemAddressReserve(&regSendPtr, baseSendSize, sendGran, 0U, 0), ret, fail);
       // Map the VA locally
-      CUCHECKGOTO(cuMemMap(regSendPtr, baseSendSize, 0, sendMcHandle, 0), ret, fail);
-      CUCHECKGOTO(cuMemSetAccess(regSendPtr, baseSendSize, &comm->nvlsResources->accessDesc, 1), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemMap(regSendPtr, baseSendSize, 0, sendMcHandle, 0), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemSetAccess(regSendPtr, baseSendSize, &comm->nvlsResources->accessDesc, 1), ret, fail);
 
       sendRecord = ncclMemoryPoolAlloc<struct ncclNvlsMcHandleList>(&comm->memPool_ncclNvlsHandleList, &comm->memPermanent);
       sendRecord->mcHandle = sendMcHandle;
@@ -759,14 +759,14 @@ ncclResult_t ncclNvlsGraphRegisterBuffer(struct ncclComm *comm, struct ncclKerne
         NCCLCHECKGOTO(nvlsGroupConnect(comm, shareableHandle, comm->localRankToRank[0], &recvMcHandle), ret, fail);
       }
 
-      CUCHECKGOTO(cuMulticastAddDevice(recvMcHandle, comm->nvlsResources->dev), ret, fail);
-      CUCHECKGOTO(cuMulticastBindAddr(recvMcHandle, 0, (CUdeviceptr)baseRecv, baseRecvSize, 0), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMulticastAddDevice(recvMcHandle, comm->nvlsResources->dev), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMulticastBindAddr(recvMcHandle, 0, (CUdeviceptr)baseRecv, baseRecvSize, 0), ret, fail);
 
       // Create a VA for the NVLS
-      CUCHECKGOTO(cuMemAddressReserve(&regRecvPtr, baseRecvSize, recvGran, 0U, 0), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemAddressReserve(&regRecvPtr, baseRecvSize, recvGran, 0U, 0), ret, fail);
       // Map the VA locally
-      CUCHECKGOTO(cuMemMap(regRecvPtr, baseRecvSize, 0, recvMcHandle, 0), ret, fail);
-      CUCHECKGOTO(cuMemSetAccess(regRecvPtr, baseRecvSize, &comm->nvlsResources->accessDesc, 1), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemMap(regRecvPtr, baseRecvSize, 0, recvMcHandle, 0), ret, fail);
+      CUCHECKGOTO(cudaWrapper->cuMemSetAccess(regRecvPtr, baseRecvSize, &comm->nvlsResources->accessDesc, 1), ret, fail);
 
       recvRecord = ncclMemoryPoolAlloc<struct ncclNvlsMcHandleList>(&comm->memPool_ncclNvlsHandleList, &comm->memPermanent);
       recvRecord->mcHandle = recvMcHandle;

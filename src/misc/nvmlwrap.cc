@@ -46,7 +46,10 @@ namespace {
   ncclResult_t initResult;
 }
 
-ncclResult_t ncclNvmlEnsureInitialized() {
+ncclResult_t NvmlWrapper::ncclNvmlEnsureInitialized() {
+  if (mock_) {
+    return ncclSuccess;
+  }
   // Optimization to avoid repeatedly grabbing the lock when we only want to
   // read from the global tables.
   if (threadInitialized) return initResult;
@@ -177,20 +180,29 @@ ncclResult_t ncclNvmlEnsureInitialized() {
   } \
 } while(0)
 
-ncclResult_t ncclNvmlDeviceGetHandleByPciBusId(const char* pciBusId, nvmlDevice_t* device) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetHandleByPciBusId(const char* pciBusId, nvmlDevice_t* device) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   std::lock_guard<std::mutex> locked(lock);
   NVMLCHECK(nvmlDeviceGetHandleByPciBusId, pciBusId, device);
   return ncclSuccess;
 }
 
-ncclResult_t ncclNvmlDeviceGetHandleByIndex(unsigned int index, nvmlDevice_t *device) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetHandleByIndex(unsigned int index, nvmlDevice_t *device) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   *device = ncclNvmlDevices[index].handle;
   return ncclSuccess;
 }
 
-ncclResult_t ncclNvmlDeviceGetIndex(nvmlDevice_t device, unsigned* index) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetIndex(nvmlDevice_t device, unsigned* index) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   for (int d=0; d < ncclNvmlDeviceCount; d++) {
     if (ncclNvmlDevices[d].handle == device) {
@@ -201,31 +213,42 @@ ncclResult_t ncclNvmlDeviceGetIndex(nvmlDevice_t device, unsigned* index) {
   return ncclInvalidArgument;
 }
 
-ncclResult_t ncclNvmlDeviceGetNvLinkState(nvmlDevice_t device, unsigned int link, nvmlEnableState_t *isActive) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetNvLinkState(nvmlDevice_t device, unsigned int link, nvmlEnableState_t *isActive) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   std::lock_guard<std::mutex> locked(lock);
   NVMLTRY(nvmlDeviceGetNvLinkState, device, link, isActive);
   return ncclSuccess;
 }
 
-ncclResult_t ncclNvmlDeviceGetNvLinkRemotePciInfo(nvmlDevice_t device, unsigned int link, nvmlPciInfo_t *pci) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetNvLinkRemotePciInfo(nvmlDevice_t device, unsigned int link, nvmlPciInfo_t *pci) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   std::lock_guard<std::mutex> locked(lock);
   NVMLTRY(nvmlDeviceGetNvLinkRemotePciInfo, device, link, pci);
   return ncclSuccess;
 }
 
-ncclResult_t ncclNvmlDeviceGetNvLinkCapability(
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetNvLinkCapability(
     nvmlDevice_t device, unsigned int link, nvmlNvLinkCapability_t capability,
-    unsigned int *capResult
-  ) {
+    unsigned int *capResult) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   std::lock_guard<std::mutex> locked(lock);
   NVMLTRY(nvmlDeviceGetNvLinkCapability, device, link, capability, capResult);
   return ncclSuccess;
 }
 
-ncclResult_t ncclNvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int* major, int* minor) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int* major, int* minor) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
 
   for(int d=0; d < ncclNvmlDeviceCount; d++) {
@@ -238,10 +261,12 @@ ncclResult_t ncclNvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int* ma
   return ncclInvalidArgument;
 }
 
-ncclResult_t ncclNvmlDeviceGetP2PStatus(
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetP2PStatus(
     nvmlDevice_t device1, nvmlDevice_t device2, nvmlGpuP2PCapsIndex_t p2pIndex,
-    nvmlGpuP2PStatus_t* p2pStatus
-  ) {
+    nvmlGpuP2PStatus_t* p2pStatus) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
 
   if (p2pIndex == NVML_P2P_CAPS_INDEX_READ || p2pIndex == NVML_P2P_CAPS_INDEX_WRITE) {
@@ -263,7 +288,10 @@ ncclResult_t ncclNvmlDeviceGetP2PStatus(
   return ncclSuccess;
 }
 
-ncclResult_t ncclNvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCount, nvmlFieldValue_t *values) {
+ncclResult_t NvmlWrapper::ncclNvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCount, nvmlFieldValue_t *values) {
+  if (mock_) {
+    return ncclSuccess;
+  }
   NCCLCHECK(ncclNvmlEnsureInitialized());
   std::lock_guard<std::mutex> locked(lock);
   NVMLTRY(nvmlDeviceGetFieldValues, device, valuesCount, values);

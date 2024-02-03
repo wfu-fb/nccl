@@ -14,7 +14,7 @@
 #define CUDACHECK(cmd) do {                                 \
     cudaError_t err = cmd;                                  \
     if( err != cudaSuccess ) {                              \
-        WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
+        WARN("Cuda failure '%s'", cudaWrapper->cudaGetErrorString(err)); \
         return ncclUnhandledCudaError;                      \
     }                                                       \
 } while(false)
@@ -22,7 +22,7 @@
 #define CUDACHECKGOTO(cmd, RES, label) do {                 \
     cudaError_t err = cmd;                                  \
     if( err != cudaSuccess ) {                              \
-        WARN("Cuda failure '%s'", cudaGetErrorString(err)); \
+        WARN("Cuda failure '%s'", cudaWrapper->cudaGetErrorString(err)); \
         RES = ncclUnhandledCudaError;                       \
         goto label;                                         \
     }                                                       \
@@ -32,8 +32,8 @@
 #define CUDACHECKIGNORE(cmd) do {  \
     cudaError_t err = cmd;         \
     if( err != cudaSuccess ) {     \
-        WARN("%s:%d Cuda failure '%s'", __FILE__, __LINE__, cudaGetErrorString(err)); \
-        (void) cudaGetLastError(); \
+        WARN("%s:%d Cuda failure '%s'", __FILE__, __LINE__, cudaWrapper->cudaGetErrorString(err)); \
+        (void) cudaWrapper->cudaGetLastError(); \
     }                              \
 } while(false)
 

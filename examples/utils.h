@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdexcept>
 
+std::shared_ptr<CudaWrapper> cudaWrapper;
+
 #define CUDACHECK(cmd)                          \
   do {                                          \
     cudaError_t err = cmd;                      \
@@ -13,7 +15,7 @@
           "Failed: CUDA error %s:%d '%s'\n",    \
           __FILE__,                             \
           __LINE__,                             \
-          cudaGetErrorString(err));             \
+          cudaWrapper->cudaGetErrorString(err));             \
       throw std::runtime_error("CUDA error\n"); \
     }                                           \
   } while (0)

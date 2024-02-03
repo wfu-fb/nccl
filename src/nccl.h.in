@@ -7,6 +7,8 @@
 #ifndef NCCL_H_
 #define NCCL_H_
 
+#include <memory>
+
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #if CUDART_VERSION >= 11000
@@ -441,6 +443,13 @@ ncclResult_t pncclCommRegister(const ncclComm_t comm, void* buff, size_t size, v
 /* Deregister CUDA buffer */
 ncclResult_t  ncclCommDeregister(const ncclComm_t comm, void* handle);
 ncclResult_t pncclCommDeregister(const ncclComm_t comm, void* handle);
+
+// Include the cuda wrapper that require some of the symbols above
+#include "cudawrapper.h"
+
+/* Setup mock wrappers for everything */
+CudaWrapper*  ncclSetupWrappers(bool mock);
+CudaWrapper* pncclSetupWrappers(bool mock);
 
 #ifdef __cplusplus
 } // end extern "C"

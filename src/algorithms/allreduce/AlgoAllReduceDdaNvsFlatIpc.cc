@@ -52,14 +52,14 @@ ncclResult_t AlgoAllReduceDdaNvsFlatIpc::launchKernel() {
       &comm_->rank,
       &recvbuff_,
       &count_};
-  CUDACHECK(cudaLaunchKernel(func, grid, block, args, 0, stream_));
+  CUDACHECK(cudaWrapper->cudaLaunchKernel(func, grid, block, args, 0, stream_));
   return ncclSuccess;
 }
 
 ncclResult_t AlgoAllReduceDdaNvsFlatIpc::allReduce() {
   INFO(NCCL_COLL, "AlgoAllReduceDdaNvsFlatIpc::allReduce");
   // copy src to tmp buffers
-  CUDACHECKIGNORE(cudaMemcpyAsync(
+  CUDACHECKIGNORE(cudaWrapper->cudaMemcpyAsync(
         devStates_[comm_->rank].tmpbuff,
         sendbuff_,
         count_ * ncclTypeSize(datatype_),

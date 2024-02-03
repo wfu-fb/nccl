@@ -10,6 +10,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include "checks.h"
+#include "cudawrapper.h"
 
 // Is cuMem API usage enabled
 extern int ncclCuMemEnable();
@@ -26,7 +27,7 @@ typedef CUresult (CUDAAPI *PFN_cuGetProcAddress_v11030)(const char *symbol, void
 
 // Check CUDA PFN driver calls
 #define CUCHECK(cmd) do {				      \
-    CUresult err = pfn_##cmd;				      \
+    CUresult err = cmd;				      \
     if( err != CUDA_SUCCESS ) {				      \
       const char *errStr;				      \
       (void) pfn_cuGetErrorString(err, &errStr);	      \
@@ -36,7 +37,7 @@ typedef CUresult (CUDAAPI *PFN_cuGetProcAddress_v11030)(const char *symbol, void
 } while(false)
 
 #define CUCHECKGOTO(cmd, res, label) do {		      \
-    CUresult err = pfn_##cmd;				      \
+    CUresult err = cmd;				      \
     if( err != CUDA_SUCCESS ) {				      \
       const char *errStr;				      \
       (void) pfn_cuGetErrorString(err, &errStr);	      \
@@ -48,7 +49,7 @@ typedef CUresult (CUDAAPI *PFN_cuGetProcAddress_v11030)(const char *symbol, void
 
 // Report failure but clear error and continue
 #define CUCHECKIGNORE(cmd) do {						\
-    CUresult err = pfn_##cmd;						\
+    CUresult err = cmd;						\
     if( err != CUDA_SUCCESS ) {						\
       const char *errStr;						\
       (void) pfn_cuGetErrorString(err, &errStr);			\
@@ -57,7 +58,7 @@ typedef CUresult (CUDAAPI *PFN_cuGetProcAddress_v11030)(const char *symbol, void
 } while(false)
 
 #define CUCHECKTHREAD(cmd, args) do {					\
-    CUresult err = pfn_##cmd;						\
+    CUresult err = cmd;						\
     if (err != CUDA_SUCCESS) {						\
       INFO(NCCL_INIT,"%s:%d -> %d [Async thread]", __FILE__, __LINE__, err); \
       args->ret = ncclUnhandledCudaError;				\
@@ -120,7 +121,7 @@ extern bool ncclCudaLaunchBlocking; // initialized by ncclCudaLibraryInit()
 inline ncclResult_t ncclCudaDriverVersion(int* driver) {
   int version = __atomic_load_n(&ncclCudaDriverVersionCache, __ATOMIC_RELAXED);
   if (version == -1) {
-    CUDACHECK(cudaDriverGetVersion(&version));
+    CUDACHECK(cudaWrapper->cudaDriverGetVersion(&version));
     __atomic_store_n(&ncclCudaDriverVersionCache, version, __ATOMIC_RELAXED);
   }
   *driver = version;

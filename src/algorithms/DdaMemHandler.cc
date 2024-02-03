@@ -4,6 +4,7 @@
 
 #include "DdaThreadedData.h"
 #include "comm.h"
+#include "cudawrapper.h"
 
 namespace nccl {
 namespace algorithms {
@@ -14,7 +15,7 @@ DdaMemHandler::~DdaMemHandler() {
   for (const auto& kv : allMemAddrs_) {
     for (const auto& memAddr : kv.second) {
       if (memAddr.isMmapped) {
-        CUDACHECKIGNORE(cudaIpcCloseMemHandle(memAddr.addr));
+        CUDACHECKIGNORE(cudaWrapper->cudaIpcCloseMemHandle(memAddr.addr));
       }
     }
   }
@@ -45,28 +46,28 @@ ncclResult_t DdaMemHandler::exchangeMemHandles() {
   std::vector<ExchangedHandle> recvHandles(kNumRecvHandle);
   ExchangedHandle* sendBuff_d{nullptr};
   ExchangedHandle* recvBuff_d{nullptr};
-  CUDACHECK(cudaMalloc(&sendBuff_d, kSendSize));
-  CUDACHECK(cudaMalloc(&recvBuff_d, kRecvSize));
+  CUDACHECK(cudaWrapper->cudaMalloc((void **)&sendBuff_d, kSendSize));
+  CUDACHECK(cudaWrapper->cudaMalloc((void **)&recvBuff_d, kRecvSize));
 
   // fill up sendbuffs
   for (int i = 0; i < kNumSendHandle; ++i) {
     const auto& memAddr = allMemAddrs_.at(comm_->rank)[i];
     auto& handle = sendHandles[i];
     handle.addr = memAddr.addr;
-    CUDACHECK(cudaIpcGetMemHandle(&handle.ipcHandle, memAddr.addr));
+    CUDACHECK(cudaWrapper->cudaIpcGetMemHandle(&handle.ipcHandle, memAddr.addr));
   }
-  CUDACHECK(cudaMemcpy(sendBuff_d, sendHandles.data(), kSendSize, cudaMemcpyDefault));
+  CUDACHECK(cudaWrapper->cudaMemcpy(sendBuff_d, sendHandles.data(), kSendSize, cudaMemcpyDefault));
 
   // exchange handles
   cudaStream_t stream;
-  CUDACHECK(cudaStreamCreate(&stream));
+  CUDACHECK(cudaWrapper->cudaStreamCreate(&stream));
   NCCLCHECK(ncclAllGather(
       sendBuff_d, recvBuff_d, kSendSize, ncclUint8, comm_, stream));
-  CUDACHECK(cudaStreamSynchronize(stream));
-  CUDACHECK(cudaStreamDestroy(stream));
+  CUDACHECK(cudaWrapper->cudaStreamSynchronize(stream));
+  CUDACHECK(cudaWrapper->cudaStreamDestroy(stream));
 
   // decode received handles
-  CUDACHECK(cudaMemcpy(recvHandles.data(), recvBuff_d, kRecvSize, cudaMemcpyDefault));
+  CUDACHECK(cudaWrapper->cudaMemcpy(recvHandles.data(), recvBuff_d, kRecvSize, cudaMemcpyDefault));
   for (int rank = 0; rank < comm_->nRanks; ++rank) {
     if (rank == comm_->rank) {
       // skip self
@@ -83,7 +84,7 @@ ncclResult_t DdaMemHandler::exchangeMemHandles() {
         memAddr.isMmapped = false;
       } else {
         // rank in a different process, open Ipc
-        CUDACHECK(cudaIpcOpenMemHandle(
+        CUDACHECK(cudaWrapper->cudaIpcOpenMemHandle(
             (void**)&memAddr.addr,
             handle.ipcHandle,
             cudaIpcMemLazyEnablePeerAccess));
@@ -93,8 +94,8 @@ ncclResult_t DdaMemHandler::exchangeMemHandles() {
     }
   }
 
-  CUDACHECK(cudaFree(sendBuff_d));
-  CUDACHECK(cudaFree(recvBuff_d));
+  CUDACHECK(cudaWrapper->cudaFree(sendBuff_d));
+  CUDACHECK(cudaWrapper->cudaFree(recvBuff_d));
 
   return ncclSuccess;
 }

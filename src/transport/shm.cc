@@ -7,6 +7,7 @@
 #include "comm.h"
 #include "shm.h"
 #include "nccl_cvars.h"
+#include "cudawrapper.h"
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -269,9 +270,9 @@ static ncclResult_t shmSendProxyConnect(struct ncclProxyConnection* connection, 
   memcpy(proxyInfo, reqBuff, reqSize);
   NCCLCHECK(ncclCudaCalloc(&proxyInfo->devFifo, proxyState->buffSizes[NCCL_PROTO_SIMPLE]));
   NCCLCHECK(ncclCudaHostCalloc(&proxyInfo->ceRecvMem, 1));
-  CUDACHECK(cudaStreamCreateWithFlags(&proxyInfo->stream, cudaStreamNonBlocking));
+  CUDACHECK(cudaWrapper->cudaStreamCreateWithFlags(&proxyInfo->stream, cudaStreamNonBlocking));
   for (int i=0; i<NCCL_STEPS; i++) {
-    CUDACHECK(cudaEventCreate(proxyInfo->events+i));
+    CUDACHECK(cudaWrapper->cudaEventCreate(proxyInfo->events+i));
   }
   connection->proxyAppendPtr = &connection->proxyAppend;
   connection->transportResources = proxyInfo;
@@ -287,9 +288,9 @@ static ncclResult_t shmRecvProxyConnect(struct ncclProxyConnection* connection, 
   memcpy(proxyInfo, reqBuff, reqSize);
   NCCLCHECK(ncclCudaCalloc(&proxyInfo->devFifo, proxyState->buffSizes[NCCL_PROTO_SIMPLE]));
   NCCLCHECK(ncclCudaHostCalloc(&proxyInfo->ceRecvMem, 1));
-  CUDACHECK(cudaStreamCreateWithFlags(&proxyInfo->stream, cudaStreamNonBlocking));
+  CUDACHECK(cudaWrapper->cudaStreamCreateWithFlags(&proxyInfo->stream, cudaStreamNonBlocking));
   for (int i=0; i<NCCL_STEPS; i++) {
-    CUDACHECK(cudaEventCreate(proxyInfo->events+i));
+    CUDACHECK(cudaWrapper->cudaEventCreate(proxyInfo->events+i));
   }
   connection->proxyAppendPtr = &connection->proxyAppend;
   connection->transportResources = proxyInfo;
@@ -302,11 +303,11 @@ static ncclResult_t shmSendProxyFree(struct ncclProxyConnection* connection, str
   struct shmProxyInfo* resources = (struct shmProxyInfo*)connection->transportResources;
 
   if (resources) {
-    CUDACHECK(cudaStreamDestroy(resources->stream));
+    CUDACHECK(cudaWrapper->cudaStreamDestroy(resources->stream));
     NCCLCHECK(ncclCudaFree(resources->devFifo));
     NCCLCHECK(ncclCudaHostFree(resources->ceRecvMem));
     for (int i=0; i<NCCL_STEPS; i++) {
-      CUDACHECK(cudaEventDestroy(resources->events[i]));
+      CUDACHECK(cudaWrapper->cudaEventDestroy(resources->events[i]));
     }
     free(connection->transportResources);
   }
@@ -317,11 +318,11 @@ static ncclResult_t shmRecvProxyFree(struct ncclProxyConnection* connection, str
   struct shmProxyInfo* resources = (struct shmProxyInfo*)connection->transportResources;
 
   if (resources) {
-    CUDACHECK(cudaStreamDestroy(resources->stream));
+    CUDACHECK(cudaWrapper->cudaStreamDestroy(resources->stream));
     NCCLCHECK(ncclCudaFree(resources->devFifo));
     NCCLCHECK(ncclCudaHostFree(resources->ceRecvMem));
     for (int i=0; i<NCCL_STEPS; i++) {
-      CUDACHECK(cudaEventDestroy(resources->events[i]));
+      CUDACHECK(cudaWrapper->cudaEventDestroy(resources->events[i]));
     }
     free(connection->transportResources);
   }
@@ -358,8 +359,8 @@ static ncclResult_t shmSendProxyProgress(struct ncclProxyState* proxyState, stru
         // Check GPU has sent everything
         if ((*recvTail > sub->base+sub->transmitted)) {
           int size = sizesFifo[buffSlot];
-          CUDACHECK(cudaMemcpyAsync(resources->shmFifo+buffSlot*stepSize, resources->devFifo+buffSlot*stepSize, size, cudaMemcpyDeviceToHost, resources->stream));
-          CUDACHECK(cudaEventRecord(resources->events[buffSlot], resources->stream));
+          CUDACHECK(cudaWrapper->cudaMemcpyAsync(resources->shmFifo+buffSlot*stepSize, resources->devFifo+buffSlot*stepSize, size, cudaMemcpyDeviceToHost, resources->stream));
+          CUDACHECK(cudaWrapper->cudaEventRecord(resources->events[buffSlot], resources->stream));
           resources->recvMem->sizesFifo[buffSlot] = size;
           __sync_synchronize(); // make sure sizesFifo is visible
           sub->transmitted += args->sliceSteps;
@@ -367,7 +368,7 @@ static ncclResult_t shmSendProxyProgress(struct ncclProxyState* proxyState, stru
       }
       if (sub->done < sub->transmitted) {
         int buffSlot = (sub->base+sub->done)%NCCL_STEPS;
-        cudaError_t res = cudaEventQuery(resources->events[buffSlot]);
+        cudaError_t res = cudaWrapper->cudaEventQuery(resources->events[buffSlot]);
         if (res != cudaErrorNotReady) CUDACHECK(res);
         if (res == cudaSuccess) {
           sub->done += args->sliceSteps;
@@ -417,14 +418,14 @@ static ncclResult_t shmRecvProxyProgress(struct ncclProxyState* proxyState, stru
         // Check data is ready in SHM
         if ((*recvTail > sub->base+sub->transmitted)) {
           int size = sizesFifo[buffSlot];
-          CUDACHECK(cudaMemcpyAsync(resources->devFifo+buffSlot*stepSize, resources->shmFifo+buffSlot*stepSize, size, cudaMemcpyHostToDevice, resources->stream));
-          CUDACHECK(cudaEventRecord(resources->events[buffSlot], resources->stream));
+          CUDACHECK(cudaWrapper->cudaMemcpyAsync(resources->devFifo+buffSlot*stepSize, resources->shmFifo+buffSlot*stepSize, size, cudaMemcpyHostToDevice, resources->stream));
+          CUDACHECK(cudaWrapper->cudaEventRecord(resources->events[buffSlot], resources->stream));
           sub->transmitted += args->sliceSteps;
         }
       }
       if (sub->done < sub->transmitted) {
         int buffSlot = (sub->base+sub->done)%NCCL_STEPS;
-        cudaError_t res = cudaEventQuery(resources->events[buffSlot]);
+        cudaError_t res = cudaWrapper->cudaEventQuery(resources->events[buffSlot]);
         if (res != cudaErrorNotReady) CUDACHECK(res);
         if (res == cudaSuccess) {
           sub->done += args->sliceSteps;

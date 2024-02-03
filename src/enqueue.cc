@@ -76,18 +76,18 @@ ncclResult_t ncclInitKernelsForDevice(int cudaArch, size_t* maxStackSize) {
 
     if (maxStackSize) {
       cudaFuncAttributes attr = {0};
-      CUDACHECKGOTO(cudaFuncGetAttributes(&attr, fn), result, ignore0);
+      CUDACHECKGOTO(cudaWrapper->cudaFuncGetAttributes(&attr, fn), result, ignore0);
       if (attr.localSizeBytes > *maxStackSize) *maxStackSize = attr.localSizeBytes;
     ignore0:;
     }
     if (carveout) {
-      CUDACHECKGOTO(cudaFuncSetAttribute(fn,
+      CUDACHECKGOTO(cudaWrapper->cudaFuncSetAttribute(fn,
         cudaFuncAttributePreferredSharedMemoryCarveout, carveout),
         result, ignore1);
     ignore1:;
     }
     if (ncclShmemDynamicSize(cudaArch) != 0) {
-      CUDACHECKGOTO(cudaFuncSetAttribute(fn,
+      CUDACHECKGOTO(cudaWrapper->cudaFuncSetAttribute(fn,
         cudaFuncAttributeMaxDynamicSharedMemorySize, ncclShmemDynamicSize(cudaArch)),
         result, next_kernel);
     }
@@ -412,8 +412,8 @@ static ncclResult_t registerIntraNodeBuffers(
 
     /* first try local registration. */
     if (NCCL_LOCAL_REGISTER) {
-      CUDACHECK(cudaPointerGetAttributes(&sattr, info->sendbuff));
-      CUDACHECK(cudaPointerGetAttributes(&rattr, info->recvbuff));
+      CUDACHECK(cudaWrapper->cudaPointerGetAttributes(&sattr, info->sendbuff));
+      CUDACHECK(cudaWrapper->cudaPointerGetAttributes(&rattr, info->recvbuff));
       query = true;
       if (sattr.type == cudaMemoryTypeDevice && rattr.type == cudaMemoryTypeDevice)
         ncclNvlsLocalRegisterBuffer(comm, sendbuff, recvbuff, info->sendbuffSize, info->recvbuffSize, &regBufUsed, outRegBufSend, outRegBufRecv);
@@ -421,8 +421,8 @@ static ncclResult_t registerIntraNodeBuffers(
 
     if (regBufUsed == false && plan->persistent && NCCL_GRAPH_REGISTER) {
       if (!query) {
-        CUDACHECK(cudaPointerGetAttributes(&sattr, info->sendbuff));
-        CUDACHECK(cudaPointerGetAttributes(&rattr, info->recvbuff));
+        CUDACHECK(cudaWrapper->cudaPointerGetAttributes(&sattr, info->sendbuff));
+        CUDACHECK(cudaWrapper->cudaPointerGetAttributes(&rattr, info->recvbuff));
       }
       if (sattr.type == cudaMemoryTypeDevice && rattr.type == cudaMemoryTypeDevice)
         ncclNvlsGraphRegisterBuffer(comm, plan, sendbuff, recvbuff, info->sendbuffSize, info->recvbuffSize, &regBufUsed, outRegBufSend, outRegBufRecv);
@@ -445,8 +445,8 @@ static ncclResult_t registerIntraNodeBuffers(
     int localRank = comm->localRank;
     cudaPointerAttributes sattr, rattr;
 
-    CUDACHECK(cudaPointerGetAttributes(&sattr, info->sendbuff));
-    CUDACHECK(cudaPointerGetAttributes(&rattr, info->recvbuff));
+    CUDACHECK(cudaWrapper->cudaPointerGetAttributes(&sattr, info->sendbuff));
+    CUDACHECK(cudaWrapper->cudaPointerGetAttributes(&rattr, info->recvbuff));
     if (sattr.type != cudaMemoryTypeDevice || rattr.type != cudaMemoryTypeDevice) return ncclSuccess;
 
     if (CUPFN(cuMemGetAddressRange) == nullptr) return ncclSuccess;
@@ -457,14 +457,14 @@ static ncclResult_t registerIntraNodeBuffers(
     };
     struct HandlePair handles[NCCL_MAX_LOCAL_RANKS];
 
-    CUDACHECKGOTO(cudaIpcGetMemHandle(&handles[localRank].ipc[0], (void*)info->sendbuff), result, fallback);
-    CUDACHECKGOTO(cudaIpcGetMemHandle(&handles[localRank].ipc[1], (void*)info->recvbuff), result, fallback);
+    CUDACHECKGOTO(cudaWrapper->cudaIpcGetMemHandle(&handles[localRank].ipc[0], (void*)info->sendbuff), result, fallback);
+    CUDACHECKGOTO(cudaWrapper->cudaIpcGetMemHandle(&handles[localRank].ipc[1], (void*)info->recvbuff), result, fallback);
 
     void *baseSend, *baseRecv;
     size_t size;
-    CUCHECK(cuMemGetAddressRange((CUdeviceptr *)&baseSend, &size, (CUdeviceptr)info->sendbuff));
+    CUCHECK(cudaWrapper->cuMemGetAddressRange((CUdeviceptr *)&baseSend, &size, (CUdeviceptr)info->sendbuff));
     handles[localRank].offset[0] = (char*)info->sendbuff - (char*)baseSend;
-    CUCHECK(cuMemGetAddressRange((CUdeviceptr *)&baseRecv, &size, (CUdeviceptr)info->recvbuff));
+    CUCHECK(cudaWrapper->cuMemGetAddressRange((CUdeviceptr *)&baseRecv, &size, (CUdeviceptr)info->recvbuff));
     handles[localRank].offset[1] = (char*)info->recvbuff - (char*)baseRecv;
 
     NCCLCHECK(bootstrapIntraNodeAllGather(comm->bootstrap, comm->localRankToRank, comm->localRank, comm->localRanks, handles, sizeof(struct HandlePair)));
@@ -478,7 +478,7 @@ static ncclResult_t registerIntraNodeBuffers(
         for (int sr=0; sr < 2; sr++) {
           // Get base address of mapping
           void* base;
-          CUDACHECK(cudaIpcOpenMemHandle(&base, handles[i].ipc[sr], cudaIpcMemLazyEnablePeerAccess));
+          CUDACHECK(cudaWrapper->cudaIpcOpenMemHandle(&base, handles[i].ipc[sr], cudaIpcMemLazyEnablePeerAccess));
           // Get real buffer address by adding offset in the mapping
           (sr==0 ? outRegBufSend : outRegBufRecv)[i] = (char*)base + handles[i].offset[sr];
           // Enqueue reminder to close memory handle
@@ -920,7 +920,7 @@ static ncclResult_t reclaimPlan(struct ncclComm* comm, struct ncclCommCallback* 
     }
     while (!ncclIntruQueueEmpty(&plan->ipcMemQueue)) {
       struct ncclPointerList* q = ncclIntruQueueDequeue(&plan->ipcMemQueue);
-      CUDACHECKIGNORE(cudaIpcCloseMemHandle(q->ptr));
+      CUDACHECKIGNORE(cudaWrapper->cudaIpcCloseMemHandle(q->ptr));
       ncclMemoryPoolFree(&comm->memPool_ncclPointerList, q);
     }
     /* free mcHandle */
@@ -1120,12 +1120,12 @@ ncclResult_t ncclLaunchKernel(struct ncclComm* comm, struct ncclKernelPlan* plan
     launchConfig.numAttrs = attrs;
     launchConfig.stream = launchStream;
 
-    CUDACHECK(cudaLaunchKernelExC(&launchConfig, fn, args));
+    CUDACHECK(cudaWrapper->cudaLaunchKernelExC(&launchConfig, fn, args));
     return ncclSuccess;
   }
   #endif
   // Standard kernel launch
-  CUDACHECK(cudaLaunchKernel(fn, grid, block, args, smem, launchStream));
+  CUDACHECK(cudaWrapper->cudaLaunchKernel(fn, grid, block, args, smem, launchStream));
   return ncclSuccess;
 }
 
@@ -1664,8 +1664,8 @@ ncclResult_t ncclEnqueueCheck(struct ncclInfo* info) {
   NCCLCHECKGOTO(ncclCommEnsureReady(info->comm), ret, fail);
 
   if (info->comm->checkPointers) {
-    CUDACHECKGOTO(cudaGetDevice(&devOld), ret, fail);
-    CUDACHECKGOTO(cudaSetDevice(info->comm->cudaDev), ret, fail);
+    CUDACHECKGOTO(cudaWrapper->cudaGetDevice(&devOld), ret, fail);
+    CUDACHECKGOTO(cudaWrapper->cudaSetDevice(info->comm->cudaDev), ret, fail);
   }
   NCCLCHECKGOTO(ArgsCheck(info), ret, fail);
 
@@ -1677,7 +1677,7 @@ ncclResult_t ncclEnqueueCheck(struct ncclInfo* info) {
   NCCLCHECKGOTO(taskAppend(info->comm, info), ret, fail);
 
 exit:
-  if (devOld != -1) CUDACHECK(cudaSetDevice(devOld));
+  if (devOld != -1) CUDACHECK(cudaWrapper->cudaSetDevice(devOld));
   ncclGroupErrCheck(ret);
   NCCLCHECK(ncclGroupEndInternal());
   /* if depth is 1, ncclGroupEndInternal() will trigger group ops. The state can change

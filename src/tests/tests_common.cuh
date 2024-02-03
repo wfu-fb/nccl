@@ -67,7 +67,7 @@ DECL_TYPED_KERNS(double);
   cudaError_t e = cmd;                              \
   if( e != cudaSuccess ) {                          \
     printf("Failed: Cuda error %s:%d '%s'\n",             \
-        __FILE__,__LINE__,cudaGetErrorString(e));   \
+        __FILE__,__LINE__,cudaWrapper->cudaGetErrorString(e));   \
     exit(EXIT_FAILURE);                             \
   }                                                 \
 } while(0)
@@ -115,7 +115,7 @@ ncclComm_t createNcclComm(int globalRank, int numRanks, int devId) {
   if (globalRank == 0) ncclGetUniqueId(&id);
   MPICHECK_TEST(MPI_Bcast((void *)&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD));
 
-  CUDACHECK_TEST(cudaSetDevice(devId));
+  CUDACHECK_TEST(cudaWrapper->cudaSetDevice(devId));
 
   //initializing NCCL
   NCCLCHECK_TEST(ncclCommInitRank(&comm, numRanks, id, globalRank));

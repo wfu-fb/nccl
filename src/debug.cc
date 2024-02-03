@@ -216,7 +216,7 @@ void ncclDebugLog(ncclDebugLogLevel level, unsigned long flags, const char *file
 
   int cudaDev;
   if (!(level == NCCL_LOG_TRACE && flags == NCCL_CALL)) {
-    cudaGetDevice(&cudaDev);
+    cudaWrapper->cudaGetDevice(&cudaDev);
   }
 
   char buffer[1024];

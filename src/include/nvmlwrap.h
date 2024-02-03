@@ -196,19 +196,28 @@ extern int ncclNvmlDeviceCount;
 extern ncclNvmlDeviceInfo ncclNvmlDevices[ncclNvmlMaxDevices];
 extern ncclNvmlDevicePairInfo ncclNvmlDevicePairs[ncclNvmlMaxDevices][ncclNvmlMaxDevices];
 
-// All ncclNvmlFoo() functions call ncclNvmlEnsureInitialized() implicitly.
-// Outsiders need only call it if they want to inspect the ncclNvml global
-// tables above.
-ncclResult_t ncclNvmlEnsureInitialized();
+class NvmlWrapper {
+  public:
+    NvmlWrapper(bool mock = false) : mock_(mock) {}
 
-ncclResult_t ncclNvmlDeviceGetHandleByPciBusId(const char* pciBusId, nvmlDevice_t* device);
-ncclResult_t ncclNvmlDeviceGetIndex(nvmlDevice_t device, unsigned* index);
-ncclResult_t ncclNvmlDeviceGetHandleByIndex(unsigned int index, nvmlDevice_t *device);
-ncclResult_t ncclNvmlDeviceGetNvLinkState(nvmlDevice_t device, unsigned int link, nvmlEnableState_t *isActive);
-ncclResult_t ncclNvmlDeviceGetNvLinkRemotePciInfo(nvmlDevice_t device, unsigned int link, nvmlPciInfo_t *pci);
-ncclResult_t ncclNvmlDeviceGetNvLinkCapability(nvmlDevice_t device, unsigned int link, nvmlNvLinkCapability_t capability, unsigned int *capResult);
-ncclResult_t ncclNvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int* major, int* minor);
-ncclResult_t ncclNvmlDeviceGetP2PStatus(nvmlDevice_t device1, nvmlDevice_t device2, nvmlGpuP2PCapsIndex_t p2pIndex, nvmlGpuP2PStatus_t* p2pStatus);
-ncclResult_t ncclNvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCount, nvmlFieldValue_t *values);
+    // All ncclNvmlFoo() functions call ncclNvmlEnsureInitialized() implicitly.
+    // Outsiders need only call it if they want to inspect the ncclNvml global
+    // tables above.
+    ncclResult_t ncclNvmlEnsureInitialized();
+
+    ncclResult_t ncclNvmlDeviceGetHandleByPciBusId(const char* pciBusId, nvmlDevice_t* device);
+    ncclResult_t ncclNvmlDeviceGetIndex(nvmlDevice_t device, unsigned* index);
+    ncclResult_t ncclNvmlDeviceGetHandleByIndex(unsigned int index, nvmlDevice_t *device);
+    ncclResult_t ncclNvmlDeviceGetNvLinkState(nvmlDevice_t device, unsigned int link, nvmlEnableState_t *isActive);
+    ncclResult_t ncclNvmlDeviceGetNvLinkRemotePciInfo(nvmlDevice_t device, unsigned int link, nvmlPciInfo_t *pci);
+    ncclResult_t ncclNvmlDeviceGetNvLinkCapability(nvmlDevice_t device, unsigned int link, nvmlNvLinkCapability_t capability, unsigned int *capResult);
+    ncclResult_t ncclNvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int* major, int* minor);
+    ncclResult_t ncclNvmlDeviceGetP2PStatus(nvmlDevice_t device1, nvmlDevice_t device2, nvmlGpuP2PCapsIndex_t p2pIndex, nvmlGpuP2PStatus_t* p2pStatus);
+    ncclResult_t ncclNvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCount, nvmlFieldValue_t *values);
+  private:
+    bool mock_{false};
+};
+
+extern std::shared_ptr<NvmlWrapper> nvmlWrapper;
 
 #endif // End include guard

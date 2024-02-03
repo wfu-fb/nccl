@@ -341,9 +341,9 @@ static ncclResult_t sendConnect(struct ncclComm* comm, struct ncclConnect* conne
   if (map->sameProcess && !ncclCuMemEnable()) {
     if (map->cudaDev != comm->cudaDev) {
         // Enable P2P access for Legacy IPC
-        cudaError_t err = cudaDeviceEnablePeerAccess(map->cudaDev, 0);
+        cudaError_t err = cudaWrapper->cudaDeviceEnablePeerAccess(map->cudaDev, 0);
         if (err == cudaErrorPeerAccessAlreadyEnabled) {
-          cudaGetLastError();
+          cudaWrapper->cudaGetLastError();
         } else if (err != cudaSuccess) {
           WARN("failed to peer with device %d: %d %s", map->cudaDev, err, cudaGetErrorString(err));
           return ncclInternalError;
@@ -471,7 +471,7 @@ static ncclResult_t sendFree(struct ncclConnector* send) {
   struct connectMap* map = (struct connectMap*)(send->transportResources);
   if (map) {
     int cudaDev;
-    CUDACHECK(cudaGetDevice(&cudaDev));
+    CUDACHECK(cudaWrapper->cudaGetDevice(&cudaDev));
     if (map->sameProcess && map->cudaDev == cudaDev) {
       // Our own GPU, so it wasn't mapped in
       free(map);
@@ -486,7 +486,7 @@ static ncclResult_t sendFree(struct ncclConnector* send) {
           NCCLCHECK(ncclCuMemFree(map->mems[NCCL_NET_MAP_DEVMEM].gpuPtr));
         } else {
           // Legacy CUDA IPC support
-          CUDACHECK(cudaIpcCloseMemHandle(map->mems[NCCL_NET_MAP_DEVMEM].gpuPtr));
+          CUDACHECK(cudaWrapper->cudaIpcCloseMemHandle(map->mems[NCCL_NET_MAP_DEVMEM].gpuPtr));
         }
       }
     }
@@ -723,7 +723,7 @@ static ncclResult_t sendProxyConnect(struct ncclProxyConnection* connection, str
   struct connectMap* map = &resources->map;
   map->sameProcess = connection->sameProcess;
   map->shared = resources->shared;
-  CUDACHECK(cudaGetDevice(&map->cudaDev));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&map->cudaDev));
 
   if (resources->shared == 0) { // Only allocate dedicated buffers for ring/tree, not for p2p
     for (int p=0; p<NCCL_NUM_PROTOCOLS; p++) {
@@ -794,7 +794,7 @@ static ncclResult_t sendProxyConnect(struct ncclProxyConnection* connection, str
       int type = NCCL_NET_MAP_DEV_MEM(map, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST;
       if (type == NCCL_PTR_CUDA && resources->useDmaBuf) {
         int dmabuf_fd;
-        CUCHECK(cuMemGetHandleForAddressRange((void *)&dmabuf_fd, (CUdeviceptr)resources->buffers[p], resources->buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, 0));
+        CUCHECK(cudaWrapper->cuMemGetHandleForAddressRange((void *)&dmabuf_fd, (CUdeviceptr)resources->buffers[p], resources->buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, 0));
         NCCLCHECK(proxyState->ncclNet->regMrDmaBuf(resources->netSendComm, resources->buffers[p], resources->buffSizes[p], type, 0ULL, dmabuf_fd, &resources->mhandles[p]));
         (void)close(dmabuf_fd);
       } else // FALL-THROUGH to nv_peermem GDR path
@@ -937,7 +937,7 @@ static ncclResult_t recvProxyConnect(struct ncclProxyConnection* connection, str
       int type = NCCL_NET_MAP_DEV_MEM(map, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST;
       if (type == NCCL_PTR_CUDA && resources->useDmaBuf) {
         int dmabuf_fd;
-        CUCHECK(cuMemGetHandleForAddressRange((void *)&dmabuf_fd, (CUdeviceptr)resources->buffers[p], resources->buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, 0));
+        CUCHECK(cudaWrapper->cuMemGetHandleForAddressRange((void *)&dmabuf_fd, (CUdeviceptr)resources->buffers[p], resources->buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, 0));
         NCCLCHECK(proxyState->ncclNet->regMrDmaBuf(resources->netRecvComm, resources->buffers[p], resources->buffSizes[p], type, 0ULL, dmabuf_fd, &resources->mhandles[p]));
         (void)close(dmabuf_fd);
       } else // FALL-THROUGH to nv_peermem GDR path

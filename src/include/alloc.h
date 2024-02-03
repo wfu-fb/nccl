@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include "cudawrapper.h"
 
 uint64_t clockNano(); // from utils.h with which we have a circular dependency
 
@@ -24,11 +25,11 @@ ncclResult_t ncclCudaHostCallocDebug(T** ptr, size_t nelem, const char *filefunc
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
   *ptr = nullptr;
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
-  CUDACHECKGOTO(cudaHostAlloc(ptr, nelem*sizeof(T), cudaHostAllocMapped), result, finish);
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECKGOTO(cudaWrapper->cudaHostAlloc((void **)ptr, nelem*sizeof(T), cudaHostAllocMapped), result, finish);
   memset(*ptr, 0, nelem*sizeof(T));
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (*ptr == nullptr) WARN("Failed to CUDA host alloc %ld bytes", nelem*sizeof(T));
   INFO(NCCL_ALLOC, "%s:%d Cuda Host Alloc Size %ld pointer %p", filefunc, line, nelem*sizeof(T), *ptr);
   return result;
@@ -36,7 +37,7 @@ finish:
 #define ncclCudaHostCalloc(...) ncclCudaHostCallocDebug(__VA_ARGS__, __FILE__, __LINE__)
 
 inline ncclResult_t ncclCudaHostFree(void* ptr) {
-  CUDACHECK(cudaFreeHost(ptr));
+  CUDACHECK(cudaWrapper->cudaFreeHost(ptr));
   return ncclSuccess;
 }
 
@@ -87,28 +88,28 @@ static inline ncclResult_t ncclCuMemAlloc(void **ptr, CUmemGenericAllocationHand
   CUmemGenericAllocationHandle handle;
   int cudaDev;
   int flag = 0;
-  CUDACHECK(cudaGetDevice(&cudaDev));
-  CUCHECK(cuDeviceGet(&currentDev, cudaDev));
+  CUDACHECK(cudaWrapper->cudaGetDevice(&cudaDev));
+  CUCHECK(cudaWrapper->cuDeviceGet(&currentDev, cudaDev));
   prop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
   prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
   prop.requestedHandleTypes = NCCL_P2P_HANDLE_TYPE; // So it can be exported
   prop.location.id = currentDev;
   // Query device to see if RDMA support is available
-  CUCHECK(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_SUPPORTED, currentDev));
+  CUCHECK(cudaWrapper->cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_SUPPORTED, currentDev));
   if (flag) prop.allocFlags.gpuDirectRDMACapable = 1;
-  CUCHECK(cuMemGetAllocationGranularity(&granularity, &prop, CU_MEM_ALLOC_GRANULARITY_MINIMUM));
+  CUCHECK(cudaWrapper->cuMemGetAllocationGranularity(&granularity, &prop, CU_MEM_ALLOC_GRANULARITY_MINIMUM));
   ALIGN_SIZE(size, granularity);
   /* Allocate the physical memory on the device */
-  CUCHECK(cuMemCreate(&handle, size, &prop, 0));
+  CUCHECK(cudaWrapper->cuMemCreate(&handle, size, &prop, 0));
   /* Reserve a virtual address range */
-  CUCHECK(cuMemAddressReserve((CUdeviceptr *)ptr, size, granularity, 0, 0));
+  CUCHECK(cudaWrapper->cuMemAddressReserve((CUdeviceptr *)ptr, size, granularity, 0, 0));
   /* Map the virtual address range to the physical allocation */
-  CUCHECK(cuMemMap((CUdeviceptr)*ptr, size, 0, handle, 0));
+  CUCHECK(cudaWrapper->cuMemMap((CUdeviceptr)*ptr, size, 0, handle, 0));
   /* Now allow RW access to the newly mapped memory */
   accessDesc.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
   accessDesc.location.id = currentDev;
   accessDesc.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
-  CUCHECK(cuMemSetAccess((CUdeviceptr)*ptr, size, &accessDesc, 1));
+  CUCHECK(cudaWrapper->cuMemSetAccess((CUdeviceptr)*ptr, size, &accessDesc, 1));
   if (handlep) *handlep = handle;
   TRACE(NCCL_ALLOC, "CuMem Alloc Size %zi pointer %p handle %llx", size, *ptr, handle);
   return result;
@@ -119,13 +120,13 @@ static inline ncclResult_t ncclCuMemFree(void *ptr) {
   ncclResult_t result = ncclSuccess;
   CUmemGenericAllocationHandle handle;
   size_t size = 0;
-  CUCHECK(cuMemRetainAllocationHandle(&handle, ptr));
-  CUCHECK(cuMemRelease(handle));
-  CUCHECK(cuMemGetAddressRange(NULL, &size, (CUdeviceptr)ptr));
+  CUCHECK(cudaWrapper->cuMemRetainAllocationHandle(&handle, ptr));
+  CUCHECK(cudaWrapper->cuMemRelease(handle));
+  CUCHECK(cudaWrapper->cuMemGetAddressRange(NULL, &size, (CUdeviceptr)ptr));
   TRACE(NCCL_ALLOC, "CuMem Free Size %zi pointer %p handle 0x%llx", size, ptr, handle);
-  CUCHECK(cuMemUnmap((CUdeviceptr)ptr, size));
-  CUCHECK(cuMemRelease(handle));
-  CUCHECK(cuMemAddressFree((CUdeviceptr)ptr, size));
+  CUCHECK(cudaWrapper->cuMemUnmap((CUdeviceptr)ptr, size));
+  CUCHECK(cudaWrapper->cuMemRelease(handle));
+  CUCHECK(cudaWrapper->cuMemAddressFree((CUdeviceptr)ptr, size));
   return result;
 }
 
@@ -149,14 +150,14 @@ ncclResult_t ncclCudaMallocDebug(T** ptr, size_t nelem, const char *filefunc, in
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
   *ptr = nullptr;
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (ncclCuMemEnable()) {
     NCCLCHECKGOTO(ncclCuMemAlloc((void **)ptr, NULL, nelem*sizeof(T)), result, finish);
   } else {
-    CUDACHECKGOTO(cudaMalloc(ptr, nelem*sizeof(T)), result, finish);
+    CUDACHECKGOTO(cudaWrapper->cudaMalloc((void **)ptr, nelem*sizeof(T)), result, finish);
   }
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (*ptr == nullptr) WARN("Failed to CUDA malloc %ld bytes", nelem*sizeof(T));
   INFO(NCCL_ALLOC, "%s:%d Cuda Alloc Size %ld pointer %p", filefunc, line, nelem*sizeof(T), *ptr);
   return result;
@@ -168,20 +169,20 @@ ncclResult_t ncclCudaCallocDebug(T** ptr, size_t nelem, const char *filefunc, in
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
   *ptr = nullptr;
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   // Need a side stream so as not to interfere with graph capture.
   cudaStream_t stream;
-  CUDACHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+  CUDACHECK(cudaWrapper->cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
   if (ncclCuMemEnable()) {
     NCCLCHECKGOTO(ncclCuMemAlloc((void **)ptr, NULL, nelem*sizeof(T)), result, finish);
   } else {
-    CUDACHECKGOTO(cudaMalloc(ptr, nelem*sizeof(T)), result, finish);
+    CUDACHECKGOTO(cudaWrapper->cudaMalloc((void **)ptr, nelem*sizeof(T)), result, finish);
   }
-  CUDACHECKGOTO(cudaMemsetAsync(*ptr, 0, nelem*sizeof(T), stream), result, finish);
-  CUDACHECKGOTO(cudaStreamSynchronize(stream), result, finish);
-  CUDACHECKGOTO(cudaStreamDestroy(stream), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaMemsetAsync(*ptr, 0, nelem*sizeof(T), stream), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaStreamSynchronize(stream), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaStreamDestroy(stream), result, finish);
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (*ptr == nullptr) WARN("Failed to CUDA calloc %ld bytes", nelem*sizeof(T));
   INFO(NCCL_ALLOC, "%s:%d Cuda Alloc Size %ld pointer %p", filefunc, line, nelem*sizeof(T), *ptr);
   return result;
@@ -193,15 +194,15 @@ ncclResult_t ncclCudaCallocAsyncDebug(T** ptr, size_t nelem, cudaStream_t stream
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
   *ptr = nullptr;
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (ncclCuMemEnable()) {
     NCCLCHECKGOTO(ncclCuMemAlloc((void **)ptr, NULL, nelem*sizeof(T)), result, finish);
   } else {
-    CUDACHECKGOTO(cudaMalloc(ptr, nelem*sizeof(T)), result, finish);
+    CUDACHECKGOTO(cudaWrapper->cudaMalloc((void **)ptr, nelem*sizeof(T)), result, finish);
   }
-  CUDACHECKGOTO(cudaMemsetAsync(*ptr, 0, nelem*sizeof(T), stream), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaMemsetAsync(*ptr, 0, nelem*sizeof(T), stream), result, finish);
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (*ptr == nullptr) WARN("Failed to CUDA calloc async %ld bytes", nelem*sizeof(T));
   INFO(NCCL_ALLOC, "%s:%d Cuda Alloc Size %ld pointer %p", filefunc, line, nelem*sizeof(T), *ptr);
   return result;
@@ -212,15 +213,15 @@ template <typename T>
 ncclResult_t ncclCudaMemcpy(T* dst, T* src, size_t nelem) {
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   // Need a side stream so as not to interfere with graph capture.
   cudaStream_t stream;
-  CUDACHECKGOTO(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking), result, finish);
   NCCLCHECKGOTO(ncclCudaMemcpyAsync(dst, src, nelem, stream), result, finish);
-  CUDACHECKGOTO(cudaStreamSynchronize(stream), result, finish);
-  CUDACHECKGOTO(cudaStreamDestroy(stream), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaStreamSynchronize(stream), result, finish);
+  CUDACHECKGOTO(cudaWrapper->cudaStreamDestroy(stream), result, finish);
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   return result;
 }
 
@@ -228,10 +229,10 @@ template <typename T>
 ncclResult_t ncclCudaMemcpyAsync(T* dst, T* src, size_t nelem, cudaStream_t stream) {
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
-  CUDACHECKGOTO(cudaMemcpyAsync(dst, src, nelem*sizeof(T), cudaMemcpyDefault, stream), result, finish);
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECKGOTO(cudaWrapper->cudaMemcpyAsync(dst, src, nelem*sizeof(T), cudaMemcpyDefault, stream), result, finish);
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   return result;
 }
 
@@ -240,14 +241,14 @@ ncclResult_t ncclCudaFree(T* ptr) {
   ncclResult_t result = ncclSuccess;
   cudaStreamCaptureMode mode = cudaStreamCaptureModeRelaxed;
   TRACE(NCCL_ALLOC, "Cuda Free pointer %p", ptr);
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   if (ncclCuMemEnable()) {
     NCCLCHECKGOTO(ncclCuMemFree((void *)ptr), result, finish);
   } else {
-    CUDACHECKGOTO(cudaFree(ptr), result, finish);
+    CUDACHECKGOTO(cudaWrapper->cudaFree(ptr), result, finish);
   }
 finish:
-  CUDACHECK(cudaThreadExchangeStreamCaptureMode(&mode));
+  CUDACHECK(cudaWrapper->cudaThreadExchangeStreamCaptureMode(&mode));
   return result;
 }
 

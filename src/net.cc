@@ -399,11 +399,11 @@ ncclResult_t ncclGpuGdrSupport(struct ncclComm* comm, int* gdrSupport) {
 #if CUDART_VERSION >= 11030
   // In CUDA 11.3 and later we can now query the cudaDevAttrGPUDirectRDMASupported attribute
   int driverVersion;
-  CUDACHECK(cudaDriverGetVersion(&driverVersion));
+  CUDACHECK(cudaWrapper->cudaDriverGetVersion(&driverVersion));
   if (driverVersion >= 11030) {
     int cudaDev, attr = 0;
-    CUDACHECK(cudaGetDevice(&cudaDev));
-    CUDACHECK(cudaDeviceGetAttribute(&attr, cudaDevAttrGPUDirectRDMASupported, cudaDev));
+    CUDACHECK(cudaWrapper->cudaGetDevice(&cudaDev));
+    CUDACHECK(cudaWrapper->cudaDeviceGetAttribute(&attr, cudaDevAttrGPUDirectRDMASupported, cudaDev));
     *gdrSupport = attr;
     return ncclSuccess;
   }

@@ -53,7 +53,7 @@ ncclResult_t AlgoAllReduceDdaNvsScatGatIpc::launchKernel() {
       &sendbuff_,
       &recvbuff_,
       &count_};
-  CUDACHECK(cudaLaunchKernel(func, grid, block, args, 0, stream_));
+  CUDACHECK(cudaWrapper->cudaLaunchKernel(func, grid, block, args, 0, stream_));
   return ncclSuccess;
 }
 
