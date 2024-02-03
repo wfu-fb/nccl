@@ -852,13 +852,13 @@ static int setProxyThreadContext(struct ncclProxyState* proxyState) {
   }
   if (createThreadContext) {
     if (proxyState->cudaCtx == NULL) {
-      if (CUPFN(cuCtxCreate(&proxyState->cudaCtx,
-                                  CU_CTX_SCHED_SPIN|CU_CTX_MAP_HOST, proxyState->cudaDev)) != CUDA_SUCCESS) {
+      if (cudaWrapper->cuCtxCreate(&proxyState->cudaCtx,
+                                  CU_CTX_SCHED_SPIN|CU_CTX_MAP_HOST, proxyState->cudaDev) != CUDA_SUCCESS) {
         WARN("Failed to create CUDA context on device %d", proxyState->cudaDev);
         createThreadContext = 0;
       }
     } else {
-      if (CUPFN(cuCtxSetCurrent(proxyState->cudaCtx)) != CUDA_SUCCESS) {
+      if (cudaWrapper->cuCtxSetCurrent(proxyState->cudaCtx) != CUDA_SUCCESS) {
         WARN("Failed to set CUDA context on device %d", proxyState->cudaDev);
         return 0;
       }
@@ -873,7 +873,7 @@ void* ncclProxyProgress(void *proxyState_) {
   struct ncclProxyState* proxyState = (struct ncclProxyState*)proxyState_;
   if (setProxyThreadContext(proxyState)) {
     INFO(NCCL_INIT, "[Proxy Progress] Created CUDA context on device %d", proxyState->cudaDev);
-  } else if (cudaSetDevice(proxyState->cudaDev) != cudaSuccess) {
+  } else if (cudaWrapper->cudaSetDevice(proxyState->cudaDev) != cudaSuccess) {
     WARN("[Proxy Progress] Failed to set CUDA device %d", proxyState->cudaDev);
   }
   // if (CPU_COUNT(&comm->cpuAffinity)) sched_setaffinity(0, sizeof(cpu_set_t), &comm->cpuAffinity);
@@ -1343,7 +1343,7 @@ static ncclResult_t proxyGetFd(struct ncclProxyLocalPeer* peer, void *opId, stru
   CUmemAllocationHandleType type = CU_MEM_HANDLE_TYPE_POSIX_FILE_DESCRIPTOR;
   int fd = -1;
 
-  CUCHECK(cuMemExportToShareableHandle(&fd, handle, type, 0));
+  CUCHECK(cudaWrapper->cuMemExportToShareableHandle(&fd, handle, type, 0));
   // Send back the converted fd using UDS
   NCCLCHECKGOTO(ncclIpcSocketInit(&ipcSock, proxyState->tpRank, hash^1, proxyState->abortFlag), ret, error);
   NCCLCHECKGOTO(ncclIpcSocketSendFd(&ipcSock, fd, peer->tpLocalRank, hash), ret, error);
@@ -1460,7 +1460,7 @@ void* ncclProxyService(void* _args) {
   // if (CPU_COUNT(&comm->cpuAffinity)) sched_setaffinity(0, sizeof(cpu_set_t), &comm->cpuAffinity);
   if (setProxyThreadContext(proxyState)) {
     INFO(NCCL_INIT, "[Proxy Service] Created CUDA context on device %d", proxyState->cudaDev);
-  } else if (cudaSetDevice(proxyState->cudaDev) != cudaSuccess) {
+  } else if (cudaWrapper->cudaSetDevice(proxyState->cudaDev) != cudaSuccess) {
     WARN("[Proxy Service] Failed to set CUDA device %d", proxyState->cudaDev);
   }
   // if (CPU_COUNT(&comm->cpuAffinity)) sched_setaffinity(0, sizeof(cpu_set_t), &comm->cpuAffinity);
@@ -1678,7 +1678,7 @@ ncclResult_t ncclProxyStop(struct ncclComm* comm) {
             }
             if (sharedProxyState->sharedDevMems[i]) {
               if (!ncclCuMemEnable()) {
-                CUDACHECK(cudaIpcCloseMemHandle(sharedProxyState->sharedDevMems[i]));
+                CUDACHECK(cudaWrapper->cudaIpcCloseMemHandle(sharedProxyState->sharedDevMems[i]));
               }
             }
             int type = ncclProxyMsgClose;

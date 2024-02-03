@@ -49,16 +49,16 @@ int ncclIsCuMemSupported() {
   int cudaDriverVersion;
   int flag = 0;
   ncclResult_t ret = ncclSuccess;
-  CUDACHECKGOTO(cudaDriverGetVersion(&cudaDriverVersion), ret, error);
+  CUDACHECKGOTO(cudaWrapper->cudaDriverGetVersion(&cudaDriverVersion), ret, error);
   if (cudaDriverVersion < 12000) return 0;  // Need CUDA_VISIBLE_DEVICES support
-  CUDACHECKGOTO(cudaGetDevice(&cudaDev), ret, error);
+  CUDACHECKGOTO(cudaWrapper->cudaGetDevice(&cudaDev), ret, error);
   if (CUPFN(cuMemCreate) == NULL) return 0;
-  CUCHECKGOTO(cuDeviceGet(&currentDev, cudaDev), ret, error);
+  CUCHECKGOTO(cudaWrapper->cuDeviceGet(&currentDev, cudaDev), ret, error);
   // Query device to see if CUMEM VMM support is available
-  CUCHECKGOTO(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, currentDev), ret, error);
+  CUCHECKGOTO(cudaWrapper->cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, currentDev), ret, error);
   if (!flag) return 0;
   // Query device to see if CUMEM RDMA support is available
-  CUCHECKGOTO(cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_CUDA_VMM_SUPPORTED, currentDev), ret, error);
+  CUCHECKGOTO(cudaWrapper->cuDeviceGetAttribute(&flag, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_CUDA_VMM_SUPPORTED, currentDev), ret, error);
   if (!flag) return 0;
 error:
   return (ret == ncclSuccess);

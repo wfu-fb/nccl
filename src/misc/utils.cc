@@ -8,6 +8,8 @@
 #include "core.h"
 
 #include "nvmlwrap.h"
+#include "cudawrapper.h"
+#include "ibvwrap.h"
 #include "nccl_cvars.h"
 
 #include <stdlib.h>
@@ -24,13 +26,17 @@
 === END_NCCL_CVAR_INFO_BLOCK ===
 */
 
+std::shared_ptr<CudaWrapper> cudaWrapper;
+std::shared_ptr<IbvWrapper> ibvWrapper;
+std::shared_ptr<NvmlWrapper> nvmlWrapper;
+
 // Get current Compute Capability
 int ncclCudaCompCap() {
   int cudaDev;
-  if (cudaGetDevice(&cudaDev) != cudaSuccess) return 0;
+  if (cudaWrapper->cudaGetDevice(&cudaDev) != cudaSuccess) return 0;
   int ccMajor, ccMinor;
-  if (cudaDeviceGetAttribute(&ccMajor, cudaDevAttrComputeCapabilityMajor, cudaDev) != cudaSuccess) return 0;
-  if (cudaDeviceGetAttribute(&ccMinor, cudaDevAttrComputeCapabilityMinor, cudaDev) != cudaSuccess) return 0;
+  if (cudaWrapper->cudaDeviceGetAttribute(&ccMajor, cudaDevAttrComputeCapabilityMajor, cudaDev) != cudaSuccess) return 0;
+  if (cudaWrapper->cudaDeviceGetAttribute(&ccMinor, cudaDevAttrComputeCapabilityMinor, cudaDev) != cudaSuccess) return 0;
   return ccMajor*10+ccMinor;
 }
 
@@ -62,7 +68,7 @@ ncclResult_t getBusId(int cudaDev, int64_t *busId) {
   // format. Still need to allocate proper space in case PCI domain goes
   // higher.
   char busIdStr[] = "00000000:00:00.0";
-  CUDACHECK(cudaDeviceGetPCIBusId(busIdStr, sizeof(busIdStr), cudaDev));
+  CUDACHECK(cudaWrapper->cudaDeviceGetPCIBusId(busIdStr, sizeof(busIdStr), cudaDev));
   NCCLCHECK(busIdToInt64(busIdStr, busId));
   return ncclSuccess;
 }

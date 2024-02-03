@@ -99,8 +99,8 @@ ncclResult_t ncclShmOpen(char* shmPath, size_t shmSize, void** shmPtr, void** de
   }
 
   if (devShmPtr) {
-    CUDACHECKGOTO(cudaHostRegister((void*)hptr, realShmSize, cudaHostRegisterMapped), ret, fail);
-    CUDACHECKGOTO(cudaHostGetDevicePointer(&dptr, (void*)hptr, 0), ret, fail);
+    CUDACHECKGOTO(cudaWrapper->cudaHostRegister((void*)hptr, realShmSize, cudaHostRegisterMapped), ret, fail);
+    CUDACHECKGOTO(cudaWrapper->cudaHostGetDevicePointer(&dptr, (void*)hptr, 0), ret, fail);
   }
 
   shmHandleInit(fd, shmPath, shmSize, realShmSize, hptr, dptr, create, tmphandle);
@@ -137,7 +137,7 @@ ncclResult_t ncclShmClose(ncclShmHandle_t handle) {
     }
 
     if (tmphandle->shmPtr) {
-      if (tmphandle->devShmPtr) CUDACHECK(cudaHostUnregister(tmphandle->shmPtr));
+      if (tmphandle->devShmPtr) CUDACHECK(cudaWrapper->cudaHostUnregister(tmphandle->shmPtr));
       if (munmap(tmphandle->shmPtr, tmphandle->realShmSize) != 0) {
         WARN("munmap of shared memory %p size %ld failed, error: %s", tmphandle->shmPtr, tmphandle->realShmSize, strerror(errno));
         ret = ncclSystemError;

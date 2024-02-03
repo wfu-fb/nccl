@@ -12,6 +12,7 @@
 #include "checks.h"
 #include "comm.h"
 #include "nccl.h"
+#include "cudawrapper.h"
 
 namespace nccl {
 namespace algorithms {
@@ -25,14 +26,15 @@ TEST(AlgoDirectorTest, Create) {
   const int nRanks = 1;
   void* sendbuff_d{nullptr};
   void* recvbuff_d{nullptr};
+  CudaWrapper* cudaWrapper = ncclSetupWrappers(false);
 
   NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
-  CUDACHECKIGNORE(cudaStreamCreate(&stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaStreamCreate(&stream));
   NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks, commId, 0));
 
-  CUDACHECKIGNORE(cudaSetDevice(0));
-  CUDACHECKIGNORE(cudaMalloc(&sendbuff_d, count * sizeof(float)));
-  CUDACHECKIGNORE(cudaMalloc(&recvbuff_d, count * sizeof(float)));
+  CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(0));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&sendbuff_d, count * sizeof(float)));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&recvbuff_d, count * sizeof(float)));
 
   EXPECT_TRUE(comm->algoDirector);
   EXPECT_TRUE(comm->algoDirector->allReduce);
@@ -40,17 +42,19 @@ TEST(AlgoDirectorTest, Create) {
       sendbuff_d, recvbuff_d, count, ncclFloat, ncclSum, comm, stream);
   EXPECT_EQ(algo, nullptr);
 
-  CUDACHECKIGNORE(cudaFree(sendbuff_d));
-  CUDACHECKIGNORE(cudaFree(recvbuff_d));
-  CUDACHECKIGNORE(cudaStreamDestroy(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(sendbuff_d));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(recvbuff_d));
+  CUDACHECKIGNORE(cudaWrapper->cudaStreamDestroy(stream));
   NCCLCHECKIGNORE(ncclCommDestroy(comm));
 }
 
 TEST(AlgoDirectorTest, CanRunDdaThreaded) {
   void* sendbuff_d{nullptr};
   void* recvbuff_d{nullptr};
-  CUDACHECKIGNORE(cudaMalloc(&sendbuff_d, 1024));
-  CUDACHECKIGNORE(cudaMalloc(&recvbuff_d, 1024));
+  CudaWrapper* cudaWrapper = ncclSetupWrappers(false);
+
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&sendbuff_d, 1024));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&recvbuff_d, 1024));
 
   ncclComm comm;
   size_t totalBytes;
@@ -221,15 +225,17 @@ TEST(AlgoDirectorTest, CanRunDdaThreaded) {
     EXPECT_TRUE(ret);
   }
 
-  CUDACHECKIGNORE(cudaFree(sendbuff_d));
-  CUDACHECKIGNORE(cudaFree(recvbuff_d));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(sendbuff_d));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(recvbuff_d));
 }
 
 TEST(AlgoDirectorTest, CanRunDdaIpc) {
   void* sendbuff_d{nullptr};
   void* recvbuff_d{nullptr};
-  CUDACHECKIGNORE(cudaMalloc(&sendbuff_d, 1024));
-  CUDACHECKIGNORE(cudaMalloc(&recvbuff_d, 1024));
+  CudaWrapper* cudaWrapper = ncclSetupWrappers(false);
+
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&sendbuff_d, 1024));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&recvbuff_d, 1024));
 
   ncclComm comm;
   size_t totalBytes;
@@ -400,8 +406,8 @@ TEST(AlgoDirectorTest, CanRunDdaIpc) {
     EXPECT_TRUE(ret);
   }
 
-  CUDACHECKIGNORE(cudaFree(sendbuff_d));
-  CUDACHECKIGNORE(cudaFree(recvbuff_d));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(sendbuff_d));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(recvbuff_d));
 }
 
 } // namespace algorithms

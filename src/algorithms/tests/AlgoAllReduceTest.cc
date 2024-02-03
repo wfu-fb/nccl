@@ -1,6 +1,8 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include <memory>
 #include <thread>
+#include <nccl.h>
 #include <stdlib.h>
 
 #include <fmt/format.h>
@@ -13,6 +15,7 @@
 #include "checks.h"
 #include "comm.h"
 #include "nccl_cvars.h"
+#include "cudawrapper.h"
 
 namespace nccl {
 namespace algorithms {
@@ -27,7 +30,8 @@ class GpuAgent {
       int nRanks,
       int count,
       const ncclUniqueId& commId,
-      int nIter)
+      int nIter,
+      CudaWrapper* cudaWrapper)
       : rank_(rank),
         nRanks_(nRanks),
         count_(count),
@@ -38,17 +42,18 @@ class GpuAgent {
         expbufs_(nIter),
         sendbufs_d_(nIter),
         recvbufs_d_(nIter),
-        tmpbufs_d_(nIter) {}
+        tmpbufs_d_(nIter),
+        cudaWrapper_(cudaWrapper) {}
 
   ~GpuAgent() {
     if (not initialized_) {
       return;
     }
-    CUDACHECKIGNORE(cudaSetDevice(rank_));
+    CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(rank_));
     for (int i = 0; i < nIter_; ++i) {
-      CUDACHECKIGNORE(cudaFree(sendbufs_d_[i]));
-      CUDACHECKIGNORE(cudaFree(recvbufs_d_[i]));
-      CUDACHECKIGNORE(cudaFree(tmpbufs_d_[i]));
+      CUDACHECKIGNORE(cudaWrapper->cudaFree(sendbufs_d_[i]));
+      CUDACHECKIGNORE(cudaWrapper->cudaFree(recvbufs_d_[i]));
+      CUDACHECKIGNORE(cudaWrapper->cudaFree(tmpbufs_d_[i]));
       free(sendbufs_[i]);
       free(recvbufs_[i]);
       free(expbufs_[i]);
@@ -68,9 +73,9 @@ class GpuAgent {
     auto& expbuf = expbufs_.at(iterId);
 
     const size_t size = count_ * sizeof(float);
-    CUDACHECKIGNORE(cudaMalloc(&sendbuf_d, size));
-    CUDACHECKIGNORE(cudaMalloc(&recvbuf_d, size));
-    CUDACHECKIGNORE(cudaMalloc(&tmpbuf_d, size));
+    CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&sendbuf_d, size));
+    CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&recvbuf_d, size));
+    CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&tmpbuf_d, size));
 
     sendbuf = static_cast<float*>(malloc(size));
     recvbuf = static_cast<float*>(malloc(size));
@@ -86,13 +91,13 @@ class GpuAgent {
     }
 
     // init dev buffs
-    CUDACHECKIGNORE(cudaMemcpy(sendbuf_d, sendbuf, size, cudaMemcpyDefault));
+    CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(sendbuf_d, sendbuf, size, cudaMemcpyDefault));
   }
 
   void init() {
     // create communicator
-    CUDACHECKIGNORE(cudaSetDevice(rank_));
-    CUDACHECKIGNORE(cudaStreamCreate(&stream));
+    CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(rank_));
+    CUDACHECKIGNORE(cudaWrapper->cudaStreamCreate(&stream));
     NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks_, commId_, rank_));
 
     // init host/dev buffs
@@ -106,7 +111,7 @@ class GpuAgent {
         continue;
       }
 
-      CUDACHECKIGNORE(cudaDeviceEnablePeerAccess(peerRank, 0));
+      CUDACHECKIGNORE(cudaWrapper->cudaDeviceEnablePeerAccess(peerRank, 0));
     }
 
     initialized_ = true;
@@ -119,7 +124,7 @@ class GpuAgent {
     auto& recvbuf = recvbufs_.at(iterId);
     auto& expbuf = expbufs_.at(iterId);
 
-    CUDACHECKIGNORE(cudaMemcpy(recvbuf, recvbuf_d, size, cudaMemcpyDefault));
+    CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(recvbuf, recvbuf_d, size, cudaMemcpyDefault));
     for (int i = 0; i < count_; ++i) {
       EXPECT_EQ(recvbuf[i], expbuf[i]);
     }
@@ -127,12 +132,12 @@ class GpuAgent {
 
   void runAllReduceAndVerify(std::unique_ptr<AlgoAllReduce> algo, int iterId) {
     assert(initialized_);
-    CUDACHECKIGNORE(cudaSetDevice(comm->cudaDev));
+    CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(comm->cudaDev));
 
     auto& sendbuf_d = sendbufs_d_.at(iterId);
     auto& recvbuf_d = recvbufs_d_.at(iterId);
     NCCLCHECKIGNORE(algo->allReduce());
-    CUDACHECKIGNORE(cudaDeviceSynchronize());
+    CUDACHECKIGNORE(cudaWrapper->cudaDeviceSynchronize());
 
     verifyRecvbuf(iterId);
     VLOG(1) << fmt::format(
@@ -158,6 +163,9 @@ class GpuAgent {
   std::vector<float*> sendbufs_d_{};
   std::vector<float*> recvbufs_d_{};
   std::vector<float*> tmpbufs_d_{};
+
+ private:
+  CudaWrapper* cudaWrapper_;
 };
 
 TEST(AlgoAllReduceTest, NvsFlatThreaded) {
@@ -165,6 +173,7 @@ TEST(AlgoAllReduceTest, NvsFlatThreaded) {
   const int count = 32;
   const int nRanks = 2;
   const int nIter = 10;
+  CudaWrapper* cudaWrapper = ncclSetupWrappers(false);
 
   ncclUniqueId commId;
   NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
@@ -174,7 +183,7 @@ TEST(AlgoAllReduceTest, NvsFlatThreaded) {
 
   // initialize all GpuAgents
   for (int i = 0; i < nRanks; ++i) {
-    agents.push_back(std::make_unique<GpuAgent>(i, nRanks, count, commId, nIter));
+    agents.push_back(std::make_unique<GpuAgent>(i, nRanks, count, commId, nIter, cudaWrapper));
     threads.emplace_back([&agents, i] { agents.at(i)->init(); });
   }
 
@@ -216,10 +225,11 @@ TEST(AlgoAllReduceTest, NvsTreeThreaded) {
 
   std::vector<std::unique_ptr<GpuAgent>> agents{};
   std::vector<std::thread> threads{};
+  CudaWrapper* cudaWrapper = ncclSetupWrappers(false);
 
   // initialize all GpuAgents
   for (int i = 0; i < nRanks; ++i) {
-    agents.push_back(std::make_unique<GpuAgent>(i, nRanks, count, commId, nIter));
+    agents.push_back(std::make_unique<GpuAgent>(i, nRanks, count, commId, nIter, cudaWrapper));
     threads.emplace_back([&agents, i] { agents.at(i)->init(); });
   }
 

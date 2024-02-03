@@ -7,14 +7,19 @@
 #include <set>
 #include <vector>
 #include "../include/nccl_cvars.h"
+#include "cudawrapper.h"
 
 class NCCLEnvironment : public ::testing::Environment {
  public:
   void SetUp() override {
     // Turn off NCCL debug logging, allow user to turn on via command line
     setenv("NCCL_DEBUG", "WARN", 0);
+
+    cudaWrapper_ = ncclSetupWrappers(false);
   }
   ~NCCLEnvironment() override {}
+
+  CudaWrapper* cudaWrapper_;
 };
 
 class CvarTest : public ::testing::Test {

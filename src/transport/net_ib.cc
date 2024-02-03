@@ -209,12 +209,12 @@ static void* ncclIbAsyncThreadMain(void* args) {
   struct ibv_context* context = (struct ibv_context*)args;
   while (1) {
     struct ibv_async_event event;
-    if (ncclSuccess != wrap_ibv_get_async_event(context, &event)) { break; }
+    if (ncclSuccess != ibvWrapper->wrap_ibv_get_async_event(context, &event)) { break; }
     char *str;
-    if (ncclSuccess != wrap_ibv_event_type_str(&str, event.event_type)) { break; }
+    if (ncclSuccess != ibvWrapper->wrap_ibv_event_type_str(&str, event.event_type)) { break; }
     if (event.event_type != IBV_EVENT_COMM_EST)
       WARN("NET/IB : Got async event : %s", str);
-    if (ncclSuccess != wrap_ibv_ack_async_event(&event)) { break; }
+    if (ncclSuccess != ibvWrapper->wrap_ibv_ack_async_event(&event)) { break; }
   }
   return NULL;
 }
@@ -269,7 +269,7 @@ static int ncclIbRelaxedOrderingCapable(void) {
   ncclResult_t r = ncclInternalError;
   if (roMode == 1 || roMode == 2) {
     // Query IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING support
-    r = wrap_ibv_reg_mr_iova2(NULL, NULL, NULL, 0, 0, 0);
+    r = ibvWrapper->wrap_ibv_reg_mr_iova2(NULL, NULL, NULL, 0, 0, 0);
   }
   return r == ncclInternalError ? 0 : 1;
 }
@@ -277,11 +277,11 @@ static int ncclIbRelaxedOrderingCapable(void) {
 ncclResult_t ncclIbInit(ncclDebugLogger_t logFunction) {
   if (NCCL_IB_DISABLE) return ncclInternalError;
   static int shownIbHcaEnv = 0;
-  if(wrap_ibv_symbols() != ncclSuccess) { return ncclInternalError; }
+  if(ibvWrapper->wrap_ibv_symbols() != ncclSuccess) { return ncclInternalError; }
 
   if (ncclNIbDevs == -1) {
     pthread_mutex_lock(&ncclIbLock);
-    wrap_ibv_fork_init();
+    ibvWrapper->wrap_ibv_fork_init();
     if (ncclNIbDevs == -1) {
       ncclNIbDevs = 0;
       if (ncclFindInterfaces(ncclIbIfName, &ncclIbIfAddr, MAX_IF_NAME_SIZE, 1) != 1) {
@@ -303,25 +303,25 @@ ncclResult_t ncclIbInit(ncclDebugLogger_t logFunction) {
       if (searchExact) userIbEnv++;
       int nUserIfs = parseStringList(userIbEnv, userIfs, MAX_IB_DEVS);
 
-      if (ncclSuccess != wrap_ibv_get_device_list(&devices, &nIbDevs)) return ncclInternalError;
+      if (ncclSuccess != ibvWrapper->wrap_ibv_get_device_list(&devices, &nIbDevs)) return ncclInternalError;
 
       for (int d=0; d<nIbDevs && ncclNIbDevs<MAX_IB_DEVS; d++) {
         struct ibv_context * context;
-        if (ncclSuccess != wrap_ibv_open_device(&context, devices[d]) || context == NULL) {
+        if (ncclSuccess != ibvWrapper->wrap_ibv_open_device(&context, devices[d]) || context == NULL) {
           WARN("NET/IB : Unable to open device %s", devices[d]->name);
           continue;
         }
         int nPorts = 0;
         struct ibv_device_attr devAttr;
         memset(&devAttr, 0, sizeof(devAttr));
-        if (ncclSuccess != wrap_ibv_query_device(context, &devAttr)) {
+        if (ncclSuccess != ibvWrapper->wrap_ibv_query_device(context, &devAttr)) {
           WARN("NET/IB : Unable to query device %s", devices[d]->name);
-          if (ncclSuccess != wrap_ibv_close_device(context)) { return ncclInternalError; }
+          if (ncclSuccess != ibvWrapper->wrap_ibv_close_device(context)) { return ncclInternalError; }
           continue;
         }
         for (int port = 1; port <= devAttr.phys_port_cnt; port++) {
           struct ibv_port_attr portAttr;
-          if (ncclSuccess != wrap_ibv_query_port(context, port, &portAttr)) {
+          if (ncclSuccess != ibvWrapper->wrap_ibv_query_port(context, port, &portAttr)) {
             WARN("NET/IB : Unable to query port %d", port);
             continue;
           }
@@ -362,9 +362,9 @@ ncclResult_t ncclIbInit(ncclDebugLogger_t logFunction) {
           ncclNIbDevs++;
           nPorts++;
         }
-        if (nPorts == 0 && ncclSuccess != wrap_ibv_close_device(context)) { return ncclInternalError; }
+        if (nPorts == 0 && ncclSuccess != ibvWrapper->wrap_ibv_close_device(context)) { return ncclInternalError; }
       }
-      if (nIbDevs && (ncclSuccess != wrap_ibv_free_device_list(devices))) { return ncclInternalError; };
+      if (nIbDevs && (ncclSuccess != ibvWrapper->wrap_ibv_free_device_list(devices))) { return ncclInternalError; };
     }
     if (ncclNIbDevs == 0) {
       INFO(NCCL_INIT|NCCL_NET, "NET/IB : No device found.");
@@ -419,12 +419,12 @@ ncclResult_t ncclIbDmaBufSupport(int dev) {
     struct ibv_pd* pd;
     struct ibv_context* ctx;
     ctx = ncclIbDevs[dev].context;
-    NCCLCHECKGOTO(wrap_ibv_alloc_pd(&pd, ctx), res, failure);
+    NCCLCHECKGOTO(ibvWrapper->wrap_ibv_alloc_pd(&pd, ctx), res, failure);
     // Test kernel DMA-BUF support with a dummy call (fd=-1)
-    (void) wrap_direct_ibv_reg_dmabuf_mr(pd, 0ULL/*offset*/, 0ULL/*len*/, 0ULL/*iova*/, -1/*fd*/, 0/*flags*/);
+    (void) ibvWrapper->wrap_direct_ibv_reg_dmabuf_mr(pd, 0ULL/*offset*/, 0ULL/*len*/, 0ULL/*iova*/, -1/*fd*/, 0/*flags*/);
     // ibv_reg_dmabuf_mr() will fail with EOPNOTSUPP/EPROTONOSUPPORT if not supported (EBADF otherwise)
     dmaBufSupported = (errno != EOPNOTSUPP && errno != EPROTONOSUPPORT) ? 1 : 0;
-    NCCLCHECKGOTO(wrap_ibv_dealloc_pd(pd), res, failure);
+    NCCLCHECKGOTO(ibvWrapper->wrap_ibv_dealloc_pd(pd), res, failure);
   }
   if (dmaBufSupported == 0) return ncclSystemError;
   return ncclSuccess;
@@ -622,7 +622,7 @@ ncclResult_t ncclIbInitVerbs(int dev, struct ibv_context* ctx, struct ncclIbVerb
   pthread_mutex_lock(&ncclIbDevs[dev].lock);
   if (0 == ncclIbDevs[dev].pdRefs++) {
     ncclResult_t res;
-    NCCLCHECKGOTO(wrap_ibv_alloc_pd(&ncclIbDevs[dev].pd, ctx), res, failure);
+    NCCLCHECKGOTO(ibvWrapper->wrap_ibv_alloc_pd(&ncclIbDevs[dev].pd, ctx), res, failure);
     if (0) {
     failure:
       pthread_mutex_unlock(&ncclIbDevs[dev].lock);
@@ -633,17 +633,17 @@ ncclResult_t ncclIbInitVerbs(int dev, struct ibv_context* ctx, struct ncclIbVerb
   pthread_mutex_unlock(&ncclIbDevs[dev].lock);
 
   // Recv requests can generate 2 completions (one for the post FIFO, one for the Recv).
-  NCCLCHECK(wrap_ibv_create_cq(&verbs->cq, ctx, 2*MAX_REQUESTS*NCCL_IB_QPS_PER_CONNECTION, NULL, NULL, 0));
+  NCCLCHECK(ibvWrapper->wrap_ibv_create_cq(&verbs->cq, ctx, 2*MAX_REQUESTS*NCCL_IB_QPS_PER_CONNECTION, NULL, NULL, 0));
   return ncclSuccess;
 }
 
 ncclResult_t ncclIbDestroyVerbs(struct ncclIbVerbs* verbs) {
   ncclResult_t res;
-  NCCLCHECK(wrap_ibv_destroy_cq(verbs->cq));
+  NCCLCHECK(ibvWrapper->wrap_ibv_destroy_cq(verbs->cq));
 
   pthread_mutex_lock(&ncclIbDevs[verbs->dev].lock);
   if (0 == --ncclIbDevs[verbs->dev].pdRefs) {
-    NCCLCHECKGOTO(wrap_ibv_dealloc_pd(ncclIbDevs[verbs->dev].pd), res, returning);
+    NCCLCHECKGOTO(ibvWrapper->wrap_ibv_dealloc_pd(ncclIbDevs[verbs->dev].pd), res, returning);
   }
   res = ncclSuccess;
 returning:
@@ -663,14 +663,14 @@ ncclResult_t ncclIbCreateQp(uint8_t ib_port, struct ncclIbVerbs* verbs, int acce
   qpInitAttr.cap.max_send_sge = 1;
   qpInitAttr.cap.max_recv_sge = 1;
   qpInitAttr.cap.max_inline_data = NCCL_IB_USE_INLINE ? sizeof(struct ncclIbSendFifo) : 0;
-  NCCLCHECK(wrap_ibv_create_qp(qp, verbs->pd, &qpInitAttr));
+  NCCLCHECK(ibvWrapper->wrap_ibv_create_qp(qp, verbs->pd, &qpInitAttr));
   struct ibv_qp_attr qpAttr;
   memset(&qpAttr, 0, sizeof(struct ibv_qp_attr));
   qpAttr.qp_state = IBV_QPS_INIT;
   qpAttr.pkey_index = NCCL_IB_PKEY;
   qpAttr.port_num = ib_port;
   qpAttr.qp_access_flags = access_flags;
-  NCCLCHECK(wrap_ibv_modify_qp(*qp, &qpAttr, IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS));
+  NCCLCHECK(ibvWrapper->wrap_ibv_modify_qp(*qp, &qpAttr, IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_ACCESS_FLAGS));
   return ncclSuccess;
 }
 
@@ -698,7 +698,7 @@ ncclResult_t ncclIbRtrQp(struct ibv_qp* qp, uint32_t qpn, struct ncclIbQpInfo* i
   qpAttr.ah_attr.sl = NCCL_IB_SL;
   qpAttr.ah_attr.src_path_bits = 0;
   qpAttr.ah_attr.port_num = info->ib_port;
-  NCCLCHECK(wrap_ibv_modify_qp(qp, &qpAttr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER));
+  NCCLCHECK(ibvWrapper->wrap_ibv_modify_qp(qp, &qpAttr, IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN | IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER));
   return ncclSuccess;
 }
 
@@ -711,7 +711,7 @@ ncclResult_t ncclIbRtsQp(struct ibv_qp* qp) {
   qpAttr.rnr_retry = 7;
   qpAttr.sq_psn = 0;
   qpAttr.max_rd_atomic = 1;
-  NCCLCHECK(wrap_ibv_modify_qp(qp, &qpAttr, IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY | IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC));
+  NCCLCHECK(ibvWrapper->wrap_ibv_modify_qp(qp, &qpAttr, IBV_QP_STATE | IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY | IBV_QP_SQ_PSN | IBV_QP_MAX_QP_RD_ATOMIC));
   return ncclSuccess;
 }
 
@@ -771,20 +771,20 @@ ib_connect_check:
 
   // Send my QP Info to receiver through the socket. Hope this won't block.
   struct ibv_port_attr portAttr;
-  NCCLCHECK(wrap_ibv_query_port(ctx, ib_port, &portAttr));
+  NCCLCHECK(ibvWrapper->wrap_ibv_query_port(ctx, ib_port, &portAttr));
   struct ncclIbQpInfo qpInfo;
   qpInfo.ib_port = ib_port;
   for (int q=0; q<comm->nqps; q++) {
     qpInfo.qpn[q] = comm->qps[q]->qp_num;
 
     // Query ece capabilities (enhanced connection establishment)
-    NCCLCHECK(wrap_ibv_query_ece(comm->qps[q], &qpInfo.ece[q], &qpInfo.ece_supported[q]));
+    NCCLCHECK(ibvWrapper->wrap_ibv_query_ece(comm->qps[q], &qpInfo.ece[q], &qpInfo.ece_supported[q]));
   }
 
   qpInfo.mtu = portAttr.active_mtu;
 
   // Prepare my fifo
-  NCCLCHECK(wrap_ibv_reg_mr(&comm->fifoMr, comm->verbs.pd, comm->fifo, sizeof(struct ncclIbSendFifo)*MAX_REQUESTS*NCCL_NET_IB_MAX_RECVS, IBV_ACCESS_LOCAL_WRITE|IBV_ACCESS_REMOTE_WRITE|IBV_ACCESS_REMOTE_READ));
+  NCCLCHECK(ibvWrapper->wrap_ibv_reg_mr(&comm->fifoMr, comm->verbs.pd, comm->fifo, sizeof(struct ncclIbSendFifo)*MAX_REQUESTS*NCCL_NET_IB_MAX_RECVS, IBV_ACCESS_LOCAL_WRITE|IBV_ACCESS_REMOTE_WRITE|IBV_ACCESS_REMOTE_READ));
   qpInfo.fifoRkey = comm->fifoMr->rkey;
   qpInfo.fifoAddr = (uint64_t)comm->fifo;
 
@@ -792,7 +792,7 @@ ib_connect_check:
   qpInfo.lid = portAttr.lid;
   qpInfo.link_layer = comm->gidInfo.link_layer = portAttr.link_layer;
   if (qpInfo.link_layer == IBV_LINK_LAYER_ETHERNET) {
-    NCCLCHECK(wrap_ibv_query_gid(ncclIbDevs[dev].context, ncclIbDevs[dev].port, NCCL_IB_GID_INDEX, &comm->gidInfo.localGid));
+    NCCLCHECK(ibvWrapper->wrap_ibv_query_gid(ncclIbDevs[dev].context, ncclIbDevs[dev].port, NCCL_IB_GID_INDEX, &comm->gidInfo.localGid));
     qpInfo.spn = comm->gidInfo.localGid.global.subnet_prefix;
     qpInfo.iid = comm->gidInfo.localGid.global.interface_id;
   }
@@ -833,7 +833,7 @@ ib_connect:
   for (int q=0; q<comm->nqps; q++) {
     struct ibv_qp* qp = comm->qps[q];
     if (remQpInfo.ece_supported[q] && qpInfo.ece_supported[q])
-      NCCLCHECK(wrap_ibv_set_ece(qp, &remQpInfo.ece[q], &qpInfo.ece_supported[q]));
+      NCCLCHECK(ibvWrapper->wrap_ibv_set_ece(qp, &remQpInfo.ece[q], &qpInfo.ece_supported[q]));
 
     NCCLCHECK(ncclIbRtrQp(qp, remQpInfo.qpn[q], &remQpInfo));
     NCCLCHECK(ncclIbRtsQp(qp));
@@ -907,8 +907,8 @@ ib_recv:
   ctx = ncclIbDevs[lComm->dev].context;
   ib_port = ncclIbDevs[lComm->dev].port;
   struct ibv_port_attr portAttr;
-  NCCLCHECK(wrap_ibv_query_port(ctx, ib_port, &portAttr));
-  NCCLCHECK(wrap_ibv_query_gid(ctx, ib_port, NCCL_IB_GID_INDEX, &rComm->gidInfo.localGid));
+  NCCLCHECK(ibvWrapper->wrap_ibv_query_port(ctx, ib_port, &portAttr));
+  NCCLCHECK(ibvWrapper->wrap_ibv_query_gid(ctx, ib_port, NCCL_IB_GID_INDEX, &rComm->gidInfo.localGid));
 
   // QP Creation
   NCCLCHECK(ncclIbInitVerbs(lComm->dev, ctx, &rComm->verbs));
@@ -927,12 +927,12 @@ ib_recv:
 
     // Set the ece (enhanced connection establishment) on this QP before RTR
     if (remQpInfo.ece_supported[q]) {
-      NCCLCHECK(wrap_ibv_set_ece(qp, &remQpInfo.ece[q], &qpInfo.ece_supported[q]));
-  
+      NCCLCHECK(ibvWrapper->wrap_ibv_set_ece(qp, &remQpInfo.ece[q], &qpInfo.ece_supported[q]));
+
       // Query the reduced ece for this QP (matching enhancements between the requestor and the responder)
       // Store this in our own qpInfo for returning to the requestor
       if (qpInfo.ece_supported[q]) {
-        NCCLCHECK(wrap_ibv_query_ece(qp, &qpInfo.ece[q], &qpInfo.ece_supported[q]));
+        NCCLCHECK(ibvWrapper->wrap_ibv_query_ece(qp, &qpInfo.ece[q], &qpInfo.ece_supported[q]));
       }
     }
 
@@ -943,7 +943,7 @@ ib_recv:
   // Retain remote fifo info and prepare my RDMA ops
   rComm->remFifo.rkey = remQpInfo.fifoRkey;
   rComm->remFifo.addr = remQpInfo.fifoAddr;
-  NCCLCHECK(wrap_ibv_reg_mr(&rComm->remFifo.mr, rComm->verbs.pd, &rComm->remFifo.elems, sizeof(struct ncclIbSendFifo)*MAX_REQUESTS*NCCL_NET_IB_MAX_RECVS, IBV_ACCESS_REMOTE_WRITE|IBV_ACCESS_LOCAL_WRITE|IBV_ACCESS_REMOTE_READ));
+  NCCLCHECK(ibvWrapper->wrap_ibv_reg_mr(&rComm->remFifo.mr, rComm->verbs.pd, &rComm->remFifo.elems, sizeof(struct ncclIbSendFifo)*MAX_REQUESTS*NCCL_NET_IB_MAX_RECVS, IBV_ACCESS_REMOTE_WRITE|IBV_ACCESS_LOCAL_WRITE|IBV_ACCESS_REMOTE_READ));
   rComm->remFifo.sge.lkey = rComm->remFifo.mr->lkey;
   if (NCCL_IB_USE_INLINE) rComm->remFifo.flags = IBV_SEND_INLINE;
 
@@ -951,7 +951,7 @@ ib_recv:
   rComm->gpuFlush.enabled = ((ncclIbGdrSupport(lComm->dev) == ncclSuccess || ncclIbDmaBufSupport(lComm->dev) == ncclSuccess)
                              && (NCCL_GDR_FLUSH_DISABLE == 0)) ? 1 : 0;
   if (rComm->gpuFlush.enabled) {
-    NCCLCHECK(wrap_ibv_reg_mr(&rComm->gpuFlush.hostMr, rComm->verbs.pd, &rComm->gpuFlush.hostMem, sizeof(int), IBV_ACCESS_LOCAL_WRITE));
+    NCCLCHECK(ibvWrapper->wrap_ibv_reg_mr(&rComm->gpuFlush.hostMr, rComm->verbs.pd, &rComm->gpuFlush.hostMem, sizeof(int), IBV_ACCESS_LOCAL_WRITE));
     rComm->gpuFlush.sge.addr = (uint64_t)&rComm->gpuFlush.hostMem;
     rComm->gpuFlush.sge.length = 1;
     rComm->gpuFlush.sge.lkey = rComm->gpuFlush.hostMr->lkey;
@@ -1053,14 +1053,14 @@ ncclResult_t ncclIbRegMrDmaBuf(void* comm, void* data, size_t size, int type, ui
       if (ncclIbRelaxedOrderingEnabled) flags |= IBV_ACCESS_RELAXED_ORDERING;
       if (fd != -1) {
         /* DMA-BUF support */
-        NCCLCHECKGOTO(wrap_ibv_reg_dmabuf_mr(&mr, verbs->pd, offset, pages*pageSize, addr, fd, flags), res, returning);
+        NCCLCHECKGOTO(ibvWrapper->wrap_ibv_reg_dmabuf_mr(&mr, verbs->pd, offset, pages*pageSize, addr, fd, flags), res, returning);
       } else {
         if (ncclIbRelaxedOrderingEnabled) {
           // Use IBVERBS_1.8 API - needed for IBV_ACCESS_RELAXED_ORDERING support
-          NCCLCHECKGOTO(wrap_ibv_reg_mr_iova2(&mr, verbs->pd, (void*)addr, pages*pageSize, addr, flags), res, returning);
+          NCCLCHECKGOTO(ibvWrapper->wrap_ibv_reg_mr_iova2(&mr, verbs->pd, (void*)addr, pages*pageSize, addr, flags), res, returning);
         }
         else {
-          NCCLCHECKGOTO(wrap_ibv_reg_mr(&mr, verbs->pd, (void*)addr, pages*pageSize, flags), res, returning);
+          NCCLCHECKGOTO(ibvWrapper->wrap_ibv_reg_mr(&mr, verbs->pd, (void*)addr, pages*pageSize, flags), res, returning);
         }
       }
       TRACE(NCCL_INIT,"regAddr %llx size %lld rkey %x fd %d", (unsigned long long)addr, (long long)pages*pageSize, mr->rkey, fd);
@@ -1103,7 +1103,7 @@ ncclResult_t ncclIbDeregMr(void* comm, void* mhandle) {
           cache->slots = NULL;
           cache->capacity = 0;
         }
-        NCCLCHECKGOTO(wrap_ibv_dereg_mr((struct ibv_mr*)mhandle), res, returning);
+        NCCLCHECKGOTO(ibvWrapper->wrap_ibv_dereg_mr((struct ibv_mr*)mhandle), res, returning);
       }
       res = ncclSuccess;
       goto returning;
@@ -1186,7 +1186,7 @@ ncclResult_t ncclIbMultiSend(struct ncclIbSendComm* comm, int slot) {
       }
     }
     struct ibv_send_wr* bad_wr;
-    NCCLCHECK(wrap_ibv_post_send(comm->qps[comm->qpIndex], comm->wrs, &bad_wr));
+    NCCLCHECK(ibvWrapper->wrap_ibv_post_send(comm->qps[comm->qpIndex], comm->wrs, &bad_wr));
     comm->qpIndex = (comm->qpIndex+1)%comm->nqps;
 
     for (int r=0; r<nreqs; r++) {
@@ -1328,7 +1328,7 @@ ncclResult_t ncclIbPostFifo(struct ncclIbRecvComm* comm, int n, void** data, int
   }
 
   struct ibv_send_wr* bad_wr;
-  NCCLCHECK(wrap_ibv_post_send(comm->qps[0], &wr, &bad_wr));
+  NCCLCHECK(ibvWrapper->wrap_ibv_post_send(comm->qps[0], &wr, &bad_wr));
   comm->remFifo.fifoTail++;
 
   return ncclSuccess;
@@ -1360,7 +1360,7 @@ ncclResult_t ncclIbIrecv(void* recvComm, int n, void** data, int* sizes, int* ta
   for (int q=0; q<nqps; q++) {
     struct ibv_qp* qp = comm->qps[comm->qpIndex];
     struct ibv_recv_wr* bad_wr;
-    NCCLCHECK(wrap_ibv_post_recv(qp, &wr, &bad_wr));
+    NCCLCHECK(ibvWrapper->wrap_ibv_post_recv(qp, &wr, &bad_wr));
     comm->qpIndex = (comm->qpIndex+1)%comm->nqps;
   }
   TIME_STOP(1);
@@ -1401,7 +1401,7 @@ ncclResult_t ncclIbIflush(void* recvComm, int n, void** data, int* sizes, void**
 
   TIME_START(4);
   struct ibv_send_wr* bad_wr;
-  NCCLCHECK(wrap_ibv_post_send(comm->gpuFlush.qp, &wr, &bad_wr));
+  NCCLCHECK(ibvWrapper->wrap_ibv_post_send(comm->gpuFlush.qp, &wr, &bad_wr));
   TIME_STOP(4);
 
   *request = req;
@@ -1425,7 +1425,7 @@ ncclResult_t ncclIbTest(void* request, int* done, int* sizes) {
     int wrDone = 0;
     struct ibv_wc wcs[4];
     TIME_START(3);
-    NCCLCHECK(wrap_ibv_poll_cq(r->verbs->cq, 4, wcs, &wrDone));
+    NCCLCHECK(ibvWrapper->wrap_ibv_poll_cq(r->verbs->cq, 4, wcs, &wrDone));
     if (wrDone == 0) { TIME_CANCEL(3); } else { TIME_STOP(3); }
     if (wrDone == 0) return ncclSuccess;
 
@@ -1478,8 +1478,8 @@ ncclResult_t ncclIbCloseSend(void* sendComm) {
   if (comm) {
     NCCLCHECK(ncclSocketClose(&comm->sock));
     for (int q=0; q<comm->nqps; q++)
-      if (comm->qps[q] != NULL) NCCLCHECK(wrap_ibv_destroy_qp(comm->qps[q]));
-    if (comm->fifoMr != NULL) NCCLCHECK(wrap_ibv_dereg_mr(comm->fifoMr));
+      if (comm->qps[q] != NULL) NCCLCHECK(ibvWrapper->wrap_ibv_destroy_qp(comm->qps[q]));
+    if (comm->fifoMr != NULL) NCCLCHECK(ibvWrapper->wrap_ibv_dereg_mr(comm->fifoMr));
     NCCLCHECK(ncclIbDestroyVerbs(&comm->verbs));
     free(comm);
   }
@@ -1492,12 +1492,12 @@ ncclResult_t ncclIbCloseRecv(void* recvComm) {
   if (comm) {
     NCCLCHECK(ncclSocketClose(&comm->sock));
     for (int q=0; q<comm->nqps; q++)
-      if (comm->qps[q] != NULL) NCCLCHECK(wrap_ibv_destroy_qp(comm->qps[q]));
+      if (comm->qps[q] != NULL) NCCLCHECK(ibvWrapper->wrap_ibv_destroy_qp(comm->qps[q]));
     if (comm->gpuFlush.enabled) {
-      if (comm->gpuFlush.qp != NULL) NCCLCHECK(wrap_ibv_destroy_qp(comm->gpuFlush.qp));
-      if (comm->gpuFlush.hostMr != NULL) NCCLCHECK(wrap_ibv_dereg_mr(comm->gpuFlush.hostMr));
+      if (comm->gpuFlush.qp != NULL) NCCLCHECK(ibvWrapper->wrap_ibv_destroy_qp(comm->gpuFlush.qp));
+      if (comm->gpuFlush.hostMr != NULL) NCCLCHECK(ibvWrapper->wrap_ibv_dereg_mr(comm->gpuFlush.hostMr));
     }
-    if (comm->remFifo.mr != NULL) NCCLCHECK(wrap_ibv_dereg_mr(comm->remFifo.mr));
+    if (comm->remFifo.mr != NULL) NCCLCHECK(ibvWrapper->wrap_ibv_dereg_mr(comm->remFifo.mr));
     NCCLCHECK(ncclIbDestroyVerbs(&comm->verbs));
     free(comm);
   }
@@ -1534,4 +1534,3 @@ ncclNet_t ncclNetIb = {
   NULL /* getDeviceMr */,
   NULL /* irecvConsumed */
 };
-

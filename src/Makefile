@@ -7,7 +7,7 @@ include ../makefiles/common.mk
 include ../makefiles/version.mk
 
 ##### src files
-INCEXPORTS  := nccl.h nccl_net.h
+INCEXPORTS  := nccl.h nccl_net.h cudawrapper.h ibvwrap.h ibvcore.h
 LIBSRCFILES := \
 	bootstrap.cc channel.cc collectives.cc debug.cc enqueue.cc group.cc \
 	init.cc init_nvtx.cc net.cc proxy.cc transport.cc \
@@ -127,6 +127,11 @@ $(INCDIR)/%.h : %.h
 	install -m 644 $< $@
 
 $(INCDIR)/nccl_%.h : include/nccl_%.h
+	@printf "Grabbing   %-35s > %s\n" $< $@
+	mkdir -p $(INCDIR)
+	install -m 644 $< $@
+
+$(INCDIR)/ibv%.h : include/ibv%.h
 	@printf "Grabbing   %-35s > %s\n" $< $@
 	mkdir -p $(INCDIR)
 	install -m 644 $< $@

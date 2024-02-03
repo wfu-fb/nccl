@@ -8,6 +8,7 @@
 #include "comm.h"
 #include "core.h"
 #include "tests_common.cuh"
+#include "cudawrapper.h"
 
 class MPIEnvironment : public ::testing::Environment {
  public:
@@ -36,6 +37,8 @@ class FP8Test : public ::testing::Test {
   void SetUp() override {
     std::tie(this->localRank, this->globalRank, this->numRanks) = getMpiInfo();
 
+    cudaWrapper_ = ncclSetupWrappers(false);
+
     srand(time(NULL));
     expectedVal = rand();
 
@@ -43,27 +46,30 @@ class FP8Test : public ::testing::Test {
     sendBytes = count * sizeof(char);
     recvBytes = sendBytes * this->numRanks;
 
-    CUDACHECKIGNORE(cudaSetDevice(this->localRank));
-    CUDACHECKIGNORE(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+    CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(this->localRank));
+    CUDACHECKIGNORE(cudaWrapper->cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
 
-    CUDACHECKIGNORE(cudaMalloc(&sendbuf, sendBytes));
-    CUDACHECKIGNORE(cudaMalloc(&recvbuf, recvBytes));
+    CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&sendbuf, sendBytes));
+    CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&recvbuf, recvBytes));
     CUDACHECKIGNORE(
-        cudaMemset(sendbuf, expectedVal * this->globalRank, sendBytes));
-    CUDACHECKIGNORE(cudaMemset(recvbuf, rand(), recvBytes));
+        cudaWrapper->cudaMemset(sendbuf, expectedVal * this->globalRank, sendBytes));
+    CUDACHECKIGNORE(cudaWrapper->cudaMemset(recvbuf, rand(), recvBytes));
     // correct data for in-place allgather
-    CUDACHECKIGNORE(cudaMemset(
+    CUDACHECKIGNORE(cudaWrapper->cudaMemset(
         (char*)recvbuf + this->globalRank * sendBytes,
         expectedVal * this->globalRank,
         sendBytes));
 
-    CUDACHECKIGNORE(cudaDeviceSynchronize());
+    CUDACHECKIGNORE(cudaWrapper->cudaDeviceSynchronize());
   }
   void TearDown() override {}
 
   int localRank{0};
   int globalRank{0};
   int numRanks{0};
+
+ private:
+  CudaWrapper* cudaWrapper_;
 };
 
 TEST_F(FP8Test, ncclFp8E5M2SendRecv) {
@@ -83,11 +89,11 @@ TEST_F(FP8Test, ncclFp8E5M2SendRecv) {
   }
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   if (this->globalRank == recvRank) {
     std::vector<char> observedVals(sendBytes, rand());
-    CUDACHECKIGNORE(cudaMemcpy(
+    CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
         observedVals.data(), (char*)recvbuf, sendBytes, cudaMemcpyDefault));
     EXPECT_THAT(observedVals, testing::Each(expectedVal * sendRank));
   }
@@ -112,11 +118,11 @@ TEST_F(FP8Test, ncclFp8E4M3SendRecv) {
   }
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   if (this->globalRank == recvRank) {
     std::vector<char> observedVals(sendBytes, rand());
-    CUDACHECKIGNORE(cudaMemcpy(
+    CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
         observedVals.data(), (char*)recvbuf, sendBytes, cudaMemcpyDefault));
     EXPECT_THAT(observedVals, testing::Each(expectedVal * sendRank));
   }
@@ -134,11 +140,11 @@ TEST_F(FP8Test, ncclFp8E5M2Allgather) {
   auto res = ncclAllGather(sendbuf, recvbuf, count, dt, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   for (int i = 0; i < this->numRanks; ++i) {
     std::vector<char> observedVals(sendBytes, rand());
-    CUDACHECKIGNORE(cudaMemcpy(
+    CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
         observedVals.data(),
         (char*)recvbuf + sendBytes * i,
         sendBytes,
@@ -159,11 +165,11 @@ TEST_F(FP8Test, ncclFp8E4M3AllGather) {
   auto res = ncclAllGather(sendbuf, recvbuf, count, dt, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   for (int i = 0; i < this->numRanks; ++i) {
     std::vector<char> observedVals(sendBytes, rand());
-    CUDACHECKIGNORE(cudaMemcpy(
+    CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
         observedVals.data(),
         (char*)recvbuf + sendBytes * i,
         sendBytes,
@@ -184,10 +190,10 @@ TEST_F(FP8Test, ncclFp8E5M2Bcast) {
   auto res = ncclBroadcast(sendbuf, recvbuf, count, dt, root, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   std::vector<char> observedVals(sendBytes, rand());
-  CUDACHECKIGNORE(cudaMemcpy(
+  CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
       observedVals.data(), (char*)recvbuf, sendBytes, cudaMemcpyDefault));
   EXPECT_THAT(observedVals, testing::Each(expectedVal * root));
 
@@ -204,10 +210,10 @@ TEST_F(FP8Test, ncclFp8E4M3AllBcast) {
   auto res = ncclBroadcast(sendbuf, recvbuf, count, dt, root, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   std::vector<char> observedVals(sendBytes, rand());
-  CUDACHECKIGNORE(cudaMemcpy(
+  CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
       observedVals.data(), (char*)recvbuf, sendBytes, cudaMemcpyDefault));
   EXPECT_THAT(observedVals, testing::Each(expectedVal * root));
 
@@ -224,7 +230,7 @@ TEST_F(FP8Test, ncclFp8E5M2AllReduce) {
   auto res = ncclAllReduce(sendbuf, recvbuf, count, dt, ncclSum, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   // FIXME: Don't check the result since there could be rounding errors
 
@@ -241,7 +247,7 @@ TEST_F(FP8Test, ncclFp8E4M3AllReduce) {
   auto res = ncclAllReduce(sendbuf, recvbuf, count, dt, ncclSum, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   // FIXME: Don't check the result since there could be rounding errors
 
@@ -259,7 +265,7 @@ TEST_F(FP8Test, ncclFp8E5M2Reduce) {
       ncclReduce(sendbuf, recvbuf, count, dt, ncclSum, root, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   // FIXME: Don't check the result since there could be rounding errors
 
@@ -277,7 +283,7 @@ TEST_F(FP8Test, ncclFp8E4M3Reduce) {
       ncclReduce(sendbuf, recvbuf, count, dt, ncclSum, root, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   // FIXME: Don't check the result since there could be rounding errors
 
@@ -295,7 +301,7 @@ TEST_F(FP8Test, ncclFp8E5M2ReduceScatter) {
       ncclReduceScatter(sendbuf, recvbuf, count, dt, ncclSum, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   // FIXME: Don't check the result since there could be rounding errors
 
@@ -313,7 +319,7 @@ TEST_F(FP8Test, ncclFp8E4M3ReduceScatter) {
       ncclReduceScatter(sendbuf, recvbuf, count, dt, ncclSum, comm, stream);
   EXPECT_EQ(res, ncclSuccess);
 
-  CUDACHECKIGNORE(cudaStreamSynchronize(stream));
+  CUDACHECKIGNORE(cudaWrapper->cudaWrapper_->cudaStreamSynchronize(stream));
 
   // FIXME: Don't check the result since there could be rounding errors
 

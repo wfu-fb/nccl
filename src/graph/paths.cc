@@ -398,7 +398,7 @@ compare:
     if (g1 != g2 && NCCL_IGNORE_DISABLED_P2P != 2) {
       int indexes[3] = {-1,-1,-1};
       int verticeN = 0;
-      NCCLCHECK(ncclNvmlEnsureInitialized());
+      NCCLCHECK(nvmlWrapper->ncclNvmlEnsureInitialized());
 
       indexes[verticeN++] = system->nodes[GPU].nodes[g1].gpu.dev;
       if (intermediateIndex != -1) indexes[verticeN++] = system->nodes[GPU].nodes[intermediateIndex].gpu.dev;

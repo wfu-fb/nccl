@@ -10,11 +10,14 @@
 #include "DdaThreadedData.h"
 #include "checks.h"
 #include "comm.h"
+#include "cudawrapper.h"
 
 namespace nccl {
 namespace algorithms {
 
 TEST(DdaMemHandler, ThreadedRanks) {
+  CudaWrapper* cudaWrapper = ncclSetupWrappers(false);
+
   ncclUniqueId commId;
   NCCLCHECKIGNORE(ncclGetUniqueId(&commId));
 
@@ -23,17 +26,17 @@ TEST(DdaMemHandler, ThreadedRanks) {
   void* rank0_addr1 = nullptr;
   void* rank1_addr0 = nullptr;
   void* rank1_addr1 = nullptr;
-  CUDACHECKIGNORE(cudaSetDevice(0));
-  CUDACHECKIGNORE(cudaMalloc(&rank0_addr0, 16));
-  CUDACHECKIGNORE(cudaMalloc(&rank0_addr1, 16));
-  CUDACHECKIGNORE(cudaSetDevice(1));
-  CUDACHECKIGNORE(cudaMalloc(&rank1_addr0, 16));
-  CUDACHECKIGNORE(cudaMalloc(&rank1_addr1, 16));
+  CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(0));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&rank0_addr0, 16));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&rank0_addr1, 16));
+  CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(1));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&rank1_addr0, 16));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc((void **)&rank1_addr1, 16));
 
   // test helper function
   auto tester = [&](int rank) {
     const int nRanks = 2;
-    CUDACHECKIGNORE(cudaSetDevice(rank));
+    CUDACHECKIGNORE(cudaWrapper->cudaSetDevice(rank));
     ncclComm_t comm;
     NCCLCHECKIGNORE(ncclCommInitRank(&comm, nRanks, commId, rank));
 

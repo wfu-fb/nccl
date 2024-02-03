@@ -16,7 +16,7 @@ std::pair<dim3, dim3> getGridAndBlockDims(
     ncclDataType_t datatype,
     size_t maxBlocks) {
   cudaFuncAttributes funcAttr;
-  CUDACHECKIGNORE(cudaFuncGetAttributes(&funcAttr, func));
+  CUDACHECKIGNORE(cudaWrapper->cudaFuncGetAttributes(&funcAttr, func));
 
   unsigned int minBlocks = 1;
 

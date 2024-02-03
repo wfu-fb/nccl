@@ -78,6 +78,6 @@ ncclResult_t ncclLaunchOneRank(void* dst, void const* src, size_t nElts, struct 
   grid.x = std::min(32, (int)divUp(nElts*eltSize, 16<<10));
   dim3 block = {512, 1, 1};
   void* args[5] = {&dst, &src, &nElts, &redOp.scalarArg, &redOp.scalarArgIsPtr};
-  CUDACHECK(cudaLaunchKernel(kernel, grid, block, args, 0, stream));
+  CUDACHECK(cudaWrapper->cudaLaunchKernel(kernel, grid, block, args, 0, stream));
   return ncclSuccess;
 }

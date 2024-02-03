@@ -8,6 +8,7 @@
 #include "comm.h"
 #include "debug.h"
 #include "nccl_cvars.h"
+#include "cudawrapper.h"
 
 #include <cassert>
 
@@ -33,7 +34,7 @@ namespace algorithms {
  */
 AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(comm) {
   // get device property (expensive call: 10+ ms)
-  CUDACHECKIGNORE(cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
+  CUDACHECKIGNORE(cudaWrapper->cudaGetDeviceProperties(&devProp_, comm_->cudaDev));
   maxBlocks_ =
       std::min(NCCL_DDA_ALLREDUCE_MAX_BLOCKS, devProp_.multiProcessorCount);
 
@@ -46,27 +47,28 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
   // 1) [r0, r1, ..., rN-1]
   // 2) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
   // 3) [r0, r1, ..., rN-1]@block0, [r0, r1, ..., rN-1]@block1, ...@blockK-1
-  CUDACHECKIGNORE(cudaMalloc(
-      &threadedBarrierMbox_d_,
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc(
+      (void **)&threadedBarrierMbox_d_,
       ((1 + 2 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
-  CUDACHECKIGNORE(cudaMemset(
+  CUDACHECKIGNORE(cudaWrapper->cudaMemset(
       threadedBarrierMbox_d_,
       0,
       ((1 + 2 * maxBlocks_) * comm_->nRanks) * sizeof(uintptr_t)));
 
   // For IPC, we can reuse the same mbox across barrier operations by
   // incrementing the barrierFlag.
-  CUDACHECKIGNORE(cudaMalloc(
-      &ipcBarrierMbox_d_,
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc(
+      (void**)&ipcBarrierMbox_d_,
       maxBlocks_ * comm_->nRanks * sizeof(uintptr_t)));
-  CUDACHECKIGNORE(cudaMemset(
+  CUDACHECKIGNORE(cudaWrapper->cudaMemset(
       ipcBarrierMbox_d_,
       0,
       maxBlocks_ * comm_->nRanks * sizeof(uintptr_t)));
 
-  CUDACHECKIGNORE(cudaMalloc(&tmpbuff_d_, NCCL_DDA_TMPBUFF_SIZE));
   CUDACHECKIGNORE(
-      cudaMalloc(&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
+      cudaWrapper->cudaMalloc((void**)&tmpbuff_d_, NCCL_DDA_TMPBUFF_SIZE));
+  CUDACHECKIGNORE(cudaWrapper->cudaMalloc(
+      (void**)&devStates_d_, sizeof(DdaDeviceState) * comm_->nRanks));
 
   // exchange handles
   memHandler_.add(threadedBarrierMbox_d_);
@@ -81,7 +83,7 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
     devStates_[rank].tmpbuff = memHandler_.get(rank, 2);
   }
 
-  CUDACHECKIGNORE(cudaMemcpy(
+  CUDACHECKIGNORE(cudaWrapper->cudaMemcpy(
       devStates_d_,
       devStates_,
       sizeof(DdaDeviceState) * comm_->nRanks,
@@ -92,10 +94,10 @@ AlgoManagerBase::AlgoManagerBase(ncclComm_t comm) : comm_(comm), memHandler_(com
 
 AlgoManagerBase::~AlgoManagerBase() {
   // free device memory
-  CUDACHECKIGNORE(cudaFree(threadedBarrierMbox_d_));
-  CUDACHECKIGNORE(cudaFree(ipcBarrierMbox_d_));
-  CUDACHECKIGNORE(cudaFree(tmpbuff_d_));
-  CUDACHECKIGNORE(cudaFree(devStates_d_));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(threadedBarrierMbox_d_));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(ipcBarrierMbox_d_));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(tmpbuff_d_));
+  CUDACHECKIGNORE(cudaWrapper->cudaFree(devStates_d_));
 
   // free host memory
   free(devStates_);

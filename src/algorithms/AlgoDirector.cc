@@ -31,7 +31,7 @@ AlgoDirector::AlgoDirector(ncclComm_t comm) : comm_(comm) {
       if (i == comm->rank) {
         continue;
       }
-      cudaError_t e = cudaDeviceEnablePeerAccess(i, 0);
+      cudaError_t e = cudaWrapper->cudaDeviceEnablePeerAccess(i, 0);
       if (e != cudaErrorPeerAccessAlreadyEnabled && e != cudaSuccess) {
         CUDACHECKIGNORE(e);
       }
