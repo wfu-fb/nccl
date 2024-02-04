@@ -282,13 +282,15 @@ void CtranMapper::reportProfiling(bool flush) {
       auto pid = getpid();
       static uint64_t reportCnt = 0;
       std::stringstream stream;
-
+      char hostname[1024];
+      getHostName(hostname, 1024, '.');
       std::string filename(
           NCCL_CTRAN_KINETO_PROFILE_DIR + std::string("/nccl_ctran_log.") +
           std::to_string(pid) + std::string(".rank") +
-          std::to_string(this->rank) + std::string(".comm") +
-          std::to_string(this->commHash) + std::string(".") +
-          std::to_string(reportCnt++) + std::string(".json"));
+          std::to_string(this->rank) + "." + std::string(hostname) +
+          std::string(".comm") + std::to_string(this->commHash) +
+          std::string(".") + std::to_string(reportCnt++) +
+          std::string(".json"));
       INFO(NCCL_ALL, "Dumping ctran profile to %s\n", filename.c_str());
 
       int id = 0;
@@ -299,9 +301,10 @@ void CtranMapper::reportProfiling(bool flush) {
                << "\"cat\": \"COL\", "
                << "\"id\": \"" << id++ << "\", "
                << "\"ph\": \"b\", "
-               << "\"pid\": \"0\", "
+               << "\"pid\": \"" << this->rank << "\", "
+               << "\"tid\": \"-1\", "
                << "\"ts\": \""
-               << std::chrono::duration_cast<std::chrono::milliseconds>(
+               << std::chrono::duration_cast<std::chrono::microseconds>(
                       ts->start.time_since_epoch())
                       .count()
                << "\"}," << std::endl;
@@ -311,9 +314,10 @@ void CtranMapper::reportProfiling(bool flush) {
                  << "\"cat\": \"NET\", "
                  << "\"id\": \"" << id++ << "\", "
                  << "\"ph\": \"X\", "
-                 << "\"pid\": \"" << tsp.peer << "\", "
+                 << "\"pid\": \"" << this->rank << "\", "
+                 << "\"tid\": \"" << tsp.peer << "\", "
                  << "\"ts\": \""
-                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                 << std::chrono::duration_cast<std::chrono::microseconds>(
                         tsp.now.time_since_epoch())
                         .count()
                  << "\", \"dur\": \"0\""
@@ -324,9 +328,10 @@ void CtranMapper::reportProfiling(bool flush) {
                  << "\"cat\": \"NET\", "
                  << "\"id\": \"" << id++ << "\", "
                  << "\"ph\": \"b\", "
-                 << "\"pid\": \"" << tsp.peer << "\", "
+                 << "\"pid\": \"" << this->rank << "\", "
+                 << "\"tid\": \"" << tsp.peer << "\", "
                  << "\"ts\": \""
-                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                 << std::chrono::duration_cast<std::chrono::microseconds>(
                         tsp.now.time_since_epoch())
                         .count()
                  << "\"}," << std::endl;
@@ -337,9 +342,10 @@ void CtranMapper::reportProfiling(bool flush) {
                  << "\"cat\": \"NET\", "
                  << "\"id\": \"" << id++ << "\", "
                  << "\"ph\": \"e\", "
-                 << "\"pid\": \"" << tsp.peer << "\", "
+                 << "\"pid\": \"" << this->rank << "\", "
+                 << "\"tid\": \"" << tsp.peer << "\", "
                  << "\"ts\": \""
-                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                 << std::chrono::duration_cast<std::chrono::microseconds>(
                         tsp.now.time_since_epoch())
                         .count()
                  << "\"}," << std::endl;
@@ -349,9 +355,10 @@ void CtranMapper::reportProfiling(bool flush) {
                << "\"cat\": \"COL\", "
                << "\"id\": \"" << collId << "\", "
                << "\"ph\": \"e\", "
-               << "\"pid\": \"0\", "
+               << "\"pid\": \"" << this->rank << "\", "
+               << "\"tid\": \"-1\", "
                << "\"ts\": \""
-               << std::chrono::duration_cast<std::chrono::milliseconds>(
+               << std::chrono::duration_cast<std::chrono::microseconds>(
                       last.now.time_since_epoch())
                       .count()
                << "\"}," << std::endl;
