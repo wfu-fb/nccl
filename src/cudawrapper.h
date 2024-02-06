@@ -296,7 +296,7 @@ class CudaWrapper {
     if (mock_) {
       return CUDA_SUCCESS;
     } else {
-      return ::cuMulticastAddDevice(mcHandle, dev);
+      // return ::cuMulticastAddDevice(mcHandle, dev);
     }
   }
 
@@ -309,7 +309,7 @@ class CudaWrapper {
     if (mock_) {
       return CUDA_SUCCESS;
     } else {
-      return ::cuMulticastBindAddr(mcHandle, mcOffset, memptr, size, flags);
+      // return ::cuMulticastBindAddr(mcHandle, mcOffset, memptr, size, flags);
     }
   }
 
@@ -323,8 +323,8 @@ class CudaWrapper {
     if (mock_) {
       return CUDA_SUCCESS;
     } else {
-      return ::cuMulticastBindMem(
-          mcHandle, mcOffset, memHandle, memOffset, size, flags);
+      // return ::cuMulticastBindMem(
+      //     mcHandle, mcOffset, memHandle, memOffset, size, flags);
     }
   }
 
@@ -334,7 +334,7 @@ class CudaWrapper {
     if (mock_) {
       return CUDA_SUCCESS;
     } else {
-      return ::cuMulticastCreate(mcHandle, prop);
+      // return ::cuMulticastCreate(mcHandle, prop);
     }
   }
 
@@ -345,7 +345,7 @@ class CudaWrapper {
     if (mock_) {
       return CUDA_SUCCESS;
     } else {
-      return ::cuMulticastGetGranularity(granularity, prop, option);
+      // return ::cuMulticastGetGranularity(granularity, prop, option);
     }
   }
 
@@ -357,7 +357,7 @@ class CudaWrapper {
     if (mock_) {
       return CUDA_SUCCESS;
     } else {
-      return ::cuMulticastUnbind(mcHandle, dev, mcOffset, size);
+      // return ::cuMulticastUnbind(mcHandle, dev, mcOffset, size);
     }
   }
 #endif
