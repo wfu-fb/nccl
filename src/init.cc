@@ -2602,3 +2602,13 @@ NCCL_API(CudaWrapper *, ncclSetupWrappers, bool mock) {
 
   return cudaWrapper.get();
 }
+
+NCCL_API(
+    ncclResult_t,
+    ncclWinAllocShared,
+    size_t size,
+    ncclComm_t comm,
+    ncclWin_t* win);
+ncclResult_t ncclWinAllocShared(size_t size, ncclComm_t comm, ncclWin_t* win) {
+    return ncclSuccess;
+}

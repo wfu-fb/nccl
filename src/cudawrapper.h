@@ -520,6 +520,7 @@ class CudaWrapper {
 
   cudaError_t cudaGetDeviceCount(int* count) {
     if (mock_) {
+      *count = 1234;
       return cudaSuccess;
     } else {
       return ::cudaGetDeviceCount(count);

@@ -451,6 +451,22 @@ ncclResult_t pncclCommDeregister(const ncclComm_t comm, void* handle);
 CudaWrapper*  ncclSetupWrappers(bool mock);
 CudaWrapper* pncclSetupWrappers(bool mock);
 
+/*
+ * Shared Window Allocattion
+ *
+ * Create a window object for one-sided communication and shared memory access
+ * and allocate memory at each process in the communicator
+ *
+ * The communicator can only contain processes on the same node.
+ */
+struct ncclWin {
+  int dummy;
+};
+
+typedef struct ncclWin* ncclWin_t;
+ncclResult_t  ncclWinAllocShared(size_t size, ncclComm_t comm, ncclWin_t* win);
+ncclResult_t pncclWinAllocShared(size_t size, ncclComm_t comm, ncclWin_t* win);
+
 #ifdef __cplusplus
 } // end extern "C"
 #endif
