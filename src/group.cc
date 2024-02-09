@@ -11,6 +11,8 @@
 #include "channel.h"
 #include <assert.h>
 
+#include <iostream>
+
 __thread int ncclGroupDepth = 0; // depth of ncclGroupStart nesting
 __thread ncclResult_t ncclGroupError = ncclSuccess;
 __thread struct ncclComm* ncclGroupCommHead = nullptr;
@@ -59,7 +61,10 @@ ncclResult_t ncclAsyncLaunch(
 
 void* ncclAsyncJobMain(void* arg) {
   struct ncclAsyncJob* job = (struct ncclAsyncJob*)arg;
+  std::cout<<"wenyin: group.cc: ncclAsyncJobMain() 1: job="<< job << " job->func=" << (job->func) << std::endl;
   job->result = job->func(job);
+  std::cout<<"wenyin: group.cc: ncclAsyncJobMain() 2: job->result =" << job->result <<"\n";
+
   if (job->result != ncclSuccess) {
     INFO(NCCL_INIT,"%s:%d -> %d [Async thread]", __FILE__, __LINE__, job->result);
   }
@@ -92,6 +97,7 @@ NCCL_API(ncclResult_t, ncclGroupEnd);
 ncclResult_t ncclGroupEnd() {
   ncclResult_t ret = ncclSuccess;
   NVTX3_FUNC_RANGE_IN(nccl_domain);
+  std::cout<<"wenyin: group.cc: ncclGroupEnd(): calling ncclGroupEndInternal...\n";
   NCCLCHECKGOTO(ncclGroupEndInternal(), ret, exit);
   TRACE_CALL("ncclGroupEnd()");
 exit:
@@ -329,11 +335,16 @@ static ncclResult_t groupLaunch(struct ncclAsyncJob *job_) {
         job = job->next;
       } while (job != nullptr);
       // Let preconnect threads progress.
+
       if (jobsDone == false) usleep(1);
     } while (jobsDone == false);
 
+    std::cout<< "wenyin: groupLaunch: 10  ret= "<<ret<<std::endl;
+
     if (ret != ncclSuccess) goto fail;
   }
+
+  std::cout<< "wenyin: groupLaunch: "  << " groupCommHeadMain=" << groupCommHeadMain << std::endl;
 
   if (groupCommHeadMain != nullptr) {
     NCCLCHECKGOTO(doLaunches(groupCommHeadMain), ret, fail);
@@ -368,6 +379,7 @@ fail:
 ncclResult_t ncclGroupEndInternal() {
   ncclResult_t ret = ncclSuccess;
 
+  std::cout<< "wenyin: ncclGroupEndInternal: 1: ncclGroupDepth=" << ncclGroupDepth << std::endl;
   if (ncclGroupDepth == 0) {
     WARN("ncclGroupEnd: not in a group call.");
     ret = ncclInvalidUsage;
@@ -378,7 +390,11 @@ ncclResult_t ncclGroupEndInternal() {
 
   if ((ret = ncclGroupError) != ncclSuccess) goto fail;
 
+  std::cout<< "wenyin: ncclGroupEndInternal: 2: ncclGroupDepth=" << ncclGroupDepth << std::endl;
+
   if (ncclGroupCommHead != nullptr || !ncclIntruQueueEmpty(&ncclAsyncJobs) || ncclGroupCommPreconnectHead != nullptr) {
+    std::cout<< "wenyin: ncclGroupEndInternal: 3  ncclGroupCommHead=" << ncclGroupCommHead << std::endl;
+
     ncclGroupJobMain.groupCommHeadPtr = &ncclGroupCommHead;
     ncclGroupJobMain.groupCommPreconnectHeadPtr = &ncclGroupCommPreconnectHead;
     ncclGroupJobMain.groupErrorPtr = &ncclGroupError;
@@ -390,6 +406,8 @@ ncclResult_t ncclGroupEndInternal() {
     /* make sure ncclGroupBlocking has been set. */
     assert(ncclGroupBlocking == 0 || ncclGroupBlocking == 1);
     if (ncclGroupBlocking == 0 && (ncclGroupCommPreconnectHead != nullptr || !ncclIntruQueueEmpty(&ncclAsyncJobs))) {
+      std::cout<< "wenyin: ncclGroupEndInternal: 5  " << std::endl;
+
       /* nonblocking group */
       if (!ncclIntruQueueEmpty(&ncclAsyncJobs)) {
         ncclAsyncJob* job = ncclIntruQueueHead(&ncclAsyncJobs);
@@ -414,11 +432,17 @@ ncclResult_t ncclGroupEndInternal() {
       SYSCHECKGOTO(pthread_create(&ncclGroupJobMainPtr->base.thread, NULL, ncclAsyncJobMain, (void*)&ncclGroupJobMainPtr->base), ret, fail);
       ret = ncclInProgress;
     } else {
+      std::cout<< "wenyin: ncclGroupEndInternal: calling groupLaunch..." << std::endl;
+
       /* blocking group */
       NCCLCHECKGOTO(groupLaunch(&ncclGroupJobMainPtr->base), ret, fail);
+      std::cout<< "wenyin: ncclGroupEndInternal: groupLaunch ret=" << ret << std::endl;
+
       groupResetJobState(ncclGroupJobMainPtr);
     }
   }
+
+  std::cout<< "wenyin: ncclGroupEndInternal: 8  ret=" << ret << std::endl;
 
 exit:
   return ret;

@@ -31,6 +31,8 @@
 #include "cudawrapper.h"
 #include "ibvwrap.h"
 
+#include <iostream>
+
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
 
@@ -1875,8 +1877,8 @@ constexpr nvtxPayloadSchemaEntry_t CommInitRankSchema[] = {
 
 NCCL_API(ncclResult_t, ncclCommInitRank, ncclComm_t* newcomm, int nranks, ncclUniqueId commId, int myrank);
 ncclResult_t ncclCommInitRank(ncclComm_t* newcomm, int nranks, ncclUniqueId commId, int myrank) {
+  std::cout<<"wenyin: init.cc: ncclCommInitRank: 1  nr=" << nranks << " r=" << myrank << std::endl;
   initEnv();
-
   // Load the CUDA driver and dlsym hooks (can fail on old drivers)
   (void)ncclCudaLibraryInit();
 
@@ -2588,6 +2590,7 @@ fail:
 }
 
 NCCL_API(CudaWrapper *, ncclSetupWrappers, bool mock) {
+  std::cout<<"wenyin: init.cc: ncclSetupWrappers: mock="<< mock << " cudaWrapper=" << std::hex << cudaWrapper << std::dec <<std::endl;
   if (cudaWrapper == nullptr) {
     cudaWrapper = std::make_shared<CudaWrapper>(mock);
   }

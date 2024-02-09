@@ -512,6 +512,7 @@ class CudaWrapper {
 
   cudaError_t cudaGetDevice(int* device) {
     if (mock_) {
+      // *device = 9; // wenyin: debug hack
       return cudaSuccess;
     } else {
       return ::cudaGetDevice(device);
