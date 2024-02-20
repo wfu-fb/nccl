@@ -31,7 +31,7 @@
 #include "cudawrapper.h"
 #include "ibvwrap.h"
 
-#include <iostream>
+#include <iostream>  // wenyin hack
 
 /*
 === BEGIN_NCCL_CVAR_INFO_BLOCK ===
@@ -1560,6 +1560,8 @@ static ncclResult_t ncclCommInitRankFunc(struct ncclAsyncJob* job_) {
   int* parentRanks = NULL;
   int cudaArch;
 
+  std::cout<<"wenyin: ncclCommInitRankFunc: rank="<< comm->rank << " commid="<< (unsigned long long)hashUniqueId(job->commId)<< std::endl;
+
   auto timerBegin = std::chrono::steady_clock::now();
   double timerDeltaMs;
   if (job->color != NCCL_SPLIT_NOCOLOR) {
@@ -1820,6 +1822,8 @@ static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUni
     NCCLCHECKGOTO(bootstrapCreateRoot((struct ncclBootstrapHandle*)&commId, true), res, fail);
   }
 
+  std::cout<< "wenyin: ncclCommInitRankDev: myrank=" << myrank << ", nranks=" << nranks << std::endl;
+
   NCCLCHECKGOTO(ncclInit(), res, fail);
   if (myrank == 0) showVersion();
 
@@ -1849,7 +1853,14 @@ static ncclResult_t ncclCommInitRankDev(ncclComm_t* newcomm, int nranks, ncclUni
   job->commId = commId; // C++ struct assignment
   job->myrank = myrank;
   job->cudaDev = cudaDev;
+  std::cout<< "wenyin: ncclCommInitRankDev: myrank=" << myrank << " nranks=" << nranks << " commId=" << (unsigned long long)hashUniqueId(commId) << ", ncclAsyncLaunch" << std::endl;
   NCCLCHECKGOTO(ncclAsyncLaunch(&job->base, ncclCommInitRankFunc, NULL, free, comm), res, fail);
+
+  // wenyin hack
+  std::cout<<"wenyin: "<< myrank << " vs " << comm->rank << " " << nranks << " vs " << comm->nRanks << std::endl;
+  comm->rank = myrank;
+  comm->nRanks = nranks;
+  NCCLCHECKGOTO(bootstrapInit((struct ncclBootstrapHandle*)&commId, comm), res, fail);
 
 exit:
   return ncclGroupErrCheck(res);
@@ -2254,6 +2265,8 @@ ncclResult_t ncclCommSplit(ncclComm_t comm, int color, int key, ncclComm_t *newc
   struct ncclCommInitRankAsyncJob *job = NULL;
   struct ncclComm* childComm = NCCL_COMM_NULL;
   ncclResult_t res = ncclSuccess;
+
+  std::cout<<"wenyin: init.cc ncclCommSplit: color="<< color << std::endl;
 
   NCCLCHECK(ncclGroupStartInternal());
   NCCLCHECKGOTO(PtrCheck(comm, "CommSplit", "comm"), res, fail);

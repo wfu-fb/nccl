@@ -14,6 +14,8 @@
 #include "proxy.h"
 #include "param.h"
 
+#include <iostream> // wenyin hack
+
 struct bootstrapRootArgs {
   struct ncclSocket* listenSock;
   uint64_t magic;
@@ -249,15 +251,23 @@ ncclResult_t bootstrapInit(struct ncclBootstrapHandle* handle, struct ncclComm* 
 
   info.rank = rank;
   info.nranks = nranks;
+
+  std::cout<<"wenyin: bootstrapInit 1, nranks=" << nranks << std::endl;
+
   // Create socket for other ranks to contact me
   NCCLCHECK(ncclSocketInit(&state->listenSock, &bootstrapNetIfAddr, comm->magic, ncclSocketTypeBootstrap, comm->abortFlag));
   NCCLCHECK(ncclSocketListen(&state->listenSock));
   NCCLCHECK(ncclSocketGetAddr(&state->listenSock, &info.extAddressListen));
 
+
+  std::cout<<"wenyin: bootstrapInit 2"<<std::endl;
+
   // Create socket for root to contact me
   NCCLCHECK(ncclSocketInit(&listenSockRoot, &bootstrapNetIfAddr, comm->magic, ncclSocketTypeBootstrap, comm->abortFlag));
   NCCLCHECK(ncclSocketListen(&listenSockRoot));
   NCCLCHECK(ncclSocketGetAddr(&listenSockRoot, &info.extAddressListenRoot));
+
+  std::cout<<"wenyin: bootstrapInit 3"<<std::endl;
 
   // stagger connection times to avoid an overload of the root
   if (nranks > 128) {
@@ -269,11 +279,15 @@ ncclResult_t bootstrapInit(struct ncclBootstrapHandle* handle, struct ncclComm* 
     (void) nanosleep(&tv, NULL);
   }
 
+  std::cout<<"wenyin: bootstrapInit 4"<<std::endl;
+
   // send info on my listening socket to root
   NCCLCHECK(ncclSocketInit(&sock, &handle->addr, comm->magic, ncclSocketTypeBootstrap, comm->abortFlag));
   NCCLCHECK(ncclSocketConnect(&sock));
   NCCLCHECK(bootstrapNetSend(&sock, &info, sizeof(info)));
   NCCLCHECK(ncclSocketClose(&sock));
+
+  std::cout<<"wenyin: bootstrapInit 5"<<std::endl;
 
   // get info on my "next" rank in the bootstrap ring from root
   NCCLCHECK(ncclSocketInit(&sock));
@@ -282,11 +296,15 @@ ncclResult_t bootstrapInit(struct ncclBootstrapHandle* handle, struct ncclComm* 
   NCCLCHECK(ncclSocketClose(&sock));
   NCCLCHECK(ncclSocketClose(&listenSockRoot));
 
+  std::cout<<"wenyin: bootstrapInit 6"<<std::endl;
+
   NCCLCHECK(ncclSocketInit(&state->ringSendSocket, &nextAddr, comm->magic, ncclSocketTypeBootstrap, comm->abortFlag));
   NCCLCHECK(ncclSocketConnect(&state->ringSendSocket));
   // Accept the connect request from the previous rank in the AllGather ring
   NCCLCHECK(ncclSocketInit(&state->ringRecvSocket));
   NCCLCHECK(ncclSocketAccept(&state->ringRecvSocket, &state->listenSock));
+
+  std::cout<<"wenyin: bootstrapInit 7"<<std::endl;
 
   // AllGather all listen handlers
   NCCLCHECK(ncclCalloc(&state->peerCommAddresses, nranks));
@@ -296,13 +314,23 @@ ncclResult_t bootstrapInit(struct ncclBootstrapHandle* handle, struct ncclComm* 
   // Create the service proxy
   NCCLCHECK(ncclCalloc(&state->peerProxyAddresses, nranks));
 
+  std::cout<<"wenyin: bootstrapInit 8"<<std::endl;
+
   // proxy is aborted through a message; don't set abortFlag
   NCCLCHECK(ncclCalloc(&proxySocket, 1));
+  std::cout<<"wenyin: bootstrapInit 8a"<<std::endl;
   NCCLCHECK(ncclSocketInit(proxySocket, &bootstrapNetIfAddr, comm->magic, ncclSocketTypeProxy, comm->abortFlag));
+  std::cout<<"wenyin: bootstrapInit 8b"<<std::endl;
   NCCLCHECK(ncclSocketListen(proxySocket));
+  std::cout<<"wenyin: bootstrapInit 8c"<<std::endl;
   NCCLCHECK(ncclSocketGetAddr(proxySocket, state->peerProxyAddresses+rank));
+  std::cout<<"wenyin: bootstrapInit 8d"<<std::endl;
   NCCLCHECK(bootstrapAllGather(state, state->peerProxyAddresses, sizeof(union ncclSocketAddress)));
+  std::cout<<"wenyin: bootstrapInit 8e"<<std::endl;
+  return ncclSuccess; // wenyin hack
   NCCLCHECK(ncclProxyInit(comm, proxySocket, state->peerProxyAddresses));
+
+  std::cout<<"wenyin: bootstrapInit 9"<<std::endl;
 
   TRACE(NCCL_INIT, "rank %d nranks %d - DONE", rank, nranks);
 
